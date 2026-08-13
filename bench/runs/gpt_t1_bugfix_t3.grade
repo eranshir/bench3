@@ -1,0 +1,10 @@
+test_documented_cases (_hidden_test.T.test_documented_cases) ... ok
+test_empty_still_raises (_hidden_test.T.test_empty_still_raises) ... ok
+test_nearest_rank_semantics (_hidden_test.T.test_nearest_rank_semantics) ... ok
+test_single (_hidden_test.T.test_single) ... ok
+test_unsorted_input (_hidden_test.T.test_unsorted_input) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK

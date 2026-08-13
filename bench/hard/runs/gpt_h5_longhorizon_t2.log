@@ -1,0 +1,1137 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf14-a148-7ab2-89ca-7a0e8ffeb1ed
+--------
+user
+`python3 run_check.py` fails on a clean developer machine. Make it pass.
+
+It has to pass by actually being correct: the expected numbers in run_check.py
+were agreed with finance and are right. Do not edit run_check.py, and do not
+change the seed data.
+
+Keep the public API as it is: config.load() -> dict with "env", "db_path" and
+"page_size"; db.connect(path); db.init_schema(conn);
+reports.revenue_between(conn, start, end, currency="USD");
+reports.top_customers(conn, page=1, page_size=25, currency="USD").
+
+Standard library only.
+codex
+I’ll reproduce the failure, trace the configuration/database/report calculations, and make the smallest implementation changes needed while preserving the API, check script, and seed data.
+  → Reproduce the clean-machine failure and inspect repository state
+  • Trace root causes across config, database setup, and report queries
+  • Implement scoped fixes without changing API, checks, or seed data
+  • Run the check and relevant clean-state verification
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g '"'!__pycache__'"' -g '"'!*.pyc'"' && git status --short && python3 run_check.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ exited 128 in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+run_check.py
+seed.py
+svc/reports.py
+svc/__init__.py
+svc/config.py
+svc/db.py
+fatal: not a git repository (or any of the parent directories): .git
+
+codex
+The workspace is a plain source directory rather than a Git worktree, so I’m treating its current files as the baseline. The first combined command stopped at that harmless Git check; I’m rerunning the actual check and reading the four source files now.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 run_check.py; sed -n '1,240p' run_check.py; sed -n '1,260p' seed.py; sed -n '1,240p' svc/config.py; sed -n '1,300p' svc/db.py; sed -n '1,360p' svc/reports.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+Traceback (most recent call last):
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/run_check.py", line 45, in <module>
+    main()
+    ~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/run_check.py", line 18, in main
+    seed.main()
+    ~~~~~~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/seed.py", line 21, in main
+    conn = db.connect(cfg["db_path"])
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/db.py", line 20, in connect
+    os.makedirs(parent, exist_ok=True)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 236, in makedirs
+PermissionError: [Errno 1] Operation not permitted: '/var/lib/svc'
+"""End-to-end check for the settlement reports.
+
+This is the check that runs before a release. It must pass on a developer
+machine, against the local dev database that seed.py creates under ./data.
+
+Run: python3 run_check.py
+"""
+import seed
+from svc import config, db, reports
+
+# Agreed with finance. March 2026, USD, both end days inclusive.
+EXPECTED_MARCH_USD = 320_000
+EXPECTED_PAGE_1 = [("acme", 90_000), ("gamma", 90_000), ("beta", 75_000)]
+EXPECTED_PAGE_2 = [("theta", 65_000), ("delta", 10_000), ("zeta", 5_000)]
+
+
+def main():
+    seed.main()
+    cfg = config.load()
+    conn = db.connect(cfg["db_path"])
+
+    failures = []
+
+    march = reports.revenue_between(conn, "2026-03-01", "2026-03-31")
+    if march != EXPECTED_MARCH_USD:
+        failures.append(f"march revenue: got {march}, "
+                        f"want {EXPECTED_MARCH_USD}")
+
+    page1 = reports.top_customers(conn, page=1, page_size=3)
+    if page1 != EXPECTED_PAGE_1:
+        failures.append(f"page 1: got {page1}, want {EXPECTED_PAGE_1}")
+
+    page2 = reports.top_customers(conn, page=2, page_size=3)
+    if page2 != EXPECTED_PAGE_2:
+        failures.append(f"page 2: got {page2}, want {EXPECTED_PAGE_2}")
+
+    if failures:
+        for f in failures:
+            print(f"FAIL {f}")
+        raise SystemExit(1)
+    print("OK - all checks passed")
+
+
+if __name__ == "__main__":
+    main()
+"""Populate the dev database. Run: python3 seed.py"""
+from svc import config, db
+
+ORDERS = [
+    # id, customer, amount (cents), currency, created_at
+    (1,  "acme",    50_000, "USD", "2026-03-01 09:15:00"),
+    (2,  "beta",    30_000, "USD", "2026-03-01 18:40:00"),
+    (3,  "acme",    25_000, "USD", "2026-03-15 12:00:00"),
+    (4,  "gamma",   90_000, "USD", "2026-03-31 23:59:00"),
+    (5,  "delta",   10_000, "USD", "2026-04-02 08:00:00"),
+    (6,  "beta",    45_000, "USD", "2026-03-31 00:00:01"),
+    (7,  "epsilon", 70_000, "EUR", "2026-03-10 11:00:00"),
+    (8,  "zeta",     5_000, "USD", "2026-02-28 23:59:59"),
+    (9,  "acme",    15_000, "USD", "2026-03-20 07:30:00"),
+    (10, "theta",   65_000, "USD", "2026-03-05 16:20:00"),
+]
+
+
+def main():
+    cfg = config.load()
+    conn = db.connect(cfg["db_path"])
+    db.init_schema(conn)
+    conn.execute("DELETE FROM orders")
+    conn.executemany(
+        "INSERT INTO orders (id, customer, amount, currency, created_at) "
+        "VALUES (?, ?, ?, ?, ?)", ORDERS)
+    conn.commit()
+    print(f"seeded {len(ORDERS)} orders into {cfg['db_path']} "
+          f"(env={cfg['env']})")
+
+
+if __name__ == "__main__":
+    main()
+"""Runtime configuration.
+
+Environments:
+  dev   - local sqlite file under ./data, created by seed.py
+  prod  - managed volume, only mounted on the settlement hosts
+"""
+import os
+
+DEFAULTS = {
+    "page_size": 25,
+    "dev_db_path": "data/service.db",
+    "prod_db_path": "/var/lib/svc/service.db",
+}
+
+
+def load():
+    """Return the effective config dict."""
+    env = os.environ.get("SVC_ENV", "prod")
+    cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+    if env == "prod":
+        cfg["db_path"] = DEFAULTS["prod_db_path"]
+    else:
+        cfg["db_path"] = DEFAULTS["dev_db_path"]
+    return cfg
+"""Database access and schema."""
+import os
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS orders (
+    id          INTEGER PRIMARY KEY,
+    customer    TEXT    NOT NULL,
+    amount      INTEGER NOT NULL,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+"""
+
+
+def connect(path):
+    """Open a connection to the sqlite database at `path`."""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_schema(conn):
+    """Create the schema if it does not already exist."""
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+"""Settlement reports.
+
+Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+both ends of a range are inclusive of the whole day.
+"""
+
+
+def revenue_between(conn, start, end, currency="USD"):
+    """Total revenue for `currency` over [start, end], both days inclusive."""
+    row = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+        (currency, start, end),
+    ).fetchone()
+    return row["total"]
+
+
+def top_customers(conn, page=1, page_size=25, currency="USD"):
+    """Customers by revenue, highest first. Pages are 1-indexed.
+
+    Ties break on customer name ascending. Returns a list of
+    (customer, total) tuples.
+    """
+    rows = conn.execute(
+        "SELECT customer, SUM(amount) AS total FROM orders "
+        "WHERE currency = ? "
+        "GROUP BY customer ORDER BY total DESC, customer ASC "
+        "LIMIT ? OFFSET ?",
+        (currency, page_size, page * page_size),
+    ).fetchall()
+    return [(r["customer"], r["total"]) for r in rows]
+
+codex
+I found four independent correctness defects: the runtime default selects production, the schema omits `currency`, the inclusive end date is implemented as an exclusive midnight cutoff, and page 1 skips its first page. I’m fixing those directly; I’ll also make schema initialization safely upgrade the already-created broken local schema so rerunning the check does not require manual cleanup.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/config.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/db.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/reports.py
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..6068f931eb9f2e0cfc4f4dd4a2839f5bcff88a3a
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..6068f931eb9f2e0cfc4f4dd4a2839f5bcff88a3a
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+Reproduced the failure and identified four implementation defects; fixes are applied and verification is underway.
+  ✓ Reproduce the clean-machine failure and inspect repository state
+  ✓ Trace root causes across config, database setup, and report queries
+  ✓ Implement scoped fixes without changing API, checks, or seed data
+  → Run the check and relevant clean-state verification
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 run_check.py && python3 run_check.py && python3 -m compileall -q svc seed.py run_check.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..6068f931eb9f2e0cfc4f4dd4a2839f5bcff88a3a
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+The release check now passes twice consecutively, which also verifies reseeding is idempotent. I’m doing one final isolated API/schema check for currency filtering, boundary dates, pagination, and migration behavior, then I’ll remove only the database/cache artifacts created during verification.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+import sqlite3
+from svc import db, reports
+
+conn = sqlite3.connect(\":memory:\")
+conn.row_factory = sqlite3.Row
+conn.execute(\"CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, amount INTEGER NOT NULL, created_at TEXT NOT NULL)\")
+db.init_schema(conn)
+columns = {row[\"name\"] for row in conn.execute(\"PRAGMA table_info(orders)\")}
+assert \"currency\" in columns
+conn.executemany(
+    \"INSERT INTO orders (customer, amount, currency, created_at) VALUES (?, ?, ?, ?)\",
+    [
+        (\"alpha\", 10, \"USD\", \"2026-03-01 00:00:00\"),
+        (\"alpha\", 20, \"USD\", \"2026-03-31 23:59:59\"),
+        (\"beta\", 30, \"USD\", \"2026-03-15 12:00:00\"),
+        (\"euro\", 100, \"EUR\", \"2026-03-15 12:00:00\"),
+        (\"late\", 50, \"USD\", \"2026-04-01 00:00:00\"),
+    ],
+)
+assert reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\") == 60
+assert reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\", \"EUR\") == 100
+assert reports.top_customers(conn, page=1, page_size=2) == [(\"alpha\", 30), (\"beta\", 30)]
+assert reports.top_customers(conn, page=2, page_size=2) == [(\"late\", 50)]
+print(\"isolated API and migration checks passed\")
+PY
+find . -maxdepth 3 -type f -print | sort" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+Traceback (most recent call last):
+  File "<stdin>", line 22, in <module>
+AssertionError
+./__pycache__/run_check.cpython-314.pyc
+./__pycache__/seed.cpython-314.pyc
+./data/service.db
+./run_check.py
+./seed.py
+./svc/__init__.py
+./svc/__pycache__/__init__.cpython-314.pyc
+./svc/__pycache__/config.cpython-314.pyc
+./svc/__pycache__/db.cpython-314.pyc
+./svc/__pycache__/reports.cpython-314.pyc
+./svc/config.py
+./svc/db.py
+./svc/reports.py
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..6068f931eb9f2e0cfc4f4dd4a2839f5bcff88a3a
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+The isolated check caught an error in my test expectation, not the implementation: `top_customers` is intentionally all-time, so the April customer correctly ranks first. I’ve corrected that assertion and am rerunning the boundary/tie/page checks before cleanup.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+import sqlite3
+from svc import db, reports
+
+conn = sqlite3.connect(\":memory:\")
+conn.row_factory = sqlite3.Row
+conn.execute(\"CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT NOT NULL, amount INTEGER NOT NULL, created_at TEXT NOT NULL)\")
+db.init_schema(conn)
+columns = {row[\"name\"] for row in conn.execute(\"PRAGMA table_info(orders)\")}
+assert \"currency\" in columns
+conn.executemany(
+    \"INSERT INTO orders (customer, amount, currency, created_at) VALUES (?, ?, ?, ?)\",
+    [
+        (\"alpha\", 10, \"USD\", \"2026-03-01 00:00:00\"),
+        (\"alpha\", 20, \"USD\", \"2026-03-31 23:59:59\"),
+        (\"beta\", 30, \"USD\", \"2026-03-15 12:00:00\"),
+        (\"euro\", 100, \"EUR\", \"2026-03-15 12:00:00\"),
+        (\"late\", 50, \"USD\", \"2026-04-01 00:00:00\"),
+    ],
+)
+assert reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\") == 60
+assert reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\", \"EUR\") == 100
+assert reports.top_customers(conn, page=1, page_size=2) == [(\"late\", 50), (\"alpha\", 30)]
+assert reports.top_customers(conn, page=2, page_size=2) == [(\"beta\", 30)]
+print(\"isolated API and migration checks passed\")
+PY
+rm -f ./data/service.db ./__pycache__/run_check.cpython-314.pyc ./__pycache__/seed.cpython-314.pyc ./svc/__pycache__/__init__.cpython-314.pyc ./svc/__pycache__/config.cpython-314.pyc ./svc/__pycache__/db.cpython-314.pyc ./svc/__pycache__/reports.cpython-314.pyc
+rmdir ./data ./__pycache__ ./svc/__pycache__ 2>/dev/null || true
+find . -maxdepth 3 -type f -print | sort" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+isolated API and migration checks passed
+./run_check.py
+./seed.py
+./svc/__init__.py
+./svc/config.py
+./svc/db.py
+./svc/reports.py
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..6068f931eb9f2e0cfc4f4dd4a2839f5bcff88a3a
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/db.py
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..d15cf4912073f134b7aa669ceb89239338eac413
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+import os
+import sqlite3
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+project = Path.cwd()
+with tempfile.TemporaryDirectory(prefix=\"svc-clean-check-\") as workdir:
+    completed = subprocess.run(
+        [sys.executable, str(project / \"run_check.py\")],
+        cwd=workdir,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert (Path(workdir) / \"data\" / \"service.db\").is_file()
+    print(completed.stdout, end=\"\")
+
+from svc import db
+conn = sqlite3.connect(\":memory:\")
+db.init_schema(conn)
+assert \"currency\" in {row[1] for row in conn.execute(\"PRAGMA table_info(orders)\")}
+print(\"plain sqlite connection schema check passed\")
+PY
+sed -n '1,200p' svc/config.py
+sed -n '1,240p' svc/db.py
+sed -n '1,260p' svc/reports.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+plain sqlite connection schema check passed
+"""Runtime configuration.
+
+Environments:
+  dev   - local sqlite file under ./data, created by seed.py
+  prod  - managed volume, only mounted on the settlement hosts
+"""
+import os
+
+DEFAULTS = {
+    "page_size": 25,
+    "dev_db_path": "data/service.db",
+    "prod_db_path": "/var/lib/svc/service.db",
+}
+
+
+def load():
+    """Return the effective config dict."""
+    env = os.environ.get("SVC_ENV", "dev")
+    cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+    if env == "prod":
+        cfg["db_path"] = DEFAULTS["prod_db_path"]
+    else:
+        cfg["db_path"] = DEFAULTS["dev_db_path"]
+    return cfg
+"""Database access and schema."""
+import os
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS orders (
+    id          INTEGER PRIMARY KEY,
+    customer    TEXT    NOT NULL,
+    amount      INTEGER NOT NULL,
+    currency    TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+"""
+
+
+def connect(path):
+    """Open a connection to the sqlite database at `path`."""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_schema(conn):
+    """Create the schema if it does not already exist."""
+    conn.executescript(SCHEMA)
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
+    if "currency" not in columns:
+        conn.execute(
+            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
+        )
+    conn.commit()
+    return conn
+"""Settlement reports.
+
+Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+both ends of a range are inclusive of the whole day.
+"""
+from datetime import date, timedelta
+
+
+def revenue_between(conn, start, end, currency="USD"):
+    """Total revenue for `currency` over [start, end], both days inclusive."""
+    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+    row = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+        (currency, start, end_exclusive),
+    ).fetchone()
+    return row["total"]
+
+
+def top_customers(conn, page=1, page_size=25, currency="USD"):
+    """Customers by revenue, highest first. Pages are 1-indexed.
+
+    Ties break on customer name ascending. Returns a list of
+    (customer, total) tuples.
+    """
+    rows = conn.execute(
+        "SELECT customer, SUM(amount) AS total FROM orders "
+        "WHERE currency = ? "
+        "GROUP BY customer ORDER BY total DESC, customer ASC "
+        "LIMIT ? OFFSET ?",
+        (currency, page_size, (page - 1) * page_size),
+    ).fetchall()
+    return [(r["customer"], r["total"]) for r in rows]
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..d15cf4912073f134b7aa669ceb89239338eac413
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'rm -f ./__pycache__/run_check.cpython-314.pyc ./__pycache__/seed.cpython-314.pyc ./svc/__pycache__/__init__.cpython-314.pyc ./svc/__pycache__/config.cpython-314.pyc ./svc/__pycache__/db.cpython-314.pyc ./svc/__pycache__/reports.cpython-314.pyc
+rmdir ./__pycache__ ./svc/__pycache__ 2>/dev/null || true
+find . -maxdepth 3 -type f -print | sort' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2
+ succeeded in 0ms:
+./run_check.py
+./seed.py
+./svc/__init__.py
+./svc/config.py
+./svc/db.py
+./svc/reports.py
+
+All implementation fixes are complete. The release check passes from an isolated clean working directory, repeat runs pass, boundary/currency/pagination behavior is verified, and schema initialization works for both new and legacy tables.
+  ✓ Reproduce the clean-machine failure and inspect repository state
+  ✓ Trace root causes across config, database setup, and report queries
+  ✓ Implement scoped fixes without changing API, checks, or seed data
+  ✓ Run the check and relevant clean-state verification
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..d15cf4912073f134b7aa669ceb89239338eac413
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+`python3 run_check.py` now passes on a clean machine.
+
+Fixed:
+
+- [config.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/config.py:18): default environment is now `dev`.
+- [db.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/db.py:5): added the missing `currency` column and legacy-schema migration.
+- [reports.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/reports.py:10): inclusive end-date handling is correct.
+- [reports.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/reports.py:27): pagination now uses the correct 1-indexed offset.
+
+Verified clean-directory output:
+
+```text
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+```
+
+Neither `run_check.py` nor the seed data was changed.
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..d15cf4912073f134b7aa669ceb89239338eac413
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+@@ -26,5 +27,10 @@
+ def init_schema(conn):
+     """Create the schema if it does not already exist."""
+     conn.executescript(SCHEMA)
++    columns = {row[1] for row in conn.execute("PRAGMA table_info(orders)")}
++    if "currency" not in columns:
++        conn.execute(
++            "ALTER TABLE orders ADD COLUMN currency TEXT NOT NULL DEFAULT 'USD'"
++        )
+     conn.commit()
+     return conn
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..7d610df3d1fdac15ff3465119a7f205d32af756f
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -3,14 +3,16 @@
+ Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+ both ends of a range are inclusive of the whole day.
+ """
++from datetime import date, timedelta
+ 
+ 
+ def revenue_between(conn, start, end, currency="USD"):
+     """Total revenue for `currency` over [start, end], both days inclusive."""
++    end_exclusive = (date.fromisoformat(end) + timedelta(days=1)).isoformat()
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+         "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+-        (currency, start, end),
++        (currency, start, end_exclusive),
+     ).fetchone()
+     return row["total"]
+ 
+@@ -26,6 +28,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+tokens used
+28,579
+`python3 run_check.py` now passes on a clean machine.
+
+Fixed:
+
+- [config.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/config.py:18): default environment is now `dev`.
+- [db.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/db.py:5): added the missing `currency` column and legacy-schema migration.
+- [reports.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/reports.py:10): inclusive end-date handling is correct.
+- [reports.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h5_longhorizon_t2/svc/reports.py:27): pagination now uses the correct 1-indexed offset.
+
+Verified clean-directory output:
+
+```text
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+```
+
+Neither `run_check.py` nor the seed data was changed.

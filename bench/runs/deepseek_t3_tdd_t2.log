@@ -1,0 +1,301 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+model: deepseek-v4-flash
+provider: deepseek
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbead-5e55-70b1-bd33-2e44988e43a1
+--------
+user
+Implement parse_duration() in duration.py so that the existing test suite in
+test_duration.py passes in full.
+
+Do NOT modify test_duration.py — the tests define the spec. Read them.
+
+Verify with:
+  python3 -m unittest test_duration -v
+All tests must pass.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'pwd && rg --files' in /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+ succeeded in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+duration.py
+test_duration.py
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'cat duration.py' in /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+ succeeded in 0ms:
+def parse_duration(text):
+    """Parse a duration string like '1h30m' into total seconds."""
+    raise NotImplementedError
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'cat test_duration.py' in /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+ succeeded in 0ms:
+import unittest
+from duration import parse_duration
+
+
+class T(unittest.TestCase):
+    def test_simple(self):
+        self.assertEqual(parse_duration("30s"), 30)
+        self.assertEqual(parse_duration("5m"), 300)
+        self.assertEqual(parse_duration("2h"), 7200)
+        self.assertEqual(parse_duration("1d"), 86400)
+
+    def test_compound(self):
+        self.assertEqual(parse_duration("1h30m"), 5400)
+        self.assertEqual(parse_duration("1d2h3m4s"), 93784)
+
+    def test_whitespace_and_case(self):
+        self.assertEqual(parse_duration(" 1H 30M "), 5400)
+
+    def test_zero(self):
+        self.assertEqual(parse_duration("0s"), 0)
+
+    def test_invalid(self):
+        for bad in ("", "abc", "10x", "h30m", "1.5h", "-5m"):
+            with self.assertRaises(ValueError, msg=bad):
+                parse_duration(bad)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+codex
+The spec is straightforward: sum `d`/`h`/`m`/`s` components with integer amounts, ignore surrounding whitespace, and raise `ValueError` on anything malformed. Let me implement it.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/duration.py
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..2d651cf3559e71cca7478ac5fb6d6e5a70367779
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS])+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..2d651cf3559e71cca7478ac5fb6d6e5a70367779
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS])+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 -m unittest test_duration -v' in /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+ exited 1 in 0ms:
+test_compound (test_duration.T.test_compound) ... ok
+test_invalid (test_duration.T.test_invalid) ... ok
+test_simple (test_duration.T.test_simple) ... ok
+test_whitespace_and_case (test_duration.T.test_whitespace_and_case) ... ERROR
+test_zero (test_duration.T.test_zero) ... ok
+
+======================================================================
+ERROR: test_whitespace_and_case (test_duration.T.test_whitespace_and_case)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/test_duration.py", line 17, in test_whitespace_and_case
+    self.assertEqual(parse_duration(" 1H 30M "), 5400)
+                     ~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/duration.py", line 11, in parse_duration
+    raise ValueError(f"invalid duration: {text!r}")
+ValueError: invalid duration: ' 1H 30M '
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+FAILED (errors=1)
+
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..2d651cf3559e71cca7478ac5fb6d6e5a70367779
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS])+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+codex
+Internal whitespace between components is also allowed, so I'll let the pattern skip whitespace between tokens.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/duration.py
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..8a5444353c2168d70d7257669038a23b189b7ef2
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS]\s*)+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..8a5444353c2168d70d7257669038a23b189b7ef2
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS]\s*)+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 -m unittest test_duration -v' in /Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..8a5444353c2168d70d7257669038a23b189b7ef2
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS]\s*)+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+ succeeded in 106ms:
+codex
+All 5 tests pass. `parse_duration()` in [duration.py](/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/duration.py) now:
+
+- Parses compound durations like `1h30m` and `1d2h3m4s` into total seconds.
+- Accepts case variations and whitespace between components (`" 1H 30M "`).
+- Raises `ValueError` for empty, non-numeric, negative, fractional, or unit-less strings.
+
+Verification: `python3 -m unittest test_duration -v` → `OK` (5/5).
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..8a5444353c2168d70d7257669038a23b189b7ef2
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,17 @@
++import re
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    if not isinstance(text, str):
++        raise ValueError("duration must be a string")
++
++    cleaned = text.strip().upper()
++    if not cleaned or not re.fullmatch(r"(?:\d+[DHMS]\s*)+", cleaned):
++        raise ValueError(f"invalid duration: {text!r}")
++
++    units = {"D": 86400, "H": 3600, "M": 60, "S": 1}
++    total = 0
++    for match in re.finditer(r"(\d+)([DHMS])", cleaned):
++        total += int(match.group(1)) * units[match.group(2)]
++    return total
+
+tokens used
+54,992
+All 5 tests pass. `parse_duration()` in [duration.py](/Users/eranshir/Documents/Projects/deepseek/bench/work/deepseek_t3_tdd_t2/duration.py) now:
+
+- Parses compound durations like `1h30m` and `1d2h3m4s` into total seconds.
+- Accepts case variations and whitespace between components (`" 1H 30M "`).
+- Raises `ValueError` for empty, non-numeric, negative, fractional, or unit-less strings.
+
+Verification: `python3 -m unittest test_duration -v` → `OK` (5/5).

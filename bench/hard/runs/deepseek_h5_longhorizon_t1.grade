@@ -1,0 +1,21 @@
+test_prod_still_points_at_the_managed_volume (_hidden_test.Config.test_prod_still_points_at_the_managed_volume) ... ok
+test_unset_env_defaults_to_dev (_hidden_test.Config.test_unset_env_defaults_to_dev) ... ok
+test_run_check_passes (_hidden_test.EndToEnd.test_run_check_passes) ... ok
+test_currency_is_respected (_hidden_test.Revenue.test_currency_is_respected) ... ok
+test_empty_range_is_zero (_hidden_test.Revenue.test_empty_range_is_zero) ... ok
+test_full_month_includes_both_boundary_days (_hidden_test.Revenue.test_full_month_includes_both_boundary_days) ... ok
+test_range_spanning_a_month_boundary (_hidden_test.Revenue.test_range_spanning_a_month_boundary) ... ok
+test_single_day_range_is_inclusive (_hidden_test.Revenue.test_single_day_range_is_inclusive) ... ok
+test_currency_column_exists (_hidden_test.Schema.test_currency_column_exists) ... ok
+test_init_schema_is_idempotent (_hidden_test.Schema.test_init_schema_is_idempotent) ... ok
+test_currency_is_respected (_hidden_test.TopCustomers.test_currency_is_respected) ... ok
+test_defaults_return_everything (_hidden_test.TopCustomers.test_defaults_return_everything) ... ok
+test_first_page_is_page_one (_hidden_test.TopCustomers.test_first_page_is_page_one) ... ok
+test_page_past_the_end_is_empty (_hidden_test.TopCustomers.test_page_past_the_end_is_empty) ... ok
+test_second_page_continues (_hidden_test.TopCustomers.test_second_page_continues) ... ok
+test_ties_break_on_name_ascending (_hidden_test.TopCustomers.test_ties_break_on_name_ascending) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.060s
+
+OK

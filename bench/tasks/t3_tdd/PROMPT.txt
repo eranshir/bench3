@@ -1,0 +1,8 @@
+Implement parse_duration() in duration.py so that the existing test suite in
+test_duration.py passes in full.
+
+Do NOT modify test_duration.py — the tests define the spec. Read them.
+
+Verify with:
+  python3 -m unittest test_duration -v
+All tests must pass.

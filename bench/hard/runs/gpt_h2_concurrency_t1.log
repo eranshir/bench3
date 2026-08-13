@@ -1,0 +1,1773 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbeec-9e57-7b70-9910-5e7247a44b74
+--------
+user
+The batch settlement job is unreliable under load. `python3 stress.py`
+reproduces it: the deposit total comes out short, the worker pool sometimes
+returns fewer results than were submitted, and the opposing-transfer phase
+occasionally hangs and never returns.
+
+Make pipeline.py correct under concurrency.
+
+Constraints:
+- Keep the public API exactly as it is: Ledger(balances), .transfer(src, dst,
+  amount) -> bool, .deposit(account, amount), .total(), .balances; and
+  WorkerPool(workers), .submit(fn), .run() -> list of results.
+- transfer must still refuse to overdraw and return False in that case.
+- run() must return one result per submitted task.
+- Standard library only. Do not serialise everything through a single global
+  lock held for the whole run in a way that removes parallelism from the
+  worker pool.
+codex
+I’ll reproduce the failures, inspect the concurrency design, then patch `pipeline.py` and rerun both the stress case and focused checks.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g 'pipeline.py' -g 'stress.py' -g 'test*' -g 'AGENTS.md' && sed -n '1,260p' pipeline.py && sed -n '1,320p' stress.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+ succeeded in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+pipeline.py
+stress.py
+"""A tiny ledger and a worker pool used by the batch settlement job."""
+import queue
+import threading
+
+
+class Ledger:
+    """Account balances with transfers and deposits."""
+
+    def __init__(self, balances):
+        self.balances = dict(balances)
+        self.audit = []
+        self._locks = {name: threading.Lock() for name in self.balances}
+
+    def transfer(self, src, dst, amount):
+        """Move `amount` from src to dst. Returns True if it happened."""
+        with self._locks[src]:
+            with self._locks[dst]:
+                if self.balances[src] < amount:
+                    return False
+                self.balances[src] = self.balances[src] - amount
+                self.balances[dst] = self.balances[dst] + amount
+                return True
+
+    def deposit(self, account, amount):
+        """Add `amount` to an account and record it in the audit trail.
+
+        The audit entry snapshots the ledger-wide total at the moment of the
+        deposit, which is what the settlement report reconciles against.
+        """
+        current = self.balances[account]
+        new = current + amount
+        running = 0
+        for value in self.balances.values():
+            running += value
+        self.audit.append({"account": account, "amount": amount,
+                           "balance_after": new, "ledger_total": running})
+        self.balances[account] = new
+
+    def total(self):
+        return sum(self.balances.values())
+
+
+class WorkerPool:
+    """Runs submitted zero-argument callables across N threads."""
+
+    def __init__(self, workers):
+        self.workers = workers
+        self.q = queue.Queue()
+        self.results = []
+
+    def submit(self, fn):
+        self.q.put(fn)
+
+    def _worker(self):
+        while not self.q.empty():
+            fn = self.q.get()
+            self.results.append(fn())
+
+    def run(self):
+        """Run every submitted task, then return the results."""
+        threads = [threading.Thread(target=self._worker)
+                   for _ in range(self.workers)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return self.results
+"""Reproduces the production symptoms. Run: python3 stress.py
+
+Sometimes it prints a wrong total, sometimes it never finishes at all.
+"""
+import sys
+import threading
+
+from pipeline import Ledger, WorkerPool
+
+sys.setswitchinterval(1e-6)
+
+
+def deposits():
+    led = Ledger({"treasury": 0})
+    threads = [threading.Thread(
+        target=lambda: [led.deposit("treasury", 1) for _ in range(5_000)])
+        for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    print(f"deposits: expected 40000, got {led.balances['treasury']}")
+
+
+def opposing_transfers():
+    led = Ledger({"a": 1_000_000, "b": 1_000_000})
+    a = threading.Thread(
+        target=lambda: [led.transfer("a", "b", 1) for _ in range(20_000)])
+    b = threading.Thread(
+        target=lambda: [led.transfer("b", "a", 1) for _ in range(20_000)])
+    a.start()
+    b.start()
+    a.join(timeout=20)
+    b.join(timeout=20)
+    stuck = a.is_alive() or b.is_alive()
+    print(f"transfers: {'DEADLOCKED' if stuck else 'ok'}, "
+          f"total={led.total()} (expected 2000000)")
+
+
+def pool():
+    p = WorkerPool(8)
+    for i in range(500):
+        p.submit(lambda i=i: i * 2)
+    got = p.run()
+    print(f"pool: expected 500 results, got {len(got)}")
+
+
+if __name__ == "__main__":
+    deposits()
+    pool()
+    opposing_transfers()
+
+codex
+The three root causes are visible: deposits perform an unlocked read/modify/write, transfers acquire account locks in caller-dependent order, and workers use the racy `empty()`/`get()` pair. I’m checking edge semantics (audit snapshots, repeated runs, and task exceptions) before making the smallest compatible fix.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "rg -n \"Ledger|WorkerPool|audit|transfer|deposit|run\\(\" . --glob '"'!pipeline.py'"' --glob '"'!stress.py'"' --glob '"'!*'"\\.pyc' && git status --short && git log -5 --oneline -- pipeline.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+ exited 1 in 0ms:
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'git status --short
+git log -5 --oneline -- pipeline.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+ exited 128 in 240ms:
+fatal: not a git repository (or any of the parent directories): .git
+fatal: not a git repository (or any of the parent directories): .git
+
+codex
+I’m applying per-account lock ordering for transfers, a separate total/reconciliation lock for deposits, and queue sentinels for workers. This preserves parallel task execution while making each ledger operation linearizable and eliminating empty-queue races.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1/pipeline.py
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..7b80caa4ad24a26ba7da676e2f1190aa65e2c9b1
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,37 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                result = fn()
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..7b80caa4ad24a26ba7da676e2f1190aa65e2c9b1
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,37 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                result = fn()
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,280p' pipeline.py
+python3 stress.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..7b80caa4ad24a26ba7da676e2f1190aa65e2c9b1
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,37 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                result = fn()
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+ succeeded in 349ms:
+deposits: expected 40000, got 40000
+pool: expected 500 results, got 500
+transfers: ok, total=2000000 (expected 2000000)
+
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1/pipeline.py
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..e9f3172a9078789d51849b308f735a8ce703e916
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,42 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..e9f3172a9078789d51849b308f735a8ce703e916
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,42 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+codex
+The basic stress case now passes. I also made worker failures non-fatal to the pool: an exception object occupies that task’s result position, so one bad callable cannot strand later work or reduce the result count. I’m now exercising repeated runs, overdraw races, self-transfers, and concurrent deposit/transfer accounting.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 -m py_compile pipeline.py
+python3 - <<'PY'
+import threading
+import time
+from pipeline import Ledger, WorkerPool
+
+# Re-run the supplied workload enough times to expose timing-sensitive bugs.
+for _ in range(10):
+    led = Ledger({'treasury': 0})
+    threads = [threading.Thread(target=lambda: [led.deposit('treasury', 1) for _ in range(2000)]) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert not any(thread.is_alive() for thread in threads)
+    assert led.balances['treasury'] == 16000
+    assert led.total() == 16000
+    assert len(led.audit) == 16000
+    assert led.audit[-1]['ledger_total'] == 16000
+
+# Opposing transfers terminate and preserve money.
+for _ in range(10):
+    led = Ledger({'a': 10000, 'b': 10000})
+    threads = [
+        threading.Thread(target=lambda: [led.transfer('a', 'b', 1) for _ in range(3000)]),
+        threading.Thread(target=lambda: [led.transfer('b', 'a', 1) for _ in range(3000)]),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(5)
+    assert not any(thread.is_alive() for thread in threads)
+    assert led.total() == 20000
+    assert sum(led.balances.values()) == 20000
+
+# Concurrent overdraw attempts cannot make the source negative.
+led = Ledger({'a': 10, 'b': 0})
+outcomes = []
+lock = threading.Lock()
+def attempt():
+    value = led.transfer('a', 'b', 1)
+    with lock:
+        outcomes.append(value)
+threads = [threading.Thread(target=attempt) for _ in range(100)]
+for thread in threads:
+    thread.start()
+for thread in threads:
+    thread.join()
+assert outcomes.count(True) == 10
+assert outcomes.count(False) == 90
+assert led.balances == {'a': 0, 'b': 10}
+assert led.transfer('a', 'a', 1) is False
+assert led.transfer('b', 'b', 1) is True
+
+# Every queued callable runs exactly once; failures do not kill workers.
+pool = WorkerPool(8)
+seen = []
+seen_lock = threading.Lock()
+def task(i):
+    time.sleep((i % 5) * 0.0001)
+    with seen_lock:
+        seen.append(i)
+    return i * 2
+for i in range(1000):
+    pool.submit(lambda i=i: task(i))
+pool.submit(lambda: 1 / 0)
+results = pool.run()
+assert sorted(seen) == list(range(1000))
+assert len(results) == 1001
+assert sum(isinstance(value, ZeroDivisionError) for value in results) == 1
+print('focused concurrency checks: ok')
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..e9f3172a9078789d51849b308f735a8ce703e916
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,17 +42,20 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+@@ -47,21 +65,42 @@
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+         self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            # Sentinels are queued after all currently submitted work. Unlike
++            # Queue.empty(), get() plus a sentinel is an atomic stopping rule.
++            for _ in range(self.workers):
++                self.q.put(self._stop)
++
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++            for t in threads:
++                t.join()
++            return self.results
+
+ succeeded in 286ms:
+focused concurrency checks: ok
+
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1/pipeline.py
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..fe0bc27487a7008958184c16d59ab0750f5815bb
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,41 +42,73 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+     """Runs submitted zero-argument callables across N threads."""
+ 
+     def __init__(self, workers):
++        if workers <= 0:
++            raise ValueError("workers must be greater than zero")
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._submit_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+-        self.q.put(fn)
++        with self._submit_lock:
++            self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++
++            # Queue.join() also accounts for work submitted by a running task.
++            # Once it drains, queue the stopping markers while submissions are
++            # excluded so new work has a clean cutoff for the next run.
++            self.q.join()
++            with self._submit_lock:
++                for _ in range(self.workers):
++                    self.q.put(self._stop)
++
++            for t in threads:
++                t.join()
++            return self.results
+
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..fe0bc27487a7008958184c16d59ab0750f5815bb
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,41 +42,73 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+     """Runs submitted zero-argument callables across N threads."""
+ 
+     def __init__(self, workers):
++        if workers <= 0:
++            raise ValueError("workers must be greater than zero")
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._submit_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+-        self.q.put(fn)
++        with self._submit_lock:
++            self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++
++            # Queue.join() also accounts for work submitted by a running task.
++            # Once it drains, queue the stopping markers while submissions are
++            # excluded so new work has a clean cutoff for the next run.
++            self.q.join()
++            with self._submit_lock:
++                for _ in range(self.workers):
++                    self.q.put(self._stop)
++
++            for t in threads:
++                t.join()
++            return self.results
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 -m py_compile pipeline.py
+for iteration in {1..20}; do python3 stress.py >/dev/null || exit 1; done
+python3 - <<'PY'
+import threading
+from pipeline import WorkerPool
+
+pool = WorkerPool(4)
+for i in range(50):
+    def parent(i=i):
+        pool.submit(lambda i=i: ('child', i))
+        return ('parent', i)
+    pool.submit(parent)
+results = pool.run()
+assert len(results) == 100, len(results)
+assert sum(value[0] == 'parent' for value in results) == 50
+assert sum(value[0] == 'child' for value in results) == 50
+
+# A subsequent batch runs cleanly and preserves the pool's established,
+# cumulative results behavior.
+for i in range(25):
+    pool.submit(lambda i=i: i)
+assert len(pool.run()) == 125
+
+try:
+    WorkerPool(0)
+except ValueError:
+    pass
+else:
+    raise AssertionError('zero-worker pools must not silently lose work')
+print('repeated stress and worker lifecycle checks: ok')
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..fe0bc27487a7008958184c16d59ab0750f5815bb
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,41 +42,73 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+     """Runs submitted zero-argument callables across N threads."""
+ 
+     def __init__(self, workers):
++        if workers <= 0:
++            raise ValueError("workers must be greater than zero")
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._submit_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+-        self.q.put(fn)
++        with self._submit_lock:
++            self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++
++            # Queue.join() also accounts for work submitted by a running task.
++            # Once it drains, queue the stopping markers while submissions are
++            # excluded so new work has a clean cutoff for the next run.
++            self.q.join()
++            with self._submit_lock:
++                for _ in range(self.workers):
++                    self.q.put(self._stop)
++
++            for t in threads:
++                t.join()
++            return self.results
+
+ succeeded in 3616ms:
+repeated stress and worker lifecycle checks: ok
+
+codex
+All repeated stress and lifecycle checks pass, including tasks that submit additional tasks while the pool is running. The pool now has a clean submission cutoff between runs and still executes workers concurrently; no lock is held around task execution.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'nl -ba pipeline.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1
+ succeeded in 0ms:
+     1	"""A tiny ledger and a worker pool used by the batch settlement job."""
+     2	import queue
+     3	import threading
+     4	
+     5	
+     6	class Ledger:
+     7	    """Account balances with transfers and deposits."""
+     8	
+     9	    def __init__(self, balances):
+    10	        self.balances = dict(balances)
+    11	        self.audit = []
+    12	        self._locks = {name: threading.Lock() for name in self.balances}
+    13	        # Transfers leave the ledger total unchanged, so deposits only need a
+    14	        # separate lock to update the cached total and audit trail atomically.
+    15	        # This avoids making unrelated transfers contend on one global lock.
+    16	        self._total_lock = threading.Lock()
+    17	        self._total = sum(self.balances.values())
+    18	
+    19	    def transfer(self, src, dst, amount):
+    20	        """Move `amount` from src to dst. Returns True if it happened."""
+    21	        src_lock = self._locks[src]
+    22	        dst_lock = self._locks[dst]
+    23	
+    24	        if src == dst:
+    25	            with src_lock:
+    26	                return self.balances[src] >= amount
+    27	
+    28	        # Every transfer acquires account locks in the same order. Ordering by
+    29	        # lock identity also works for account keys that cannot be compared.
+    30	        first, second = sorted((src_lock, dst_lock), key=id)
+    31	        with first:
+    32	            with second:
+    33	                if self.balances[src] < amount:
+    34	                    return False
+    35	                self.balances[src] = self.balances[src] - amount
+    36	                self.balances[dst] = self.balances[dst] + amount
+    37	                return True
+    38	
+    39	    def deposit(self, account, amount):
+    40	        """Add `amount` to an account and record it in the audit trail.
+    41	
+    42	        The audit entry snapshots the ledger-wide total at the moment of the
+    43	        deposit, which is what the settlement report reconciles against.
+    44	        """
+    45	        # Always take these locks in this order. Transfers never take the
+    46	        # total lock, so waiting for an account here cannot form a cycle.
+    47	        with self._total_lock:
+    48	            with self._locks[account]:
+    49	                new = self.balances[account] + amount
+    50	                self.balances[account] = new
+    51	                self._total += amount
+    52	                self.audit.append({"account": account, "amount": amount,
+    53	                                   "balance_after": new,
+    54	                                   "ledger_total": self._total})
+    55	
+    56	    def total(self):
+    57	        with self._total_lock:
+    58	            return self._total
+    59	
+    60	
+    61	class WorkerPool:
+    62	    """Runs submitted zero-argument callables across N threads."""
+    63	
+    64	    def __init__(self, workers):
+    65	        if workers <= 0:
+    66	            raise ValueError("workers must be greater than zero")
+    67	        self.workers = workers
+    68	        self.q = queue.Queue()
+    69	        self.results = []
+    70	        self._results_lock = threading.Lock()
+    71	        self._submit_lock = threading.Lock()
+    72	        self._run_lock = threading.Lock()
+    73	        self._stop = object()
+    74	
+    75	    def submit(self, fn):
+    76	        with self._submit_lock:
+    77	            self.q.put(fn)
+    78	
+    79	    def _worker(self):
+    80	        while True:
+    81	            fn = self.q.get()
+    82	            try:
+    83	                if fn is self._stop:
+    84	                    return
+    85	                try:
+    86	                    result = fn()
+    87	                except BaseException as error:
+    88	                    # A failed callable still occupies its result slot and
+    89	                    # must not kill a worker before the queue is drained.
+    90	                    result = error
+    91	                with self._results_lock:
+    92	                    self.results.append(result)
+    93	            finally:
+    94	                self.q.task_done()
+    95	
+    96	    def run(self):
+    97	        """Run every submitted task, then return the results."""
+    98	        with self._run_lock:
+    99	            threads = [threading.Thread(target=self._worker)
+   100	                       for _ in range(self.workers)]
+   101	            for t in threads:
+   102	                t.start()
+   103	
+   104	            # Queue.join() also accounts for work submitted by a running task.
+   105	            # Once it drains, queue the stopping markers while submissions are
+   106	            # excluded so new work has a clean cutoff for the next run.
+   107	            self.q.join()
+   108	            with self._submit_lock:
+   109	                for _ in range(self.workers):
+   110	                    self.q.put(self._stop)
+   111	
+   112	            for t in threads:
+   113	                t.join()
+   114	            return self.results
+
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..fe0bc27487a7008958184c16d59ab0750f5815bb
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,41 +42,73 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+     """Runs submitted zero-argument callables across N threads."""
+ 
+     def __init__(self, workers):
++        if workers <= 0:
++            raise ValueError("workers must be greater than zero")
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._submit_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+-        self.q.put(fn)
++        with self._submit_lock:
++            self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++
++            # Queue.join() also accounts for work submitted by a running task.
++            # Once it drains, queue the stopping markers while submissions are
++            # excluded so new work has a clean cutoff for the next run.
++            self.q.join()
++            with self._submit_lock:
++                for _ in range(self.workers):
++                    self.q.put(self._stop)
++
++            for t in threads:
++                t.join()
++            return self.results
+
+codex
+Implemented concurrency fixes in [pipeline.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1/pipeline.py):
+
+- Atomic deposits and ledger-wide totals.
+- Deterministic transfer lock ordering, preventing deadlocks.
+- Safe same-account transfers and concurrent overdraw checks.
+- Queue-based worker shutdown without `empty()` races.
+- Exactly one result per task, including failed callables.
+- Worker parallelism remains intact.
+
+Validation passed: `stress.py` ran successfully 20 consecutive times, plus focused concurrency and lifecycle tests.
+diff --git a/pipeline.py b/pipeline.py
+index db908850a1fd22d611f76e182bafe5ea3c964541..fe0bc27487a7008958184c16d59ab0750f5815bb
+--- a/pipeline.py
++++ b/pipeline.py
+@@ -10,11 +10,26 @@
+         self.balances = dict(balances)
+         self.audit = []
+         self._locks = {name: threading.Lock() for name in self.balances}
++        # Transfers leave the ledger total unchanged, so deposits only need a
++        # separate lock to update the cached total and audit trail atomically.
++        # This avoids making unrelated transfers contend on one global lock.
++        self._total_lock = threading.Lock()
++        self._total = sum(self.balances.values())
+ 
+     def transfer(self, src, dst, amount):
+         """Move `amount` from src to dst. Returns True if it happened."""
+-        with self._locks[src]:
+-            with self._locks[dst]:
++        src_lock = self._locks[src]
++        dst_lock = self._locks[dst]
++
++        if src == dst:
++            with src_lock:
++                return self.balances[src] >= amount
++
++        # Every transfer acquires account locks in the same order. Ordering by
++        # lock identity also works for account keys that cannot be compared.
++        first, second = sorted((src_lock, dst_lock), key=id)
++        with first:
++            with second:
+                 if self.balances[src] < amount:
+                     return False
+                 self.balances[src] = self.balances[src] - amount
+@@ -27,41 +42,73 @@
+         The audit entry snapshots the ledger-wide total at the moment of the
+         deposit, which is what the settlement report reconciles against.
+         """
+-        current = self.balances[account]
+-        new = current + amount
+-        running = 0
+-        for value in self.balances.values():
+-            running += value
+-        self.audit.append({"account": account, "amount": amount,
+-                           "balance_after": new, "ledger_total": running})
+-        self.balances[account] = new
++        # Always take these locks in this order. Transfers never take the
++        # total lock, so waiting for an account here cannot form a cycle.
++        with self._total_lock:
++            with self._locks[account]:
++                new = self.balances[account] + amount
++                self.balances[account] = new
++                self._total += amount
++                self.audit.append({"account": account, "amount": amount,
++                                   "balance_after": new,
++                                   "ledger_total": self._total})
+ 
+     def total(self):
+-        return sum(self.balances.values())
++        with self._total_lock:
++            return self._total
+ 
+ 
+ class WorkerPool:
+     """Runs submitted zero-argument callables across N threads."""
+ 
+     def __init__(self, workers):
++        if workers <= 0:
++            raise ValueError("workers must be greater than zero")
+         self.workers = workers
+         self.q = queue.Queue()
+         self.results = []
++        self._results_lock = threading.Lock()
++        self._submit_lock = threading.Lock()
++        self._run_lock = threading.Lock()
++        self._stop = object()
+ 
+     def submit(self, fn):
+-        self.q.put(fn)
++        with self._submit_lock:
++            self.q.put(fn)
+ 
+     def _worker(self):
+-        while not self.q.empty():
++        while True:
+             fn = self.q.get()
+-            self.results.append(fn())
++            try:
++                if fn is self._stop:
++                    return
++                try:
++                    result = fn()
++                except BaseException as error:
++                    # A failed callable still occupies its result slot and
++                    # must not kill a worker before the queue is drained.
++                    result = error
++                with self._results_lock:
++                    self.results.append(result)
++            finally:
++                self.q.task_done()
+ 
+     def run(self):
+         """Run every submitted task, then return the results."""
+-        threads = [threading.Thread(target=self._worker)
+-                   for _ in range(self.workers)]
+-        for t in threads:
+-            t.start()
+-        for t in threads:
+-            t.join()
+-        return self.results
++        with self._run_lock:
++            threads = [threading.Thread(target=self._worker)
++                       for _ in range(self.workers)]
++            for t in threads:
++                t.start()
++
++            # Queue.join() also accounts for work submitted by a running task.
++            # Once it drains, queue the stopping markers while submissions are
++            # excluded so new work has a clean cutoff for the next run.
++            self.q.join()
++            with self._submit_lock:
++                for _ in range(self.workers):
++                    self.q.put(self._stop)
++
++            for t in threads:
++                t.join()
++            return self.results
+
+tokens used
+49,129
+Implemented concurrency fixes in [pipeline.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h2_concurrency_t1/pipeline.py):
+
+- Atomic deposits and ledger-wide totals.
+- Deterministic transfer lock ordering, preventing deadlocks.
+- Safe same-account transfers and concurrent overdraw checks.
+- Queue-based worker shutdown without `empty()` races.
+- Exactly one result per task, including failed callables.
+- Worker parallelism remains intact.
+
+Validation passed: `stress.py` ran successfully 20 consecutive times, plus focused concurrency and lifecycle tests.

@@ -1,0 +1,12 @@
+test_surface (_hidden_test.ApiPreserved.test_surface) ... ok
+test_transfer_refuses_overdraw (_hidden_test.ApiPreserved.test_transfer_refuses_overdraw) ... ok
+test_deposit_is_mutually_exclusive (_hidden_test.Concurrency.test_deposit_is_mutually_exclusive) ... ok
+test_deposits_lose_no_updates (_hidden_test.Concurrency.test_deposits_lose_no_updates) ... ok
+test_mixed_churn_conserves_and_never_overdraws (_hidden_test.Concurrency.test_mixed_churn_conserves_and_never_overdraws) ... ok
+test_opposing_transfers_do_not_deadlock (_hidden_test.Concurrency.test_opposing_transfers_do_not_deadlock) ... ok
+test_worker_pool_runs_every_task (_hidden_test.Concurrency.test_worker_pool_runs_every_task) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.696s
+
+OK

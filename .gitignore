@@ -1,0 +1,7 @@
+.env
+.env.*
+*.pem
+auth.json
+__pycache__/
+*.pyc
+.DS_Store

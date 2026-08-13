@@ -1,0 +1,21 @@
+Run `python3 repro.py`. It demonstrates two bugs in cart.py.
+
+Bug 1: a freshly constructed Cart is not empty — it shares state with previously
+constructed carts.
+
+Bug 2: repeated apply_discount calls compound in a way that loses precision and
+mutates the original price irrecoverably, so the cart can never report its
+pre-discount total.
+
+Fix both:
+- Each Cart must start with its own independent, empty item list.
+- Keep the original unit price intact. Add a `subtotal()` method returning the
+  pre-discount total, while `total()` returns the discounted total. Discounts
+  must remain compounding (two 10% discounts leave 81% of the original).
+- Round money to 2 decimal places when reporting totals.
+
+Do not change the constructor signature Cart(items=None) -> Cart beyond what is
+needed to fix bug 1; callers pass no arguments.
+
+Verify with: python3 repro.py
+It must show cart b empty and a total of 81.0.

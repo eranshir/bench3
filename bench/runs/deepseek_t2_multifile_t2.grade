@@ -1,0 +1,11 @@
+test_api_unchanged (_hidden_test.T.test_api_unchanged) ... ok
+test_bool_falsey_strings (_hidden_test.T.test_bool_falsey_strings) ... ok
+test_defaults (_hidden_test.T.test_defaults) ... ok
+test_env_override_with_types (_hidden_test.T.test_env_override_with_types) ... ok
+test_explicit_overrides_win (_hidden_test.T.test_explicit_overrides_win) ... ok
+test_unknown_env_ignored (_hidden_test.T.test_unknown_env_ignored) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.000s
+
+OK

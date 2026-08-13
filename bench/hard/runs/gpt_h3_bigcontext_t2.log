@@ -1,0 +1,1998 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf0f-ccc3-7840-9092-322901133690
+--------
+user
+The settlement report disagrees with finance.
+
+    python3 -m ledgerkit.cli report --tenant acme
+    python3 -m ledgerkit.cli report --tenant kitsune
+
+expected_totals.md holds the reconciled figures for those two tenants. They
+are correct; the code is wrong. The other tenants are wrong in the same ways
+even though their expected figures are not written down here.
+
+Fix ledgerkit so the reported numbers are right, for every tenant and every
+currency, not just for the two shown.
+
+Constraints:
+- Do not change expected_totals.md, the catalog prices, the fx rate table,
+  the tax rates, the tenant configuration, or the order data. The inputs are
+  correct; the logic that consumes them is not.
+- Keep the public API and module layout as they are.
+- Standard library only.
+codex
+I’ll trace the report pipeline against the reconciled examples, identify the shared logic errors, then patch and run the full test/report matrix across tenants and currencies. I’ll leave all input data untouched.
+  → Inspect report pipeline, fixtures, and reconciled totals
+  • Isolate each logic discrepancy and implement scoped fixes
+  • Run tests and verify all tenant/currency report paths
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g '"'!*__pycache__*'"' | sort | sed -n '1,240p'" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+ succeeded in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+expected_totals.md
+ledgerkit/__init__.py
+ledgerkit/analytics.py
+ledgerkit/catalog.py
+ledgerkit/cli.py
+ledgerkit/discounts.py
+ledgerkit/errors.py
+ledgerkit/exporters.py
+ledgerkit/formatting.py
+ledgerkit/fx.py
+ledgerkit/money.py
+ledgerkit/orders.py
+ledgerkit/pricing.py
+ledgerkit/reporting.py
+ledgerkit/repository.py
+ledgerkit/tax.py
+ledgerkit/tenants.py
+ledgerkit/validation.py
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,240p' expected_totals.md
+for f in ledgerkit/*.py; do printf '\\n### %s\\n' \""'$f"; sed -n '"'1,280p' \""'$f"; done' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+ succeeded in 0ms:
+# Expected settlement totals — May 2026
+
+Reconciled by hand against the signed invoices. These figures are correct.
+`python3 -m ledgerkit.cli report --tenant <id>` currently disagrees with them.
+
+## acme — reports in USD
+
+| order | placed | ccy | order total | reported (USD) |
+|---|---|---|---|---|
+| A-1001 | 2026-05-02 | USD | 244.68 | 244.68 |
+| A-1002 | 2026-05-06 | USD | 1174.50 | 1174.50 |
+| A-1003 | 2026-05-11 | EUR | 195.46 | 212.46 |
+| A-1004 | 2026-05-19 | GBP | 341.28 | 432.00 |
+| **TOTAL** | | | | **2063.64** |
+
+## kitsune — reports in JPY
+
+| order | placed | ccy | order total | reported (JPY) |
+|---|---|---|---|---|
+| K-3001 | 2026-05-04 | JPY | 98439 | 98439 |
+| K-3002 | 2026-05-09 | JPY | 43120 | 43120 |
+| K-3003 | 2026-05-17 | USD | 228.38 | 35856 |
+| **TOTAL** | | | | **177415** |
+
+Note that JPY has no minor units. A yen figure with a fractional part is
+never a valid settlement figure.
+
+### ledgerkit/__init__.py
+"""ledgerkit - order pricing and settlement reporting."""
+from .errors import (CatalogError, CurrencyError, LedgerkitError, RegionError,
+                     TenantError, ValidationError)
+from .money import Money
+
+__all__ = [
+    "Money",
+    "LedgerkitError",
+    "CurrencyError",
+    "CatalogError",
+    "TenantError",
+    "RegionError",
+    "ValidationError",
+]
+
+__version__ = "2.4.1"
+
+### ledgerkit/analytics.py
+"""Derived figures the finance team asks for alongside the totals."""
+from decimal import Decimal
+
+from . import fx, pricing
+from .money import Money
+
+
+def average_order_value(orders, catalog, tenant):
+    """Mean order total in the tenant's reporting currency, unrounded."""
+    if not orders:
+        return Money.zero(tenant.reporting_currency)
+    acc = Money.zero(tenant.reporting_currency)
+    for order in orders:
+        total = pricing.order_total(order, catalog, tenant)
+        acc = acc + fx.convert(total, tenant.reporting_currency)
+    return acc * (Decimal("1") / Decimal(len(orders)))
+
+
+def largest_order(orders, catalog, tenant):
+    """The order with the highest converted total."""
+    best, best_value = None, None
+    for order in orders:
+        value = fx.convert(pricing.order_total(order, catalog, tenant),
+                           tenant.reporting_currency)
+        if best_value is None or best_value < value:
+            best, best_value = order, value
+    return best
+
+
+def units_sold(orders):
+    counts = {}
+    for order in orders:
+        for line in order.lines:
+            counts[line.sku] = counts.get(line.sku, 0) + line.quantity
+    return counts
+
+
+def discount_ratio(orders, catalog, tenant):
+    """Total discount as a fraction of total subtotal, in order currencies."""
+    subtotals, discounts = {}, {}
+    for order in orders:
+        sub = pricing.order_subtotal(order, catalog)
+        dis = pricing.order_discount(order, catalog, tenant)
+        ccy = order.currency
+        subtotals[ccy] = subtotals.get(ccy, Money.zero(ccy)) + sub
+        discounts[ccy] = discounts.get(ccy, Money.zero(ccy)) + dis
+    out = {}
+    for ccy, sub in subtotals.items():
+        out[ccy] = (discounts[ccy].amount / sub.amount) if sub.amount else \
+            Decimal("0")
+    return out
+
+### ledgerkit/catalog.py
+"""Product catalog.
+
+Prices are stored in the currency the product is sold in. A product sold in
+more than one currency has one entry per currency; the order's currency
+selects which entry applies.
+"""
+from decimal import Decimal
+
+from .errors import CatalogError
+from .money import Money
+
+
+class Product:
+    __slots__ = ("sku", "name", "prices", "sellable")
+
+    def __init__(self, sku, name, prices, sellable=True):
+        self.sku = sku
+        self.name = name
+        # currency -> Decimal unit price
+        self.prices = {c: Decimal(str(p)) for c, p in prices.items()}
+        self.sellable = sellable
+
+    def price_in(self, currency):
+        if not self.sellable:
+            raise CatalogError(f"{self.sku} is not sellable")
+        if currency not in self.prices:
+            raise CatalogError(f"{self.sku} has no price in {currency}")
+        return Money(self.prices[currency], currency)
+
+    def currencies(self):
+        return sorted(self.prices)
+
+    def __repr__(self):
+        return f"Product({self.sku!r})"
+
+
+PRODUCTS = [
+    Product("WIDGET-S", "Widget, small",
+            {"USD": "12.50", "EUR": "11.50", "GBP": "9.90", "JPY": "1960"}),
+    Product("WIDGET-L", "Widget, large",
+            {"USD": "42.00", "EUR": "38.60", "GBP": "33.20", "JPY": "6590"}),
+    Product("GADGET", "Gadget",
+            {"USD": "199.99", "EUR": "183.99", "GBP": "158.00",
+             "JPY": "31400"}),
+    Product("SPROCKET", "Sprocket, boxed",
+            {"USD": "7.25", "EUR": "6.67", "GBP": "5.73", "JPY": "1140"}),
+    Product("SUPPORT-YR", "Support, annual",
+            {"USD": "1200.00", "EUR": "1104.00", "GBP": "948.00",
+             "JPY": "188400"}),
+    Product("LEGACY-KIT", "Legacy kit", {"USD": "88.00"}, sellable=False),
+]
+
+
+class Catalog:
+    def __init__(self, products=None):
+        self._by_sku = {p.sku: p for p in (products or PRODUCTS)}
+
+    def get(self, sku):
+        try:
+            return self._by_sku[sku]
+        except KeyError:
+            raise CatalogError(f"unknown sku {sku!r}") from None
+
+    def price(self, sku, currency):
+        return self.get(sku).price_in(currency)
+
+    def skus(self):
+        return sorted(self._by_sku)
+
+    def __len__(self):
+        return len(self._by_sku)
+
+
+def default_catalog():
+    return Catalog()
+
+### ledgerkit/cli.py
+"""Command line entry point.
+
+    python3 -m ledgerkit.cli report --tenant acme
+    python3 -m ledgerkit.cli report --tenant kitsune --format json
+    python3 -m ledgerkit.cli tenants
+"""
+import argparse
+import sys
+
+from . import catalog as catalog_module
+from . import exporters, repository, reporting, tenants, validation
+from .errors import LedgerkitError
+
+
+def cmd_report(args):
+    tenant = tenants.get(args.tenant)
+    orders = repository.for_tenant(tenant.tenant_id)
+    catalog = catalog_module.default_catalog()
+
+    problems = validation.check_all(orders, catalog)
+    if problems:
+        for order_id, message in problems:
+            print(f"invalid order {order_id}: {message}", file=sys.stderr)
+        return 2
+
+    report = reporting.tenant_report(tenant, orders, catalog)
+    print(exporters.render(report, args.format))
+    return 0
+
+
+def cmd_tenants(args):
+    for tenant in tenants.all_tenants():
+        print(f"{tenant.tenant_id:<12} {tenant.name:<20} "
+              f"reports in {tenant.reporting_currency}  "
+              f"discounts: {tenant.describe_discounts()}")
+    return 0
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(prog="ledgerkit")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    report = sub.add_parser("report", help="settlement report for a tenant")
+    report.add_argument("--tenant", required=True, choices=tenants.ids())
+    report.add_argument("--format", default="text",
+                        choices=sorted(exporters.FORMATS))
+    report.set_defaults(func=cmd_report)
+
+    listing = sub.add_parser("tenants", help="list configured tenants")
+    listing.set_defaults(func=cmd_tenants)
+
+    return parser
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
+    try:
+        return args.func(args)
+    except LedgerkitError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+### ledgerkit/discounts.py
+"""Discount rules.
+
+A rule turns an order subtotal into a discount amount in the same currency.
+Rules compose additively: the discount for a tenant is the sum of what each
+of its rules yields, capped at the subtotal so an order can never go
+negative.
+"""
+from decimal import Decimal
+
+from .money import Money
+
+
+class DiscountRule:
+    def amount_for(self, subtotal):
+        raise NotImplementedError
+
+    def describe(self):
+        return type(self).__name__
+
+
+class PercentageDiscount(DiscountRule):
+    """A flat percentage off the subtotal."""
+
+    def __init__(self, percent):
+        self.percent = Decimal(str(percent))
+
+    def amount_for(self, subtotal):
+        return subtotal * (self.percent / Decimal("100"))
+
+    def describe(self):
+        return f"{self.percent}% off"
+
+
+class FixedDiscount(DiscountRule):
+    """A fixed amount off, in a specific currency.
+
+    Only applies when the subtotal is in the same currency, and never more
+    than the subtotal itself.
+    """
+
+    def __init__(self, money):
+        self.money = money
+
+    def amount_for(self, subtotal):
+        if subtotal.currency != self.money.currency:
+            return Money.zero(subtotal.currency)
+        if self.money.amount > subtotal.amount:
+            return Money(subtotal.amount, subtotal.currency)
+        return self.money
+
+    def describe(self):
+        return f"{self.money} off"
+
+
+class ThresholdDiscount(DiscountRule):
+    """A percentage that only kicks in above a threshold."""
+
+    def __init__(self, threshold, percent):
+        self.threshold = threshold
+        self.percent = Decimal(str(percent))
+
+    def amount_for(self, subtotal):
+        if subtotal.currency != self.threshold.currency:
+            return Money.zero(subtotal.currency)
+        if subtotal.amount < self.threshold.amount:
+            return Money.zero(subtotal.currency)
+        return subtotal * (self.percent / Decimal("100"))
+
+    def describe(self):
+        return f"{self.percent}% off above {self.threshold}"
+
+
+def total_discount(rules, subtotal):
+    """Sum of every rule's discount, capped at the subtotal."""
+    acc = Money.zero(subtotal.currency)
+    for rule in rules:
+        acc = acc + rule.amount_for(subtotal)
+    if acc.amount > subtotal.amount:
+        return Money(subtotal.amount, subtotal.currency)
+    return acc
+
+### ledgerkit/errors.py
+"""Exception hierarchy for ledgerkit."""
+
+
+class LedgerkitError(Exception):
+    """Base class for everything this package raises."""
+
+
+class CurrencyError(LedgerkitError):
+    """Unknown currency, or an operation mixing two currencies."""
+
+
+class CatalogError(LedgerkitError):
+    """A SKU is not in the catalog, or is not sellable."""
+
+
+class TenantError(LedgerkitError):
+    """Unknown tenant, or a tenant with an unusable configuration."""
+
+
+class RegionError(LedgerkitError):
+    """No tax rule is registered for the region."""
+
+
+class ValidationError(LedgerkitError):
+    """An order or line failed validation."""
+
+### ledgerkit/exporters.py
+"""Report renderers."""
+import csv
+import io
+import json
+
+from .formatting import format_money, format_row, header, rule
+
+
+def to_text(report):
+    lines = [f"{report['name']} ({report['tenant']}) - "
+             f"{report['orders']} orders",
+             rule(), header(), rule()]
+    lines.extend(format_row(row) for row in report["rows"])
+    lines.append(rule())
+    lines.append(f"{'TOTAL':<8} {format_money(report['total']):>55}")
+    return "\n".join(lines)
+
+
+def to_csv(report):
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["order_id", "placed_at", "currency", "region",
+                     "total", "reported"])
+    for row in report["rows"]:
+        writer.writerow([
+            row["order_id"], row["placed_at"], row["currency"],
+            row["region"],
+            format_money(row["total"], with_symbol=False),
+            format_money(row["reported"], with_symbol=False),
+        ])
+    writer.writerow([])
+    writer.writerow(["TOTAL", "", report["currency"], "", "",
+                     format_money(report["total"], with_symbol=False)])
+    return buf.getvalue()
+
+
+def to_json(report):
+    payload = {
+        "tenant": report["tenant"],
+        "name": report["name"],
+        "currency": report["currency"],
+        "orders": report["orders"],
+        "total": str(report["total"].amount),
+        "rows": [
+            {
+                "order_id": row["order_id"],
+                "placed_at": row["placed_at"],
+                "currency": row["currency"],
+                "region": row["region"],
+                "total": str(row["total"].amount),
+                "reported": str(row["reported"].amount),
+            }
+            for row in report["rows"]
+        ],
+    }
+    return json.dumps(payload, indent=2)
+
+
+FORMATS = {"text": to_text, "csv": to_csv, "json": to_json}
+
+
+def render(report, fmt="text"):
+    try:
+        return FORMATS[fmt](report)
+    except KeyError:
+        raise ValueError(f"unknown format {fmt!r}; "
+                         f"try one of {sorted(FORMATS)}") from None
+
+### ledgerkit/formatting.py
+"""Human-readable rendering of money and report rows."""
+from .money import decimals_for
+
+SYMBOLS = {
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "CHF": "CHF ",
+    "JPY": "¥",
+}
+
+
+def symbol(currency):
+    return SYMBOLS.get(currency, currency + " ")
+
+
+def format_money(money, with_symbol=True):
+    """Render a Money at its currency's natural precision."""
+    places = decimals_for(money.currency)
+    text = f"{money.amount:,.{places}f}"
+    return f"{symbol(money.currency)}{text}" if with_symbol else text
+
+
+def format_row(row):
+    return (f"{row['order_id']:<8} {row['placed_at']:<12} "
+            f"{row['currency']:<4} {row['region']:<6} "
+            f"{format_money(row['total']):>14} "
+            f"{format_money(row['reported']):>14}")
+
+
+def header():
+    return (f"{'order':<8} {'placed':<12} {'ccy':<4} {'region':<6} "
+            f"{'total':>14} {'reported':>14}")
+
+
+def rule(width=64):
+    return "-" * width
+
+### ledgerkit/fx.py
+"""Currency conversion.
+
+RATES is quoted as *units of the currency per one USD*. USD is the base and
+is therefore exactly 1. To read it: one USD buys 0.92 EUR, or 157 JPY.
+
+Rates are a static table here. In the real service they come from the
+treasury feed, refreshed hourly; the shape of the table is the same.
+"""
+from decimal import Decimal
+
+from .errors import CurrencyError
+from .money import Money
+
+BASE = "USD"
+
+RATES = {
+    "USD": Decimal("1"),
+    "EUR": Decimal("0.92"),
+    "GBP": Decimal("0.79"),
+    "CHF": Decimal("0.88"),
+    "JPY": Decimal("157"),
+}
+
+
+def rate_for(currency):
+    """Units of `currency` per one USD."""
+    try:
+        return RATES[currency]
+    except KeyError:
+        raise CurrencyError(f"no fx rate for {currency!r}") from None
+
+
+def cross_rate(from_currency, to_currency):
+    """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+    source = rate_for(from_currency)
+    target = rate_for(to_currency)
+    return source / target
+
+
+def convert(money, to_currency):
+    """Convert `money` into `to_currency`. Unrounded on purpose.
+
+    Callers decide when to round, because rounding at every hop compounds
+    error across a multi-order report.
+    """
+    if money.currency == to_currency:
+        return money
+    return Money(money.amount * cross_rate(money.currency, to_currency),
+                 to_currency)
+
+
+def to_base(money):
+    """Convert into the base currency (USD)."""
+    return convert(money, BASE)
+
+
+def supported():
+    return sorted(RATES)
+
+### ledgerkit/money.py
+"""Money values.
+
+Every amount in the system is a Money: a Decimal paired with an ISO currency
+code. Money is immutable; arithmetic returns new instances. Mixing currencies
+raises rather than silently coercing.
+
+Currencies differ in how many minor units they have. JPY has none, so a JPY
+amount is only well formed when it is a whole number of yen. Anything that
+rounds a Money for presentation or storage must respect CURRENCY_DECIMALS
+rather than assuming two places.
+"""
+from decimal import ROUND_HALF_UP, Decimal
+
+from .errors import CurrencyError
+
+CURRENCY_DECIMALS = {
+    "USD": 2,
+    "EUR": 2,
+    "GBP": 2,
+    "CHF": 2,
+    "JPY": 0,
+}
+
+
+def decimals_for(currency):
+    """Number of minor-unit digits for `currency`."""
+    try:
+        return CURRENCY_DECIMALS[currency]
+    except KeyError:
+        raise CurrencyError(f"unknown currency {currency!r}") from None
+
+
+def exponent_for(currency):
+    """The Decimal exponent to quantize `currency` to, e.g. Decimal('0.01')."""
+    places = decimals_for(currency)
+    return Decimal(1).scaleb(-places)
+
+
+class Money:
+    """An amount in a single currency."""
+
+    __slots__ = ("amount", "currency")
+
+    def __init__(self, amount, currency):
+        if currency not in CURRENCY_DECIMALS:
+            raise CurrencyError(f"unknown currency {currency!r}")
+        self.amount = amount if isinstance(amount, Decimal) \
+            else Decimal(str(amount))
+        self.currency = currency
+
+    # -- construction -----------------------------------------------------
+
+    @classmethod
+    def zero(cls, currency):
+        return cls(Decimal("0"), currency)
+
+    # -- arithmetic -------------------------------------------------------
+
+    def _check(self, other):
+        if self.currency != other.currency:
+            raise CurrencyError(
+                f"cannot combine {self.currency} and {other.currency}")
+
+    def __add__(self, other):
+        self._check(other)
+        return Money(self.amount + other.amount, self.currency)
+
+    def __sub__(self, other):
+        self._check(other)
+        return Money(self.amount - other.amount, self.currency)
+
+    def __mul__(self, factor):
+        return Money(self.amount * Decimal(str(factor)), self.currency)
+
+    __rmul__ = __mul__
+
+    def __neg__(self):
+        return Money(-self.amount, self.currency)
+
+    # -- comparison -------------------------------------------------------
+
+    def __eq__(self, other):
+        return (isinstance(other, Money)
+                and self.currency == other.currency
+                and self.amount == other.amount)
+
+    def __lt__(self, other):
+        self._check(other)
+        return self.amount < other.amount
+
+    def __le__(self, other):
+        self._check(other)
+        return self.amount <= other.amount
+
+    def __hash__(self):
+        return hash((self.amount, self.currency))
+
+    def __bool__(self):
+        return self.amount != 0
+
+    # -- rounding ---------------------------------------------------------
+
+    def quantized(self):
+        """Round to this currency's minor units, half away from zero."""
+        return Money(
+            self.amount.quantize(exponent_for(self.currency),
+                                 rounding=ROUND_HALF_UP),
+            self.currency)
+
+    def is_quantized(self):
+        return self == self.quantized()
+
+    def __repr__(self):
+        return f"Money({self.amount}, {self.currency!r})"
+
+    def __str__(self):
+        return f"{self.amount} {self.currency}"
+
+
+def total(items, currency):
+    """Sum an iterable of Money, returning zero in `currency` if empty."""
+    acc = Money.zero(currency)
+    for item in items:
+        acc = acc + item
+    return acc
+
+### ledgerkit/orders.py
+"""Orders and order lines."""
+from .errors import ValidationError
+
+
+class OrderLine:
+    __slots__ = ("sku", "quantity")
+
+    def __init__(self, sku, quantity):
+        if quantity <= 0:
+            raise ValidationError(f"quantity must be positive, got {quantity}")
+        self.sku = sku
+        self.quantity = quantity
+
+    def __repr__(self):
+        return f"OrderLine({self.sku!r}, {self.quantity})"
+
+
+class Order:
+    __slots__ = ("order_id", "tenant_id", "currency", "region", "lines",
+                 "placed_at")
+
+    def __init__(self, order_id, tenant_id, currency, region, lines,
+                 placed_at):
+        if not lines:
+            raise ValidationError(f"order {order_id} has no lines")
+        self.order_id = order_id
+        self.tenant_id = tenant_id
+        self.currency = currency
+        self.region = region
+        self.lines = list(lines)
+        self.placed_at = placed_at
+
+    def quantity(self):
+        return sum(line.quantity for line in self.lines)
+
+    def skus(self):
+        return [line.sku for line in self.lines]
+
+    def __repr__(self):
+        return (f"Order({self.order_id!r}, tenant={self.tenant_id!r}, "
+                f"{self.currency}, {len(self.lines)} lines)")
+
+### ledgerkit/pricing.py
+"""Order pricing.
+
+The pricing chain, in order:
+
+    subtotal  = sum of unit price * quantity, in the order's currency
+    discount  = the tenant's discount rules applied to the subtotal
+    taxable   = subtotal - discount
+    tax       = taxable * the region's rate
+    total     = taxable + tax
+
+The total is rounded once, at the end, to the order currency's minor units.
+Nothing upstream of that rounds, so a long order does not accumulate
+per-line rounding drift.
+"""
+from . import tax as tax_module
+from .discounts import total_discount
+from .money import Money, total as sum_money
+
+
+def line_subtotal(line, catalog, currency):
+    """Unit price times quantity, in `currency`."""
+    unit = catalog.price(line.sku, currency)
+    return unit * line.quantity
+
+
+def order_subtotal(order, catalog):
+    """Sum of the order's line subtotals, before discount and tax."""
+    return sum_money(
+        (line_subtotal(line, catalog, order.currency) for line in order.lines),
+        order.currency)
+
+
+def order_discount(order, catalog, tenant):
+    """The discount this tenant's rules give on this order."""
+    return total_discount(tenant.discount_rules, order_subtotal(order,
+                                                                catalog))
+
+
+def order_tax(order, catalog, tenant):
+    """Tax due on this order."""
+    subtotal = order_subtotal(order, catalog)
+    return tax_module.tax_for_region(subtotal, order.region)
+
+
+def order_total(order, catalog, tenant):
+    """What the customer pays, rounded to the order currency."""
+    subtotal = order_subtotal(order, catalog)
+    discount = total_discount(tenant.discount_rules, subtotal)
+    tax = tax_module.tax_for_region(subtotal, order.region)
+    return (subtotal + tax - discount).quantized()
+
+
+def price_breakdown(order, catalog, tenant):
+    """Every component of the price, for the invoice renderer."""
+    subtotal = order_subtotal(order, catalog)
+    discount = total_discount(tenant.discount_rules, subtotal)
+    taxable = subtotal - discount
+    tax = tax_module.tax_for_region(taxable, order.region)
+    return {
+        "subtotal": subtotal,
+        "discount": discount,
+        "taxable": taxable,
+        "tax": tax,
+        "total": order_total(order, catalog, tenant),
+    }
+
+
+def unit_price(sku, currency, catalog):
+    return catalog.price(sku, currency)
+
+
+def zero_for(order):
+    return Money.zero(order.currency)
+
+### ledgerkit/reporting.py
+"""Settlement reporting.
+
+A tenant report converts every order total into the tenant's reporting
+currency and sums them. Conversion happens on the unrounded order totals and
+the sum is rounded once at the end, to the reporting currency's minor units.
+"""
+from decimal import ROUND_HALF_UP, Decimal
+
+from . import fx, pricing
+from .money import Money
+
+
+def round_for_report(money):
+    """Round a reporting figure for presentation and storage."""
+    return Money(money.amount.quantize(Decimal("0.01"),
+                                       rounding=ROUND_HALF_UP),
+                 money.currency)
+
+
+def order_row(order, catalog, tenant):
+    """One line of the report."""
+    total = pricing.order_total(order, catalog, tenant)
+    converted = fx.convert(total, tenant.reporting_currency)
+    return {
+        "order_id": order.order_id,
+        "placed_at": order.placed_at,
+        "currency": order.currency,
+        "region": order.region,
+        "total": total,
+        "reported": round_for_report(converted),
+    }
+
+
+def tenant_total(tenant, orders, catalog):
+    """Total revenue for a tenant, in its reporting currency."""
+    acc = Money.zero(tenant.reporting_currency)
+    for order in orders:
+        total = pricing.order_total(order, catalog, tenant)
+        acc = acc + fx.convert(total, tenant.reporting_currency)
+    return round_for_report(acc)
+
+
+def tenant_report(tenant, orders, catalog):
+    """Rows plus the tenant total."""
+    rows = [order_row(o, catalog, tenant) for o in orders]
+    return {
+        "tenant": tenant.tenant_id,
+        "name": tenant.name,
+        "currency": tenant.reporting_currency,
+        "orders": len(rows),
+        "rows": rows,
+        "total": tenant_total(tenant, orders, catalog),
+    }
+
+
+def totals_by_currency(orders, catalog, tenant):
+    """Order totals grouped by the currency they were placed in."""
+    buckets = {}
+    for order in orders:
+        total = pricing.order_total(order, catalog, tenant)
+        if order.currency in buckets:
+            buckets[order.currency] = buckets[order.currency] + total
+        else:
+            buckets[order.currency] = total
+    return buckets
+
+### ledgerkit/repository.py
+"""In-memory order store.
+
+Stands in for the orders table. The settlement report reads through this.
+"""
+from .errors import TenantError
+from .orders import Order, OrderLine
+
+ORDERS = [
+    Order("A-1001", "acme", "USD", "us-ca",
+          [OrderLine("WIDGET-S", 4), OrderLine("GADGET", 1)],
+          "2026-05-02"),
+    Order("A-1002", "acme", "USD", "us-ca",
+          [OrderLine("SUPPORT-YR", 1)], "2026-05-06"),
+    Order("A-1003", "acme", "EUR", "eu-de",
+          [OrderLine("WIDGET-L", 3), OrderLine("SPROCKET", 10)],
+          "2026-05-11"),
+    Order("A-1004", "acme", "GBP", "uk",
+          [OrderLine("GADGET", 2)], "2026-05-19"),
+
+    Order("B-2001", "borealis", "EUR", "eu-de",
+          [OrderLine("WIDGET-L", 12)], "2026-05-03"),
+    Order("B-2002", "borealis", "EUR", "eu-de",
+          [OrderLine("SPROCKET", 40), OrderLine("WIDGET-S", 6)],
+          "2026-05-14"),
+    Order("B-2003", "borealis", "USD", "us-ny",
+          [OrderLine("SUPPORT-YR", 2)], "2026-05-21"),
+
+    Order("K-3001", "kitsune", "JPY", "jp",
+          [OrderLine("GADGET", 3)], "2026-05-04"),
+    Order("K-3002", "kitsune", "JPY", "jp",
+          [OrderLine("WIDGET-S", 20)], "2026-05-09"),
+    Order("K-3003", "kitsune", "USD", "us-ca",
+          [OrderLine("WIDGET-L", 5)], "2026-05-17"),
+
+    Order("N-4001", "northwind", "GBP", "uk",
+          [OrderLine("SUPPORT-YR", 1), OrderLine("SPROCKET", 8)],
+          "2026-05-05"),
+    Order("N-4002", "northwind", "GBP", "uk",
+          [OrderLine("WIDGET-S", 15)], "2026-05-12"),
+    Order("N-4003", "northwind", "EUR", "ch",
+          [OrderLine("GADGET", 1)], "2026-05-23"),
+    Order("N-4004", "northwind", "USD", "us-or",
+          [OrderLine("WIDGET-L", 2)], "2026-05-27"),
+]
+
+
+def for_tenant(tenant_id):
+    """Every order belonging to `tenant_id`, in placement order."""
+    found = [o for o in ORDERS if o.tenant_id == tenant_id]
+    if not found:
+        raise TenantError(f"no orders for tenant {tenant_id!r}")
+    return found
+
+
+def all_orders():
+    return list(ORDERS)
+
+
+def get(order_id):
+    for order in ORDERS:
+        if order.order_id == order_id:
+            return order
+    raise KeyError(order_id)
+
+
+def count():
+    return len(ORDERS)
+
+### ledgerkit/tax.py
+"""Sales tax and VAT.
+
+Tax is charged on the amount the customer actually pays, which is the
+subtotal after any discount has been taken off. Rates are per region.
+"""
+from decimal import Decimal
+
+from .errors import RegionError
+
+RATES = {
+    "us-ca": Decimal("0.0875"),
+    "us-ny": Decimal("0.08875"),
+    "us-or": Decimal("0"),
+    "eu-de": Decimal("0.19"),
+    "eu-fr": Decimal("0.20"),
+    "uk": Decimal("0.20"),
+    "jp": Decimal("0.10"),
+    "ch": Decimal("0.081"),
+}
+
+
+def rate_for(region):
+    try:
+        return RATES[region]
+    except KeyError:
+        raise RegionError(f"no tax rate for region {region!r}") from None
+
+
+def tax_on(taxable):
+    """Tax due on a taxable amount. `taxable` is Money, already discounted."""
+    raise NotImplementedError("use tax_for_region")
+
+
+def tax_for_region(taxable, region):
+    """Tax due on `taxable` in `region`."""
+    return taxable * rate_for(region)
+
+
+def regions():
+    return sorted(RATES)
+
+### ledgerkit/tenants.py
+"""Tenant configuration.
+
+Each tenant reports in one currency. Orders may be placed in any currency the
+catalog prices; the report converts them into the tenant's reporting
+currency.
+"""
+from decimal import Decimal
+
+from .discounts import FixedDiscount, PercentageDiscount, ThresholdDiscount
+from .errors import TenantError
+from .money import Money
+
+
+class Tenant:
+    __slots__ = ("tenant_id", "name", "home_region", "reporting_currency",
+                 "discount_rules")
+
+    def __init__(self, tenant_id, name, home_region, reporting_currency,
+                 discount_rules=()):
+        self.tenant_id = tenant_id
+        self.name = name
+        self.home_region = home_region
+        self.reporting_currency = reporting_currency
+        self.discount_rules = list(discount_rules)
+
+    def describe_discounts(self):
+        if not self.discount_rules:
+            return "none"
+        return "; ".join(rule.describe() for rule in self.discount_rules)
+
+    def __repr__(self):
+        return f"Tenant({self.tenant_id!r}, {self.reporting_currency})"
+
+
+TENANTS = [
+    Tenant("acme", "Acme Industrial", "us-ca", "USD",
+           [PercentageDiscount(10)]),
+    Tenant("borealis", "Borealis GmbH", "eu-de", "EUR", []),
+    Tenant("kitsune", "Kitsune KK", "jp", "JPY",
+           [ThresholdDiscount(Money(Decimal("50000"), "JPY"), 5)]),
+    Tenant("northwind", "Northwind Ltd", "uk", "GBP",
+           [FixedDiscount(Money(Decimal("25.00"), "GBP"))]),
+]
+
+_BY_ID = {t.tenant_id: t for t in TENANTS}
+
+
+def get(tenant_id):
+    try:
+        return _BY_ID[tenant_id]
+    except KeyError:
+        raise TenantError(f"unknown tenant {tenant_id!r}") from None
+
+
+def all_tenants():
+    return list(TENANTS)
+
+
+def ids():
+    return sorted(_BY_ID)
+
+### ledgerkit/validation.py
+"""Pre-flight checks run before an order is priced."""
+from . import fx
+from .errors import ValidationError
+from .money import CURRENCY_DECIMALS
+from .tax import RATES as TAX_RATES
+
+
+def check_currency(currency):
+    if currency not in CURRENCY_DECIMALS:
+        raise ValidationError(f"unsupported currency {currency!r}")
+    if currency not in fx.RATES:
+        raise ValidationError(f"no fx rate configured for {currency!r}")
+    return True
+
+
+def check_region(region):
+    if region not in TAX_RATES:
+        raise ValidationError(f"unsupported region {region!r}")
+    return True
+
+
+def check_line(line, catalog, currency):
+    product = catalog.get(line.sku)
+    if not product.sellable:
+        raise ValidationError(f"{line.sku} is not sellable")
+    if currency not in product.prices:
+        raise ValidationError(f"{line.sku} has no {currency} price")
+    if line.quantity <= 0:
+        raise ValidationError(f"{line.sku}: quantity must be positive")
+    return True
+
+
+def check_order(order, catalog):
+    check_currency(order.currency)
+    check_region(order.region)
+    for line in order.lines:
+        check_line(line, catalog, order.currency)
+    return True
+
+
+def check_all(orders, catalog):
+    problems = []
+    for order in orders:
+        try:
+            check_order(order, catalog)
+        except ValidationError as exc:
+            problems.append((order.order_id, str(exc)))
+    return problems
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "git status --short
+python3 -m ledgerkit.cli report --tenant acme
+python3 -m ledgerkit.cli report --tenant kitsune
+rg -n \"TODO|FIXME|round|tax|cross_rate|order_total\" . -g '*.py' -g '*.md'" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+ succeeded in 0ms:
+fatal: not a git repository (or any of the parent directories): .git
+Acme Industrial (acme) - 4 orders
+----------------------------------------------------------------
+order    placed       ccy  region          total       reported
+----------------------------------------------------------------
+A-1001   2026-05-02   USD  us-ca         $246.87        $246.87
+A-1002   2026-05-06   USD  us-ca       $1,185.00      $1,185.00
+A-1003   2026-05-11   EUR  eu-de         €198.93        $183.02
+A-1004   2026-05-19   GBP  uk            £347.60        $274.60
+----------------------------------------------------------------
+TOTAL                                                  $1,889.49
+Kitsune KK (kitsune) - 3 orders
+----------------------------------------------------------------
+order    placed       ccy  region          total       reported
+----------------------------------------------------------------
+K-3001   2026-05-04   JPY  jp            ¥98,910        ¥98,910
+K-3002   2026-05-09   JPY  jp            ¥43,120        ¥43,120
+K-3003   2026-05-17   USD  us-ca         $228.38             ¥1
+----------------------------------------------------------------
+TOTAL                                                   ¥142,031
+./ledgerkit/validation.py:5:from .tax import RATES as TAX_RATES
+./ledgerkit/reporting.py:4:currency and sums them. Conversion happens on the unrounded order totals and
+./ledgerkit/reporting.py:5:the sum is rounded once at the end, to the reporting currency's minor units.
+./ledgerkit/reporting.py:13:def round_for_report(money):
+./ledgerkit/reporting.py:16:                                       rounding=ROUND_HALF_UP),
+./ledgerkit/reporting.py:22:    total = pricing.order_total(order, catalog, tenant)
+./ledgerkit/reporting.py:30:        "reported": round_for_report(converted),
+./ledgerkit/reporting.py:38:        total = pricing.order_total(order, catalog, tenant)
+./ledgerkit/reporting.py:40:    return round_for_report(acc)
+./ledgerkit/reporting.py:60:        total = pricing.order_total(order, catalog, tenant)
+./ledgerkit/fx.py:33:def cross_rate(from_currency, to_currency):
+./ledgerkit/fx.py:41:    """Convert `money` into `to_currency`. Unrounded on purpose.
+./ledgerkit/fx.py:43:    Callers decide when to round, because rounding at every hop compounds
+./ledgerkit/fx.py:48:    return Money(money.amount * cross_rate(money.currency, to_currency),
+./ledgerkit/errors.py:21:    """No tax rule is registered for the region."""
+./ledgerkit/analytics.py:9:    """Mean order total in the tenant's reporting currency, unrounded."""
+./ledgerkit/analytics.py:14:        total = pricing.order_total(order, catalog, tenant)
+./ledgerkit/analytics.py:23:        value = fx.convert(pricing.order_total(order, catalog, tenant),
+./ledgerkit/pricing.py:7:    taxable   = subtotal - discount
+./ledgerkit/pricing.py:8:    tax       = taxable * the region's rate
+./ledgerkit/pricing.py:9:    total     = taxable + tax
+./ledgerkit/pricing.py:11:The total is rounded once, at the end, to the order currency's minor units.
+./ledgerkit/pricing.py:12:Nothing upstream of that rounds, so a long order does not accumulate
+./ledgerkit/pricing.py:13:per-line rounding drift.
+./ledgerkit/pricing.py:15:from . import tax as tax_module
+./ledgerkit/pricing.py:27:    """Sum of the order's line subtotals, before discount and tax."""
+./ledgerkit/pricing.py:39:def order_tax(order, catalog, tenant):
+./ledgerkit/pricing.py:42:    return tax_module.tax_for_region(subtotal, order.region)
+./ledgerkit/pricing.py:45:def order_total(order, catalog, tenant):
+./ledgerkit/pricing.py:46:    """What the customer pays, rounded to the order currency."""
+./ledgerkit/pricing.py:49:    tax = tax_module.tax_for_region(subtotal, order.region)
+./ledgerkit/pricing.py:50:    return (subtotal + tax - discount).quantized()
+./ledgerkit/pricing.py:57:    taxable = subtotal - discount
+./ledgerkit/pricing.py:58:    tax = tax_module.tax_for_region(taxable, order.region)
+./ledgerkit/pricing.py:62:        "taxable": taxable,
+./ledgerkit/pricing.py:63:        "tax": tax,
+./ledgerkit/pricing.py:64:        "total": order_total(order, catalog, tenant),
+./ledgerkit/money.py:9:rounds a Money for presentation or storage must respect CURRENCY_DECIMALS
+./ledgerkit/money.py:101:    # -- rounding ---------------------------------------------------------
+./ledgerkit/money.py:107:                                 rounding=ROUND_HALF_UP),
+./ledgerkit/tax.py:1:"""Sales tax and VAT.
+./ledgerkit/tax.py:26:        raise RegionError(f"no tax rate for region {region!r}") from None
+./ledgerkit/tax.py:29:def tax_on(taxable):
+./ledgerkit/tax.py:30:    """Tax due on a taxable amount. `taxable` is Money, already discounted."""
+./ledgerkit/tax.py:31:    raise NotImplementedError("use tax_for_region")
+./ledgerkit/tax.py:34:def tax_for_region(taxable, region):
+./ledgerkit/tax.py:35:    """Tax due on `taxable` in `region`."""
+./ledgerkit/tax.py:36:    return taxable * rate_for(region)
+
+codex
+The mismatches reduce to three shared defects: tax is calculated before discounts in two pricing paths, FX cross-rates are inverted, and report rounding is hard-coded to cents (invalid for JPY). The reconciled rows confirm the intended order: discount → tax → invoice-currency rounding → FX conversion → reporting-currency rounding.
+The reconciled examples isolate three general defects in pricing, FX conversion, and currency-aware report rounding.
+  ✓ Inspect report pipeline, fixtures, and reconciled totals
+  → Isolate each logic discrepancy and implement scoped fixes
+  • Run tests and verify all tenant/currency report paths
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/fx.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/pricing.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/reporting.py
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..8cf3172e2db83c6bd4129353e27c5dc52c02282a
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -4,17 +4,13 @@
+ currency and sums them. Conversion happens on the unrounded order totals and
+ the sum is rounded once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..8cf3172e2db83c6bd4129353e27c5dc52c02282a
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -4,17 +4,13 @@
+ currency and sums them. Conversion happens on the unrounded order totals and
+ the sum is rounded once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 -m compileall -q ledgerkit
+for tenant in acme borealis kitsune northwind; do python3 -m ledgerkit.cli report --tenant "$tenant"; done
+python3 -m ledgerkit.cli report --tenant acme --format json
+python3 -m ledgerkit.cli report --tenant kitsune --format csv' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..8cf3172e2db83c6bd4129353e27c5dc52c02282a
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -4,17 +4,13 @@
+ currency and sums them. Conversion happens on the unrounded order totals and
+ the sum is rounded once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+ succeeded in 196ms:
+Northwind Ltd (northwind) - 4 orders
+----------------------------------------------------------------
+order    placed       ccy  region          total       reported
+----------------------------------------------------------------
+N-4001   2026-05-05   GBP  uk          £1,162.61      £1,162.61
+N-4002   2026-05-12   GBP  uk            £148.20        £148.20
+N-4003   2026-05-23   EUR  ch            €198.89        £170.79
+N-4004   2026-05-27   USD  us-or          $84.00         £66.36
+----------------------------------------------------------------
+TOTAL                                                  £1,547.96
+{
+  "tenant": "acme",
+  "name": "Acme Industrial",
+  "currency": "USD",
+  "orders": 4,
+  "total": "2063.64",
+  "rows": [
+    {
+      "order_id": "A-1001",
+      "placed_at": "2026-05-02",
+      "currency": "USD",
+      "region": "us-ca",
+      "total": "244.68",
+      "reported": "244.68"
+    },
+    {
+      "order_id": "A-1002",
+      "placed_at": "2026-05-06",
+      "currency": "USD",
+      "region": "us-ca",
+      "total": "1174.50",
+      "reported": "1174.50"
+    },
+    {
+      "order_id": "A-1003",
+      "placed_at": "2026-05-11",
+      "currency": "EUR",
+      "region": "eu-de",
+      "total": "195.46",
+      "reported": "212.46"
+    },
+    {
+      "order_id": "A-1004",
+      "placed_at": "2026-05-19",
+      "currency": "GBP",
+      "region": "uk",
+      "total": "341.28",
+      "reported": "432.00"
+    }
+  ]
+}
+order_id,placed_at,currency,region,total,reported
+K-3001,2026-05-04,JPY,jp,"98,439","98,439"
+K-3002,2026-05-09,JPY,jp,"43,120","43,120"
+K-3003,2026-05-17,USD,us-ca,228.38,"35,856"
+
+TOTAL,,JPY,,,"177,415"
+
+
+codex
+The corrected CLI output now matches every reconciled Acme and Kitsune row and total exactly, including whole-yen settlement. I’m doing broader invariant checks now: all configured tenants, every supported reporting currency, FX directionality, and consistency between tax, breakdown, and final totals.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/reporting.py
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..7f62b1b1836b369338fbbf89a091d24058ab87b7
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -1,20 +1,16 @@
+ """Settlement reporting.
+ 
+-A tenant report converts every order total into the tenant's reporting
+-currency and sums them. Conversion happens on the unrounded order totals and
+-the sum is rounded once at the end, to the reporting currency's minor units.
++A tenant report converts every rounded invoice total into the tenant's
++reporting currency and sums the unrounded conversions. The sum is rounded
++once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 -m unittest discover -v
+python3 - <<'PY'
+from decimal import Decimal
+
+from ledgerkit import fx, pricing, reporting, repository, tenants
+from ledgerkit.catalog import default_catalog
+from ledgerkit.tenants import Tenant
+
+catalog = default_catalog()
+expected = {
+    'acme': {
+        'total': Decimal('2063.64'),
+        'rows': [
+            ('A-1001', Decimal('244.68'), Decimal('244.68')),
+            ('A-1002', Decimal('1174.50'), Decimal('1174.50')),
+            ('A-1003', Decimal('195.46'), Decimal('212.46')),
+            ('A-1004', Decimal('341.28'), Decimal('432.00')),
+        ],
+    },
+    'kitsune': {
+        'total': Decimal('177415'),
+        'rows': [
+            ('K-3001', Decimal('98439'), Decimal('98439')),
+            ('K-3002', Decimal('43120'), Decimal('43120')),
+            ('K-3003', Decimal('228.38'), Decimal('35856')),
+        ],
+    },
+}
+for tenant_id, figures in expected.items():
+    tenant = tenants.get(tenant_id)
+    report = reporting.tenant_report(
+        tenant, repository.for_tenant(tenant_id), catalog)
+    assert report['total'].amount == figures['total'], report
+    actual_rows = [
+        (row['order_id'], row['total'].amount, row['reported'].amount)
+        for row in report['rows']
+    ]
+    assert actual_rows == figures['rows'], actual_rows
+
+for source in fx.supported():
+    for target in fx.supported():
+        assert fx.cross_rate(source, target) == (
+            fx.rate_for(target) / fx.rate_for(source))
+
+for tenant in tenants.all_tenants():
+    orders = repository.for_tenant(tenant.tenant_id)
+    for order in orders:
+        breakdown = pricing.price_breakdown(order, catalog, tenant)
+        assert breakdown['tax'] == pricing.order_tax(order, catalog, tenant)
+        assert breakdown['total'] == (
+            breakdown['taxable'] + breakdown['tax']).quantized()
+    for currency in fx.supported():
+        alternate = Tenant(tenant.tenant_id, tenant.name, tenant.home_region,
+                           currency, tenant.discount_rules)
+        report = reporting.tenant_report(alternate, orders, catalog)
+        assert report['total'].currency == currency
+        assert report['total'].is_quantized(), (tenant.tenant_id, currency)
+        assert all(row['reported'].is_quantized() for row in report['rows'])
+
+print('all reconciliation and cross-currency invariants passed')
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+ succeeded in 0ms:
+
+----------------------------------------------------------------------
+Ran 0 tests in 0.000s
+
+NO TESTS RAN
+all reconciliation and cross-currency invariants passed
+
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..7f62b1b1836b369338fbbf89a091d24058ab87b7
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -1,20 +1,16 @@
+ """Settlement reporting.
+ 
+-A tenant report converts every order total into the tenant's reporting
+-currency and sums them. Conversion happens on the unrounded order totals and
+-the sum is rounded once at the end, to the reporting currency's minor units.
++A tenant report converts every rounded invoice total into the tenant's
++reporting currency and sums the unrounded conversions. The sum is rounded
++once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "nl -ba ledgerkit/fx.py | sed -n '28,58p'
+nl -ba ledgerkit/pricing.py | sed -n '32,70p'
+nl -ba ledgerkit/reporting.py | sed -n '1,50p'" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2
+ succeeded in 0ms:
+    28	        return RATES[currency]
+    29	    except KeyError:
+    30	        raise CurrencyError(f"no fx rate for {currency!r}") from None
+    31	
+    32	
+    33	def cross_rate(from_currency, to_currency):
+    34	    """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+    35	    source = rate_for(from_currency)
+    36	    target = rate_for(to_currency)
+    37	    # Rates are currency units per USD.  Convert the source amount to USD by
+    38	    # dividing by its rate, then convert USD to the target by multiplying by
+    39	    # the target rate.
+    40	    return target / source
+    41	
+    42	
+    43	def convert(money, to_currency):
+    44	    """Convert `money` into `to_currency`. Unrounded on purpose.
+    45	
+    46	    Callers decide when to round, because rounding at every hop compounds
+    47	    error across a multi-order report.
+    48	    """
+    49	    if money.currency == to_currency:
+    50	        return money
+    51	    return Money(money.amount * cross_rate(money.currency, to_currency),
+    52	                 to_currency)
+    53	
+    54	
+    55	def to_base(money):
+    56	    """Convert into the base currency (USD)."""
+    57	    return convert(money, BASE)
+    58	
+    32	
+    33	def order_discount(order, catalog, tenant):
+    34	    """The discount this tenant's rules give on this order."""
+    35	    return total_discount(tenant.discount_rules, order_subtotal(order,
+    36	                                                                catalog))
+    37	
+    38	
+    39	def order_tax(order, catalog, tenant):
+    40	    """Tax due on this order."""
+    41	    subtotal = order_subtotal(order, catalog)
+    42	    discount = total_discount(tenant.discount_rules, subtotal)
+    43	    taxable = subtotal - discount
+    44	    return tax_module.tax_for_region(taxable, order.region)
+    45	
+    46	
+    47	def order_total(order, catalog, tenant):
+    48	    """What the customer pays, rounded to the order currency."""
+    49	    subtotal = order_subtotal(order, catalog)
+    50	    discount = total_discount(tenant.discount_rules, subtotal)
+    51	    taxable = subtotal - discount
+    52	    tax = tax_module.tax_for_region(taxable, order.region)
+    53	    return (taxable + tax).quantized()
+    54	
+    55	
+    56	def price_breakdown(order, catalog, tenant):
+    57	    """Every component of the price, for the invoice renderer."""
+    58	    subtotal = order_subtotal(order, catalog)
+    59	    discount = total_discount(tenant.discount_rules, subtotal)
+    60	    taxable = subtotal - discount
+    61	    tax = tax_module.tax_for_region(taxable, order.region)
+    62	    return {
+    63	        "subtotal": subtotal,
+    64	        "discount": discount,
+    65	        "taxable": taxable,
+    66	        "tax": tax,
+    67	        "total": order_total(order, catalog, tenant),
+    68	    }
+    69	
+    70	
+     1	"""Settlement reporting.
+     2	
+     3	A tenant report converts every rounded invoice total into the tenant's
+     4	reporting currency and sums the unrounded conversions. The sum is rounded
+     5	once at the end, to the reporting currency's minor units.
+     6	"""
+     7	from . import fx, pricing
+     8	from .money import Money
+     9	
+    10	
+    11	def round_for_report(money):
+    12	    """Round a reporting figure for presentation and storage."""
+    13	    return money.quantized()
+    14	
+    15	
+    16	def order_row(order, catalog, tenant):
+    17	    """One line of the report."""
+    18	    total = pricing.order_total(order, catalog, tenant)
+    19	    converted = fx.convert(total, tenant.reporting_currency)
+    20	    return {
+    21	        "order_id": order.order_id,
+    22	        "placed_at": order.placed_at,
+    23	        "currency": order.currency,
+    24	        "region": order.region,
+    25	        "total": total,
+    26	        "reported": round_for_report(converted),
+    27	    }
+    28	
+    29	
+    30	def tenant_total(tenant, orders, catalog):
+    31	    """Total revenue for a tenant, in its reporting currency."""
+    32	    acc = Money.zero(tenant.reporting_currency)
+    33	    for order in orders:
+    34	        total = pricing.order_total(order, catalog, tenant)
+    35	        acc = acc + fx.convert(total, tenant.reporting_currency)
+    36	    return round_for_report(acc)
+    37	
+    38	
+    39	def tenant_report(tenant, orders, catalog):
+    40	    """Rows plus the tenant total."""
+    41	    rows = [order_row(o, catalog, tenant) for o in orders]
+    42	    return {
+    43	        "tenant": tenant.tenant_id,
+    44	        "name": tenant.name,
+    45	        "currency": tenant.reporting_currency,
+    46	        "orders": len(rows),
+    47	        "rows": rows,
+    48	        "total": tenant_total(tenant, orders, catalog),
+    49	    }
+    50	
+
+All fixes are implemented. Reconciled examples match exactly, and cross-currency/pricing invariants pass for every configured tenant and supported currency.
+  ✓ Inspect report pipeline, fixtures, and reconciled totals
+  ✓ Isolate each logic discrepancy and implement scoped fixes
+  ✓ Run tests and verify all tenant/currency report paths
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..7f62b1b1836b369338fbbf89a091d24058ab87b7
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -1,20 +1,16 @@
+ """Settlement reporting.
+ 
+-A tenant report converts every order total into the tenant's reporting
+-currency and sums them. Conversion happens on the unrounded order totals and
+-the sum is rounded once at the end, to the reporting currency's minor units.
++A tenant report converts every rounded invoice total into the tenant's
++reporting currency and sums the unrounded conversions. The sum is rounded
++once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+codex
+Fixed the settlement logic:
+
+- Tax now applies after discounts in [pricing.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/pricing.py:39).
+- FX cross-rates now follow the table’s “currency units per USD” convention in [fx.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/fx.py:33).
+- Reporting uses each currency’s natural precision, including zero-decimal JPY, in [reporting.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/reporting.py:11).
+
+Verified results:
+
+- Acme: **USD 2,063.64**
+- Kitsune: **JPY 177,415**
+- All configured tenants across all five supported reporting currencies passed reconciliation and rounding invariants.
+- Package compilation passed. The repository contains no automated tests (`unittest` discovered zero).
+diff --git a/ledgerkit/fx.py b/ledgerkit/fx.py
+index a57bb09d8d3e5d294f86c86bc3ba8e93c4389bf4..dd30bcec8d5ed014d11996840be4cd3db16fc31d
+--- a/ledgerkit/fx.py
++++ b/ledgerkit/fx.py
+@@ -34,7 +34,10 @@
+     """Multiplier that takes an amount in `from_currency` to `to_currency`."""
+     source = rate_for(from_currency)
+     target = rate_for(to_currency)
+-    return source / target
++    # Rates are currency units per USD.  Convert the source amount to USD by
++    # dividing by its rate, then convert USD to the target by multiplying by
++    # the target rate.
++    return target / source
+ 
+ 
+ def convert(money, to_currency):
+diff --git a/ledgerkit/pricing.py b/ledgerkit/pricing.py
+index 29a188b2bc84b070780d7555a8748d682a992c1e..a001618631139ba986242eda43d3ece560013c6a
+--- a/ledgerkit/pricing.py
++++ b/ledgerkit/pricing.py
+@@ -39,15 +39,18 @@
+ def order_tax(order, catalog, tenant):
+     """Tax due on this order."""
+     subtotal = order_subtotal(order, catalog)
+-    return tax_module.tax_for_region(subtotal, order.region)
++    discount = total_discount(tenant.discount_rules, subtotal)
++    taxable = subtotal - discount
++    return tax_module.tax_for_region(taxable, order.region)
+ 
+ 
+ def order_total(order, catalog, tenant):
+     """What the customer pays, rounded to the order currency."""
+     subtotal = order_subtotal(order, catalog)
+     discount = total_discount(tenant.discount_rules, subtotal)
+-    tax = tax_module.tax_for_region(subtotal, order.region)
+-    return (subtotal + tax - discount).quantized()
++    taxable = subtotal - discount
++    tax = tax_module.tax_for_region(taxable, order.region)
++    return (taxable + tax).quantized()
+ 
+ 
+ def price_breakdown(order, catalog, tenant):
+diff --git a/ledgerkit/reporting.py b/ledgerkit/reporting.py
+index 17e25479eda40a6e9e5796d267180ce67ed0505a..7f62b1b1836b369338fbbf89a091d24058ab87b7
+--- a/ledgerkit/reporting.py
++++ b/ledgerkit/reporting.py
+@@ -1,20 +1,16 @@
+ """Settlement reporting.
+ 
+-A tenant report converts every order total into the tenant's reporting
+-currency and sums them. Conversion happens on the unrounded order totals and
+-the sum is rounded once at the end, to the reporting currency's minor units.
++A tenant report converts every rounded invoice total into the tenant's
++reporting currency and sums the unrounded conversions. The sum is rounded
++once at the end, to the reporting currency's minor units.
+ """
+-from decimal import ROUND_HALF_UP, Decimal
+-
+ from . import fx, pricing
+ from .money import Money
+ 
+ 
+ def round_for_report(money):
+     """Round a reporting figure for presentation and storage."""
+-    return Money(money.amount.quantize(Decimal("0.01"),
+-                                       rounding=ROUND_HALF_UP),
+-                 money.currency)
++    return money.quantized()
+ 
+ 
+ def order_row(order, catalog, tenant):
+
+tokens used
+34,600
+Fixed the settlement logic:
+
+- Tax now applies after discounts in [pricing.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/pricing.py:39).
+- FX cross-rates now follow the table’s “currency units per USD” convention in [fx.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/fx.py:33).
+- Reporting uses each currency’s natural precision, including zero-decimal JPY, in [reporting.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h3_bigcontext_t2/ledgerkit/reporting.py:11).
+
+Verified results:
+
+- Acme: **USD 2,063.64**
+- Kitsune: **JPY 177,415**
+- All configured tenants across all five supported reporting currencies passed reconciliation and rounding invariants.
+- Package compilation passed. The repository contains no automated tests (`unittest` discovered zero).

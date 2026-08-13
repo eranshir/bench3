@@ -1,0 +1,234 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbeb6-8338-76b2-b61c-47ba605a8804
+--------
+user
+Implement parse_duration() in duration.py so that the existing test suite in
+test_duration.py passes in full.
+
+Do NOT modify test_duration.py — the tests define the spec. Read them.
+
+Verify with:
+  python3 -m unittest test_duration -v
+All tests must pass.
+codex
+I’ll read the tests first, implement only `duration.py`, then run the exact unittest command you provided.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,260p' test_duration.py && sed -n '1,260p' duration.py && git status --short" in /Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3
+ exited 128 in 0ms:
+import unittest
+from duration import parse_duration
+
+
+class T(unittest.TestCase):
+    def test_simple(self):
+        self.assertEqual(parse_duration("30s"), 30)
+        self.assertEqual(parse_duration("5m"), 300)
+        self.assertEqual(parse_duration("2h"), 7200)
+        self.assertEqual(parse_duration("1d"), 86400)
+
+    def test_compound(self):
+        self.assertEqual(parse_duration("1h30m"), 5400)
+        self.assertEqual(parse_duration("1d2h3m4s"), 93784)
+
+    def test_whitespace_and_case(self):
+        self.assertEqual(parse_duration(" 1H 30M "), 5400)
+
+    def test_zero(self):
+        self.assertEqual(parse_duration("0s"), 0)
+
+    def test_invalid(self):
+        for bad in ("", "abc", "10x", "h30m", "1.5h", "-5m"):
+            with self.assertRaises(ValueError, msg=bad):
+                parse_duration(bad)
+
+
+if __name__ == "__main__":
+    unittest.main()
+def parse_duration(text):
+    """Parse a duration string like '1h30m' into total seconds."""
+    raise NotImplementedError
+fatal: not a git repository (or any of the parent directories): .git
+
+codex
+The tests define four case-insensitive units (`s`, `m`, `h`, `d`), compound terms, surrounding/inter-term whitespace, and strict rejection of malformed or signed/decimal input. I’m implementing a full-string parser so invalid trailing or embedded text cannot be silently ignored.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3/duration.py
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..5c7769744c488850503465a3e4d16bd2f7fcbdea
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,24 @@
++import re
++
++
++_UNIT_SECONDS = {
++    "s": 1,
++    "m": 60,
++    "h": 60 * 60,
++    "d": 24 * 60 * 60,
++}
++
++_DURATION_RE = re.compile(r"(?:\d+[smhd])+", re.IGNORECASE)
++_PART_RE = re.compile(r"(\d+)([smhd])", re.IGNORECASE)
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    compact = re.sub(r"\s+", "", text)
++    if not compact or _DURATION_RE.fullmatch(compact) is None:
++        raise ValueError(f"invalid duration: {text!r}")
++
++    return sum(
++        int(amount) * _UNIT_SECONDS[unit.lower()]
++        for amount, unit in _PART_RE.findall(compact)
++    )
+
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..5c7769744c488850503465a3e4d16bd2f7fcbdea
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,24 @@
++import re
++
++
++_UNIT_SECONDS = {
++    "s": 1,
++    "m": 60,
++    "h": 60 * 60,
++    "d": 24 * 60 * 60,
++}
++
++_DURATION_RE = re.compile(r"(?:\d+[smhd])+", re.IGNORECASE)
++_PART_RE = re.compile(r"(\d+)([smhd])", re.IGNORECASE)
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    compact = re.sub(r"\s+", "", text)
++    if not compact or _DURATION_RE.fullmatch(compact) is None:
++        raise ValueError(f"invalid duration: {text!r}")
++
++    return sum(
++        int(amount) * _UNIT_SECONDS[unit.lower()]
++        for amount, unit in _PART_RE.findall(compact)
++    )
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 -m unittest test_duration -v' in /Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..5c7769744c488850503465a3e4d16bd2f7fcbdea
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,24 @@
++import re
++
++
++_UNIT_SECONDS = {
++    "s": 1,
++    "m": 60,
++    "h": 60 * 60,
++    "d": 24 * 60 * 60,
++}
++
++_DURATION_RE = re.compile(r"(?:\d+[smhd])+", re.IGNORECASE)
++_PART_RE = re.compile(r"(\d+)([smhd])", re.IGNORECASE)
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    compact = re.sub(r"\s+", "", text)
++    if not compact or _DURATION_RE.fullmatch(compact) is None:
++        raise ValueError(f"invalid duration: {text!r}")
++
++    return sum(
++        int(amount) * _UNIT_SECONDS[unit.lower()]
++        for amount, unit in _PART_RE.findall(compact)
++    )
+
+ succeeded in 401ms:
+test_compound (test_duration.T.test_compound) ... ok
+test_invalid (test_duration.T.test_invalid) ... ok
+test_simple (test_duration.T.test_simple) ... ok
+test_whitespace_and_case (test_duration.T.test_whitespace_and_case) ... ok
+test_zero (test_duration.T.test_zero) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.000s
+
+OK
+
+codex
+Implemented `parse_duration()` in [duration.py](/Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3/duration.py).
+
+Supports compound durations, whitespace, case-insensitive units, and rejects malformed input.
+
+Verification:
+
+```text
+Ran 5 tests
+OK
+```
+
+`test_duration.py` was not modified.
+diff --git a/duration.py b/duration.py
+index 409db3d7c15f82fb204c5cdf86a0457fc3ba94f2..5c7769744c488850503465a3e4d16bd2f7fcbdea
+--- a/duration.py
++++ b/duration.py
+@@ -1,3 +1,24 @@
++import re
++
++
++_UNIT_SECONDS = {
++    "s": 1,
++    "m": 60,
++    "h": 60 * 60,
++    "d": 24 * 60 * 60,
++}
++
++_DURATION_RE = re.compile(r"(?:\d+[smhd])+", re.IGNORECASE)
++_PART_RE = re.compile(r"(\d+)([smhd])", re.IGNORECASE)
++
++
+ def parse_duration(text):
+     """Parse a duration string like '1h30m' into total seconds."""
+-    raise NotImplementedError
++    compact = re.sub(r"\s+", "", text)
++    if not compact or _DURATION_RE.fullmatch(compact) is None:
++        raise ValueError(f"invalid duration: {text!r}")
++
++    return sum(
++        int(amount) * _UNIT_SECONDS[unit.lower()]
++        for amount, unit in _PART_RE.findall(compact)
++    )
+
+tokens used
+12,054
+Implemented `parse_duration()` in [duration.py](/Users/eranshir/Documents/Projects/deepseek/bench/work/gpt_t3_tdd_t3/duration.py).
+
+Supports compound durations, whitespace, case-insensitive units, and rejects malformed input.
+
+Verification:
+
+```text
+Ran 5 tests
+OK
+```
+
+`test_duration.py` was not modified.

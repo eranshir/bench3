@@ -1,0 +1,153 @@
+########## deepseek trial 1  (22:45:14) ##########
+=== deepseek / h1_perf / trial 1 ===
+  -> 306s agent, 0s grade, 104084 tokens, passed=1, failed_tests=0 
+=== deepseek / h2_concurrency / trial 1 ===
+  -> 87s agent, 1s grade, 65702 tokens, passed=1, failed_tests=0 
+=== deepseek / h3_bigcontext / trial 1 ===
+  -> 83s agent, 0s grade, 74039 tokens, passed=1, failed_tests=0 
+=== deepseek / h4_underspec / trial 1 ===
+  -> 266s agent, 0s grade, 92389 tokens, passed=0, failed_tests=1 
+=== deepseek / h5_longhorizon / trial 1 ===
+  -> 68s agent, 0s grade, 63111 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt trial 1  (22:58:45) ##########
+=== gpt / h1_perf / trial 1 ===
+  -> 279s agent, 1s grade, 35262 tokens, passed=1, failed_tests=0 
+=== gpt / h2_concurrency / trial 1 ===
+  -> 346s agent, 1s grade, 49129 tokens, passed=1, failed_tests=0 
+=== gpt / h3_bigcontext / trial 1 ===
+  -> 139s agent, 0s grade, 38693 tokens, passed=1, failed_tests=0 
+=== gpt / h4_underspec / trial 1 ===
+  -> 180s agent, 0s grade, 35449 tokens, passed=1, failed_tests=0 
+=== gpt / h5_longhorizon / trial 1 ===
+  -> 99s agent, 0s grade, 33731 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek trial 2  (23:16:10) ##########
+=== deepseek / h1_perf / trial 2 ===
+  -> 382s agent, 0s grade, 94864 tokens, passed=1, failed_tests=0 
+=== deepseek / h2_concurrency / trial 2 ===
+  -> 98s agent, 1s grade, 64403 tokens, passed=1, failed_tests=0 
+=== deepseek / h3_bigcontext / trial 2 ===
+  -> 134s agent, 0s grade, 78747 tokens, passed=0, failed_tests=1 
+=== deepseek / h4_underspec / trial 2 ===
+  -> 322s agent, 0s grade, 93820 tokens, passed=0, failed_tests=1 
+=== deepseek / h5_longhorizon / trial 2 ===
+  -> 39s agent, 0s grade, 58812 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt trial 2  (23:32:26) ##########
+=== gpt / h1_perf / trial 2 ===
+  -> 285s agent, 1s grade, 39998 tokens, passed=1, failed_tests=0 
+=== gpt / h2_concurrency / trial 2 ===
+  -> 219s agent, 1s grade, 30350 tokens, passed=1, failed_tests=0 
+=== gpt / h3_bigcontext / trial 2 ===
+skip deepseek/h1_perf/t1 (already recorded)
+skip deepseek/h2_concurrency/t1 (already recorded)
+skip deepseek/h3_bigcontext/t1 (already recorded)
+skip deepseek/h4_underspec/t1 (already recorded)
+skip deepseek/h5_longhorizon/t1 (already recorded)
+skip gpt/h1_perf/t1 (already recorded)
+skip gpt/h2_concurrency/t1 (already recorded)
+skip gpt/h3_bigcontext/t1 (already recorded)
+skip gpt/h4_underspec/t1 (already recorded)
+skip gpt/h5_longhorizon/t1 (already recorded)
+skip deepseek/h1_perf/t2 (already recorded)
+skip deepseek/h2_concurrency/t2 (already recorded)
+skip deepseek/h3_bigcontext/t2 (already recorded)
+skip deepseek/h4_underspec/t2 (already recorded)
+skip deepseek/h5_longhorizon/t2 (already recorded)
+skip gpt/h1_perf/t2 (already recorded)
+skip gpt/h2_concurrency/t2 (already recorded)
+########## gpt h3_bigcontext trial 2  (23:41:50) ##########
+=== gpt / h3_bigcontext / trial 2 ===
+  -> 121s agent, 0s grade, 34600 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h4_underspec trial 2  (23:43:51) ##########
+=== gpt / h4_underspec / trial 2 ===
+  -> 196s agent, 0s grade, 45868 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h5_longhorizon trial 2  (23:47:07) ##########
+=== gpt / h5_longhorizon / trial 2 ===
+  -> 151s agent, 0s grade, 28579 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek h1_perf trial 3  (23:49:38) ##########
+=== deepseek / h1_perf / trial 3 ===
+  -> 256s agent, 0s grade, 122280 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek h2_concurrency trial 3  (23:53:54) ##########
+=== deepseek / h2_concurrency / trial 3 ===
+  -> 67s agent, 0s grade, 60764 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek h3_bigcontext trial 3  (23:55:01) ##########
+=== deepseek / h3_bigcontext / trial 3 ===
+  -> 118s agent, 0s grade, 82300 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek h4_underspec trial 3  (23:56:59) ##########
+=== deepseek / h4_underspec / trial 3 ===
+skip deepseek/h1_perf/t1 (already recorded)
+skip deepseek/h2_concurrency/t1 (already recorded)
+skip deepseek/h3_bigcontext/t1 (already recorded)
+skip deepseek/h4_underspec/t1 (already recorded)
+skip deepseek/h5_longhorizon/t1 (already recorded)
+skip gpt/h1_perf/t1 (already recorded)
+skip gpt/h2_concurrency/t1 (already recorded)
+skip gpt/h3_bigcontext/t1 (already recorded)
+skip gpt/h4_underspec/t1 (already recorded)
+skip gpt/h5_longhorizon/t1 (already recorded)
+skip deepseek/h1_perf/t2 (already recorded)
+skip deepseek/h2_concurrency/t2 (already recorded)
+skip deepseek/h3_bigcontext/t2 (already recorded)
+skip deepseek/h4_underspec/t2 (already recorded)
+skip deepseek/h5_longhorizon/t2 (already recorded)
+skip gpt/h1_perf/t2 (already recorded)
+skip gpt/h2_concurrency/t2 (already recorded)
+skip gpt/h3_bigcontext/t2 (already recorded)
+skip gpt/h4_underspec/t2 (already recorded)
+skip gpt/h5_longhorizon/t2 (already recorded)
+skip deepseek/h1_perf/t3 (already recorded)
+skip deepseek/h2_concurrency/t3 (already recorded)
+skip deepseek/h3_bigcontext/t3 (already recorded)
+########## deepseek h4_underspec trial 3  (00:01:06) ##########
+=== deepseek / h4_underspec / trial 3 ===
+  -> 170s agent, 0s grade, 75777 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## deepseek h5_longhorizon trial 3  (00:03:57) ##########
+=== deepseek / h5_longhorizon / trial 3 ===
+  -> 55s agent, 0s grade, 61143 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h1_perf trial 3  (00:04:52) ##########
+=== gpt / h1_perf / trial 3 ===
+  -> 209s agent, 1s grade, 24861 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h2_concurrency trial 3  (00:08:22) ##########
+=== gpt / h2_concurrency / trial 3 ===
+  -> 241s agent, 1s grade, 45908 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h3_bigcontext trial 3  (00:12:24) ##########
+=== gpt / h3_bigcontext / trial 3 ===
+  -> 168s agent, 0s grade, 66930 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h4_underspec trial 3  (00:15:12) ##########
+=== gpt / h4_underspec / trial 3 ===
+  -> 235s agent, 0s grade, 59680 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## gpt h5_longhorizon trial 3  (00:19:07) ##########
+=== gpt / h5_longhorizon / trial 3 ===
+  -> 122s agent, 0s grade, 22403 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/hard/results_hard.csv
+########## hard batch complete 00:21:09 ##########

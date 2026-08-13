@@ -1,0 +1,11 @@
+test_callback_walk_removed (_hidden_test.T.test_callback_walk_removed) ... ok
+test_deep_no_recursion_error (_hidden_test.T.test_deep_no_recursion_error) ... ok
+test_generator_exists_and_yields_pairs (_hidden_test.T.test_generator_exists_and_yields_pairs) ... ok
+test_is_generator (_hidden_test.T.test_is_generator) ... ok
+test_lazy (_hidden_test.T.test_lazy) ... ok
+test_original_behaviour (_hidden_test.T.test_original_behaviour) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.066s
+
+OK

@@ -1,0 +1,16 @@
+The batch settlement job is unreliable under load. `python3 stress.py`
+reproduces it: the deposit total comes out short, the worker pool sometimes
+returns fewer results than were submitted, and the opposing-transfer phase
+occasionally hangs and never returns.
+
+Make pipeline.py correct under concurrency.
+
+Constraints:
+- Keep the public API exactly as it is: Ledger(balances), .transfer(src, dst,
+  amount) -> bool, .deposit(account, amount), .total(), .balances; and
+  WorkerPool(workers), .submit(fn), .run() -> list of results.
+- transfer must still refuse to overdraw and return False in that case.
+- run() must return one result per submitted task.
+- Standard library only. Do not serialise everything through a single global
+  lock held for the whole run in a way that removes parallelism from the
+  worker pool.

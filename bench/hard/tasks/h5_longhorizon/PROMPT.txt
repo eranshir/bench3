@@ -1,0 +1,12 @@
+`python3 run_check.py` fails on a clean developer machine. Make it pass.
+
+It has to pass by actually being correct: the expected numbers in run_check.py
+were agreed with finance and are right. Do not edit run_check.py, and do not
+change the seed data.
+
+Keep the public API as it is: config.load() -> dict with "env", "db_path" and
+"page_size"; db.connect(path); db.init_schema(conn);
+reports.revenue_between(conn, start, end, currency="USD");
+reports.top_customers(conn, page=1, page_size=25, currency="USD").
+
+Standard library only.

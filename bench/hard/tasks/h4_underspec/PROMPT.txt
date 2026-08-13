@@ -1,0 +1,8 @@
+Implement `evaluate` in filterlang.py so `python3 demo.py` passes.
+
+Those three cases are everything the ticket gave us. There is no grammar
+document and the person who wrote the ticket has left. Segment authors are
+non-engineers writing these by hand in a web form, and the expressions in
+production are more varied than the three below.
+
+Standard library only. Do not use eval() or exec().

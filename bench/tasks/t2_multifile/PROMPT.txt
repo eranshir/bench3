@@ -1,0 +1,18 @@
+Add environment-variable overrides to this config system, threading the change
+through the existing files in app/ (config.py, loader.py, main.py).
+
+Requirements:
+- An env var named APP_<KEY_UPPERCASE> overrides the matching default.
+  e.g. APP_HOST overrides "host", APP_PORT overrides "port".
+- Precedence, lowest to highest: DEFAULTS, then env vars, then the explicit
+  `overrides` dict passed to load_config().
+- Types must be coerced to match the type of the default value: "port" stays an
+  int, "debug" stays a bool. For bools, the strings "1", "true", "True", "yes"
+  are True; "0", "false", "False", "no" are False.
+- Unknown APP_* env vars (no matching key in DEFAULTS) are ignored.
+- Do not change the public API: load_config(overrides=None) -> Config, and
+  Config.get / Config.as_dict must keep working as they do now.
+
+Verify with:
+  APP_PORT=9000 APP_DEBUG=true python3 -c "from app.main import describe; print(describe())"
+It must print: localhost:9000 debug=True

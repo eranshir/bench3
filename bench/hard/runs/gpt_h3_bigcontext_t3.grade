@@ -1,0 +1,23 @@
+test_cross_rate_is_target_over_source (_hidden_test.FxDirection.test_cross_rate_is_target_over_source) ... ok
+test_eur_is_worth_more_than_a_dollar (_hidden_test.FxDirection.test_eur_is_worth_more_than_a_dollar) ... ok
+test_round_trip_is_identity (_hidden_test.FxDirection.test_round_trip_is_identity) ... ok
+test_same_currency_is_a_no_op (_hidden_test.FxDirection.test_same_currency_is_a_no_op) ... ok
+test_usd_to_jpy (_hidden_test.FxDirection.test_usd_to_jpy) ... ok
+test_acme (_hidden_test.PublishedTenants.test_acme) ... ok
+test_kitsune (_hidden_test.PublishedTenants.test_kitsune) ... ok
+test_half_rounds_away_from_zero (_hidden_test.ReportRounding.test_half_rounds_away_from_zero) ... ok
+test_jpy_rounds_to_whole_yen (_hidden_test.ReportRounding.test_jpy_rounds_to_whole_yen) ... ok
+test_usd_still_rounds_to_cents (_hidden_test.ReportRounding.test_usd_still_rounds_to_cents) ... ok
+test_threshold_discount_in_jpy_with_mixed_currency_orders (_hidden_test.SyntheticTenant.test_threshold_discount_in_jpy_with_mixed_currency_orders) ... ok
+test_breakdown_components_reconcile_with_the_total (_hidden_test.TaxAfterDiscount.test_breakdown_components_reconcile_with_the_total) ... ok
+test_tax_is_charged_on_the_discounted_amount (_hidden_test.TaxAfterDiscount.test_tax_is_charged_on_the_discounted_amount) ... ok
+test_zero_discount_tenant_is_unaffected (_hidden_test.TaxAfterDiscount.test_zero_discount_tenant_is_unaffected) ... ok
+test_zero_tax_region_is_just_the_discounted_subtotal (_hidden_test.TaxAfterDiscount.test_zero_tax_region_is_just_the_discounted_subtotal) ... ok
+test_borealis (_hidden_test.UnpublishedTenants.test_borealis) ... ok
+test_northwind (_hidden_test.UnpublishedTenants.test_northwind) ... ok
+test_selected_converted_rows (_hidden_test.UnpublishedTenants.test_selected_converted_rows) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 0.000s
+
+OK

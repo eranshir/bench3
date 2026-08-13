@@ -1,0 +1,44 @@
+test_and_binds_tighter_than_or (_hidden_test.BooleanLogic.test_and_binds_tighter_than_or) ... ok
+test_and_or (_hidden_test.BooleanLogic.test_and_or) ... ok
+test_bare_boolean_field (_hidden_test.BooleanLogic.test_bare_boolean_field) ... ok
+test_nested_parentheses (_hidden_test.BooleanLogic.test_nested_parentheses) ... ok
+test_not_binds_tighter_than_and (_hidden_test.BooleanLogic.test_not_binds_tighter_than_and) ... ok
+test_not_binds_tighter_than_or (_hidden_test.BooleanLogic.test_not_binds_tighter_than_or) ... ok
+test_parentheses_override_precedence (_hidden_test.BooleanLogic.test_parentheses_override_precedence) ... ok
+test_both_quote_styles (_hidden_test.Comparisons.test_both_quote_styles) ... ok
+test_extra_whitespace (_hidden_test.Comparisons.test_extra_whitespace) ... ERROR
+test_float_and_int_compare_numerically (_hidden_test.Comparisons.test_float_and_int_compare_numerically) ... ok
+test_full_operator_set (_hidden_test.Comparisons.test_full_operator_set) ... ok
+test_negative_numbers (_hidden_test.Comparisons.test_negative_numbers) ... ok
+test_tight_spacing (_hidden_test.Comparisons.test_tight_spacing) ... ok
+test_contains_combines_with_logic (_hidden_test.Contains.test_contains_combines_with_logic) ... ok
+test_contains_on_list (_hidden_test.Contains.test_contains_on_list) ... ok
+test_contains_on_string (_hidden_test.Contains.test_contains_on_string) ... ok
+test_malformed_expressions_are_not_a_match (_hidden_test.Robustness.test_malformed_expressions_are_not_a_match) ... ok
+test_missing_field_is_not_a_match (_hidden_test.Robustness.test_missing_field_is_not_a_match) ... ok
+test_no_eval_or_exec_used (_hidden_test.Robustness.test_no_eval_or_exec_used) ... ok
+test_the_three_given_examples (_hidden_test.TicketCases.test_the_three_given_examples) ... ok
+
+======================================================================
+ERROR: test_extra_whitespace (_hidden_test.Comparisons.test_extra_whitespace)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t1/_hidden_test.py", line 67, in test_extra_whitespace
+    self.assertIs(evaluate("   age   >   29   ", self.REC), True)
+                  ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t1/filterlang.py", line 589, in evaluate
+    return bool(_Parser(expression).parse().test(record))
+                ~~~~~~~^^^^^^^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t1/filterlang.py", line 175, in __init__
+    self._tokens = _tokenize(text)
+                   ~~~~~~~~~^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t1/filterlang.py", line 88, in _tokenize
+    raise ValueError(
+    ...<2 lines>...
+    )
+ValueError: invalid character '   ' at position 15 in filter expression '   age   >   29   '
+
+----------------------------------------------------------------------
+Ran 20 tests in 0.004s
+
+FAILED (errors=1)

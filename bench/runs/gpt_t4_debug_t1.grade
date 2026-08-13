@@ -1,0 +1,11 @@
+test_chaining_preserved (_hidden_test.T.test_chaining_preserved) ... ok
+test_compounding_discount (_hidden_test.T.test_compounding_discount) ... ok
+test_no_shared_state (_hidden_test.T.test_no_shared_state) ... ok
+test_qty (_hidden_test.T.test_qty) ... ok
+test_rounding (_hidden_test.T.test_rounding) ... ok
+test_subtotal_preserved (_hidden_test.T.test_subtotal_preserved) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.000s
+
+OK

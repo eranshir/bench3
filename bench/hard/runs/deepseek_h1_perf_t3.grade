@@ -1,0 +1,15 @@
+test_duplicates_and_negatives (_hidden_test.Correctness.test_duplicates_and_negatives) ... ok
+test_empty_series (_hidden_test.Correctness.test_empty_series) ... ok
+test_even_window_averages_two_middles (_hidden_test.Correctness.test_even_window_averages_two_middles) ... ok
+test_floats_accepted (_hidden_test.Correctness.test_floats_accepted) ... ok
+test_matches_reference_random (_hidden_test.Correctness.test_matches_reference_random) ... ok
+test_non_positive_window_raises (_hidden_test.Correctness.test_non_positive_window_raises) ... ok
+test_window_larger_than_series_is_empty (_hidden_test.Correctness.test_window_larger_than_series_is_empty) ... ok
+test_window_of_one (_hidden_test.Correctness.test_window_of_one) ... ok
+test_distinct_counts_is_subquadratic (_hidden_test.Performance.test_distinct_counts_is_subquadratic) ... ok
+test_rolling_median_is_subquadratic (_hidden_test.Performance.test_rolling_median_is_subquadratic) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 0.099s
+
+OK

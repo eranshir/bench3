@@ -1,0 +1,15 @@
+Refactor walker.py to replace the callback-based walk() with a generator named
+iter_nodes(tree) that yields (value, depth) tuples in the same depth-first order.
+
+Requirements:
+- Rewrite collect_values() and max_depth() to consume iter_nodes().
+- Remove the callback-based walk() entirely.
+- iter_nodes must be lazy: it must not build the full node list up front.
+  Taking the first item from an infinitely deep tree must not hang.
+- Make it iterative rather than recursive, so a 10,000-deep tree does not blow
+  the Python recursion limit.
+- The existing tests in test_walker.py must still pass unmodified.
+
+Verify with:
+  python3 -m unittest test_walker -v
+All tests must pass.

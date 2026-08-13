@@ -1,0 +1,618 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+model: deepseek-v4-flash
+provider: deepseek
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf06-96d7-72d0-a702-537397f2fb3a
+--------
+user
+`python3 run_check.py` fails on a clean developer machine. Make it pass.
+
+It has to pass by actually being correct: the expected numbers in run_check.py
+were agreed with finance and are right. Do not edit run_check.py, and do not
+change the seed data.
+
+Keep the public API as it is: config.load() -> dict with "env", "db_path" and
+"page_size"; db.connect(path); db.init_schema(conn);
+reports.revenue_between(conn, start, end, currency="USD");
+reports.top_customers(conn, page=1, page_size=25, currency="USD").
+
+Standard library only.
+codex
+I'll start by exploring the repo to understand the setup and what run_check.py expects.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g '"'!**/.git/**'"' | head -200" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+run_check.py
+seed.py
+svc/reports.py
+svc/__init__.py
+svc/config.py
+svc/db.py
+
+hook: PreToolUse
+hook: PreToolUse Completed
+codex
+The immediate failure is that the default DB path points to `/var/lib/svc`, which isn't writable. Let me read the code to understand the intended design before fixing anything.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,200p' run_check.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+"""End-to-end check for the settlement reports.
+
+This is the check that runs before a release. It must pass on a developer
+machine, against the local dev database that seed.py creates under ./data.
+
+Run: python3 run_check.py
+"""
+import seed
+from svc import config, db, reports
+
+# Agreed with finance. March 2026, USD, both end days inclusive.
+EXPECTED_MARCH_USD = 320_000
+EXPECTED_PAGE_1 = [("acme", 90_000), ("gamma", 90_000), ("beta", 75_000)]
+EXPECTED_PAGE_2 = [("theta", 65_000), ("delta", 10_000), ("zeta", 5_000)]
+
+
+def main():
+    seed.main()
+    cfg = config.load()
+    conn = db.connect(cfg["db_path"])
+
+    failures = []
+
+    march = reports.revenue_between(conn, "2026-03-01", "2026-03-31")
+    if march != EXPECTED_MARCH_USD:
+        failures.append(f"march revenue: got {march}, "
+                        f"want {EXPECTED_MARCH_USD}")
+
+    page1 = reports.top_customers(conn, page=1, page_size=3)
+    if page1 != EXPECTED_PAGE_1:
+        failures.append(f"page 1: got {page1}, want {EXPECTED_PAGE_1}")
+
+    page2 = reports.top_customers(conn, page=2, page_size=3)
+    if page2 != EXPECTED_PAGE_2:
+        failures.append(f"page 2: got {page2}, want {EXPECTED_PAGE_2}")
+
+    if failures:
+        for f in failures:
+            print(f"FAIL {f}")
+        raise SystemExit(1)
+    print("OK - all checks passed")
+
+
+if __name__ == "__main__":
+    main()
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,200p' seed.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+"""Populate the dev database. Run: python3 seed.py"""
+from svc import config, db
+
+ORDERS = [
+    # id, customer, amount (cents), currency, created_at
+    (1,  "acme",    50_000, "USD", "2026-03-01 09:15:00"),
+    (2,  "beta",    30_000, "USD", "2026-03-01 18:40:00"),
+    (3,  "acme",    25_000, "USD", "2026-03-15 12:00:00"),
+    (4,  "gamma",   90_000, "USD", "2026-03-31 23:59:00"),
+    (5,  "delta",   10_000, "USD", "2026-04-02 08:00:00"),
+    (6,  "beta",    45_000, "USD", "2026-03-31 00:00:01"),
+    (7,  "epsilon", 70_000, "EUR", "2026-03-10 11:00:00"),
+    (8,  "zeta",     5_000, "USD", "2026-02-28 23:59:59"),
+    (9,  "acme",    15_000, "USD", "2026-03-20 07:30:00"),
+    (10, "theta",   65_000, "USD", "2026-03-05 16:20:00"),
+]
+
+
+def main():
+    cfg = config.load()
+    conn = db.connect(cfg["db_path"])
+    db.init_schema(conn)
+    conn.execute("DELETE FROM orders")
+    conn.executemany(
+        "INSERT INTO orders (id, customer, amount, currency, created_at) "
+        "VALUES (?, ?, ?, ?, ?)", ORDERS)
+    conn.commit()
+    print(f"seeded {len(ORDERS)} orders into {cfg['db_path']} "
+          f"(env={cfg['env']})")
+
+
+if __name__ == "__main__":
+    main()
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,200p' svc/config.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+"""Runtime configuration.
+
+Environments:
+  dev   - local sqlite file under ./data, created by seed.py
+  prod  - managed volume, only mounted on the settlement hosts
+"""
+import os
+
+DEFAULTS = {
+    "page_size": 25,
+    "dev_db_path": "data/service.db",
+    "prod_db_path": "/var/lib/svc/service.db",
+}
+
+
+def load():
+    """Return the effective config dict."""
+    env = os.environ.get("SVC_ENV", "prod")
+    cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+    if env == "prod":
+        cfg["db_path"] = DEFAULTS["prod_db_path"]
+    else:
+        cfg["db_path"] = DEFAULTS["dev_db_path"]
+    return cfg
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,240p' svc/db.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+"""Database access and schema."""
+import os
+import sqlite3
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS orders (
+    id          INTEGER PRIMARY KEY,
+    customer    TEXT    NOT NULL,
+    amount      INTEGER NOT NULL,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+"""
+
+
+def connect(path):
+    """Open a connection to the sqlite database at `path`."""
+    parent = os.path.dirname(path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_schema(conn):
+    """Create the schema if it does not already exist."""
+    conn.executescript(SCHEMA)
+    conn.commit()
+    return conn
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,300p' svc/reports.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+"""Settlement reports.
+
+Amounts are integer minor units (cents). Dates are 'YYYY-MM-DD' strings and
+both ends of a range are inclusive of the whole day.
+"""
+
+
+def revenue_between(conn, start, end, currency="USD"):
+    """Total revenue for `currency` over [start, end], both days inclusive."""
+    row = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
+        (currency, start, end),
+    ).fetchone()
+    return row["total"]
+
+
+def top_customers(conn, page=1, page_size=25, currency="USD"):
+    """Customers by revenue, highest first. Pages are 1-indexed.
+
+    Ties break on customer name ascending. Returns a list of
+    (customer, total) tuples.
+    """
+    rows = conn.execute(
+        "SELECT customer, SUM(amount) AS total FROM orders "
+        "WHERE currency = ? "
+        "GROUP BY customer ORDER BY total DESC, customer ASC "
+        "LIMIT ? OFFSET ?",
+        (currency, page_size, page * page_size),
+    ).fetchall()
+    return [(r["customer"], r["total"]) for r in rows]
+
+codex
+Found the issues. There are four bugs stacked here:
+
+1. `config.load()` defaults to `prod`, whose DB path is `/var/lib/svc/service.db` — unwritable on a dev machine (this is the crash). The docstrings say `dev` is the local `./data` database.
+2. The schema in `svc/db.py` never declares the `currency` column that `seed.py` inserts and `reports.py` filters on.
+3. `revenue_between` uses `created_at < end`, which excludes the whole final day — March 31 orders (gamma 90k, beta 45k) get dropped, making the total 185k instead of 320k.
+4. `top_customers` computes `OFFSET page * page_size` instead of `(page - 1) * page_size`, so page 1 starts at row 3.
+
+Let me fix the service code (not run_check.py or seed.py).
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2/svc/config.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2/svc/db.py
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2/svc/reports.py
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+Now let me run the check and confirm it passes cleanly from a fresh state:
+hook: PreToolUse
+2026-08-01T20:32:13.689859Z ERROR codex_core::tools::router: error=exec_command failed for `/bin/zsh -lc 'rm -rf data && python3 run_check.py'`: CreateProcess { message: "Rejected(\"`/bin/zsh -lc 'rm -rf data && python3 run_check.py'` rejected: blocked by policy\")" }
+hook: PreToolUse Completed
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+That command was blocked by policy — no problem, seed.py deletes orders itself anyway:
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 run_check.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+Passing. Let me verify the final diff is limited to the service files and do a quick edge-case sanity check:
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'git status --short && git diff' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ exited 128 in 0ms:
+fatal: not a git repository (or any of the parent directories): .git
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'EOF'
+from svc import config, db, reports
+cfg = config.load()
+print(cfg)
+conn = db.connect(cfg[\"db_path\"])
+print(\"march:\", reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\"))
+print(\"page1:\", reports.top_customers(conn, page=1, page_size=3))
+print(\"page2:\", reports.top_customers(conn, page=2, page_size=3))
+print(\"april:\", reports.revenue_between(conn, \"2026-04-01\", \"2026-04-30\"))
+print(\"eur:\", reports.revenue_between(conn, \"2026-03-01\", \"2026-03-31\", currency=\"EUR\"))
+EOF" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h5_longhorizon_t2
+ succeeded in 0ms:
+{'env': 'dev', 'page_size': 25, 'db_path': 'data/service.db'}
+march: 320000
+page1: [('acme', 90000), ('gamma', 90000), ('beta', 75000)]
+page2: [('theta', 65000), ('delta', 10000), ('zeta', 5000)]
+april: 10000
+eur: 70000
+
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+codex
+`python3 run_check.py` now passes with all expected values:
+
+```
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+```
+
+What was wrong (all in the service code; `run_check.py` and `seed.py` untouched):
+
+1. **`svc/config.py`** — `SVC_ENV` defaulted to `prod`, so `config.load()` pointed at `/var/lib/svc/service.db`, which isn't writable on a dev machine. That was the original `PermissionError`. The default is now `dev` (matching the docstrings: dev = local sqlite under `./data`). The public API shape is unchanged.
+
+2. **`svc/db.py`** — the `orders` table never declared the `currency` column that `seed.py` inserts and both reports filter on, so seeding would have failed next.
+
+3. **`svc/reports.py`, `revenue_between`** — it compared `created_at < end`, which excludes the entire final day. March 31 orders (gamma 90,000 + beta 45,000) were dropped, yielding 185,000 instead of the agreed 320,000. It now uses `created_at < date(?, '+1 day')` so both endpoints are inclusive.
+
+4. **`svc/reports.py`, `top_customers`** — offset was `page * page_size` instead of `(page - 1) * page_size`, so page 1 started at row 3. Pages now return the expected `[acme 90k, gamma 90k, beta 75k]` and `[theta 65k, delta 10k, zeta 5k]` (with the acme-before-gamma tie-break on name).
+
+I also verified the boundary behavior doesn't leak across months: April only counts delta's 10,000, and the EUR order is only counted when `currency="EUR"`.
+diff --git a/svc/config.py b/svc/config.py
+index 2fe4bb36711c7aa3ff63eb9073161a4ed9042dcf..f7eb19707a21bfb96824af75ba79c4b2eb7a09c9
+--- a/svc/config.py
++++ b/svc/config.py
+@@ -15,7 +15,7 @@
+ 
+ def load():
+     """Return the effective config dict."""
+-    env = os.environ.get("SVC_ENV", "prod")
++    env = os.environ.get("SVC_ENV", "dev")
+     cfg = {"env": env, "page_size": DEFAULTS["page_size"]}
+     if env == "prod":
+         cfg["db_path"] = DEFAULTS["prod_db_path"]
+diff --git a/svc/db.py b/svc/db.py
+index 49b5ade98240cb855947a7e87bd8ae8f052a8e9c..460fb0c7f488f44536bb108ad920af7970bf29a2
+--- a/svc/db.py
++++ b/svc/db.py
+@@ -7,6 +7,7 @@
+     id          INTEGER PRIMARY KEY,
+     customer    TEXT    NOT NULL,
+     amount      INTEGER NOT NULL,
++    currency    TEXT    NOT NULL,
+     created_at  TEXT    NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS orders_created_at ON orders (created_at);
+diff --git a/svc/reports.py b/svc/reports.py
+index 9210365b756b80bfc0668f55948db60c36ae00c7..1b1276ed787f5aa3e73599ec942598b9316360f1
+--- a/svc/reports.py
++++ b/svc/reports.py
+@@ -9,7 +9,7 @@
+     """Total revenue for `currency` over [start, end], both days inclusive."""
+     row = conn.execute(
+         "SELECT COALESCE(SUM(amount), 0) AS total FROM orders "
+-        "WHERE currency = ? AND created_at >= ? AND created_at < ?",
++        "WHERE currency = ? AND created_at >= ? AND created_at < date(?, '+1 day')",
+         (currency, start, end),
+     ).fetchone()
+     return row["total"]
+@@ -26,6 +26,6 @@
+         "WHERE currency = ? "
+         "GROUP BY customer ORDER BY total DESC, customer ASC "
+         "LIMIT ? OFFSET ?",
+-        (currency, page_size, page * page_size),
++        (currency, page_size, (page - 1) * page_size),
+     ).fetchall()
+     return [(r["customer"], r["total"]) for r in rows]
+
+tokens used
+58,812
+`python3 run_check.py` now passes with all expected values:
+
+```
+seeded 10 orders into data/service.db (env=dev)
+OK - all checks passed
+```
+
+What was wrong (all in the service code; `run_check.py` and `seed.py` untouched):
+
+1. **`svc/config.py`** — `SVC_ENV` defaulted to `prod`, so `config.load()` pointed at `/var/lib/svc/service.db`, which isn't writable on a dev machine. That was the original `PermissionError`. The default is now `dev` (matching the docstrings: dev = local sqlite under `./data`). The public API shape is unchanged.
+
+2. **`svc/db.py`** — the `orders` table never declared the `currency` column that `seed.py` inserts and both reports filter on, so seeding would have failed next.
+
+3. **`svc/reports.py`, `revenue_between`** — it compared `created_at < end`, which excludes the entire final day. March 31 orders (gamma 90,000 + beta 45,000) were dropped, yielding 185,000 instead of the agreed 320,000. It now uses `created_at < date(?, '+1 day')` so both endpoints are inclusive.
+
+4. **`svc/reports.py`, `top_customers`** — offset was `page * page_size` instead of `(page - 1) * page_size`, so page 1 started at row 3. Pages now return the expected `[acme 90k, gamma 90k, beta 75k]` and `[theta 65k, delta 10k, zeta 5k]` (with the acme-before-gamma tie-break on name).
+
+I also verified the boundary behavior doesn't leak across months: April only counts delta's 10,000, and the EUR order is only counted when `currency="EUR"`.

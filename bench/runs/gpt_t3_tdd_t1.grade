@@ -1,0 +1,10 @@
+test_invalid_still_raises (_hidden_test.T.test_invalid_still_raises) ... ok
+test_large (_hidden_test.T.test_large) ... ok
+test_no_duplicate_silent_accept (_hidden_test.T.test_no_duplicate_silent_accept) ... ok
+test_unordered_units_or_reject (_hidden_test.T.test_unordered_units_or_reject) ... ok
+test_visible_spec_still_holds (_hidden_test.T.test_visible_spec_still_holds) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.001s
+
+OK

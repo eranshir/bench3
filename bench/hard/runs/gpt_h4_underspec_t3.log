@@ -1,0 +1,5481 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf2e-5585-7f72-b34e-30f0bae6ac29
+--------
+user
+Implement `evaluate` in filterlang.py so `python3 demo.py` passes.
+
+Those three cases are everything the ticket gave us. There is no grammar
+document and the person who wrote the ticket has left. Segment authors are
+non-engineers writing these by hand in a web form, and the expressions in
+production are more varied than the three below.
+
+Standard library only. Do not use eval() or exec().
+codex
+I’ll inspect the three demo cases, the surrounding parser code, and repository history/tests if present. Given the missing grammar, I’ll infer a conservative hand-written expression language with clear error behavior, then verify beyond the demo’s happy paths.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g '"'!__pycache__'"' -g '"'!*.pyc'"' && git status --short && sed -n '1,240p' filterlang.py && sed -n '1,240p' demo.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ exited 128 in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+demo.py
+filterlang.py
+fatal: not a git repository (or any of the parent directories): .git
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,280p' filterlang.py; sed -n '1,280p' demo.py; ls -la" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ succeeded in 0ms:
+"""Filter expression language for the segmentation service.
+
+A record is a plain dict. `evaluate` decides whether a record matches an
+expression written by a non-engineer in the segment builder UI.
+"""
+
+
+def evaluate(expression, record):
+    """Return True if `record` matches `expression`, else False."""
+    raise NotImplementedError
+"""The three cases from the ticket. Run: python3 demo.py"""
+from filterlang import evaluate
+
+CASES = [
+    ("age > 30 and city == 'NY'", {"age": 41, "city": "NY"}, True),
+    ("not banned or score >= 4.5", {"banned": True, "score": 4.9}, True),
+    ("tags contains 'vip'", {"tags": ["vip", "beta"]}, True),
+]
+
+if __name__ == "__main__":
+    for expr, rec, want in CASES:
+        got = evaluate(expr, rec)
+        print(f"{'ok ' if got == want else 'BAD'} {expr!r} -> {got} "
+              f"(want {want})")
+total 16
+drwxr-xr-x@  4 eranshir  staff  128 Aug  2 00:15 .
+drwxr-xr-x@ 31 eranshir  staff  992 Aug  2 00:15 ..
+-rw-r--r--@  1 eranshir  staff  507 Aug  2 00:15 demo.py
+-rw-r--r--@  1 eranshir  staff  336 Aug  2 00:15 filterlang.py
+
+codex
+The demo exposes three core features—comparisons, Boolean precedence, and membership—but production use strongly suggests a few adjacent necessities: parentheses, quoted strings, numbers/booleans/null, missing fields, nested dict paths, list membership, and useful syntax errors. I’m keeping the language intentionally non-Turing-complete and treating all type-incompatible comparisons as non-matches.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3/filterlang.py
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..3f5d8d4fa0e8366cc80dfa3f57c77adcf4dfebd6
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..3f5d8d4fa0e8366cc80dfa3f57c77adcf4dfebd6
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3/filterlang.py
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..0f283bea53cf8999026e1a0eab39e697cb4f4b71
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..0f283bea53cf8999026e1a0eab39e697cb4f4b71
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 -m py_compile filterlang.py && python3 demo.py && python3 - <<'PY'
+from filterlang import evaluate, FilterSyntaxError
+
+cases = [
+    (\"age > 30 and city == 'NY'\", {\"age\": 29, \"city\": \"NY\"}, False),
+    (\"(age > 30 or city == 'LA') and not banned\", {\"age\": 20, \"city\": \"LA\", \"banned\": False}, True),
+    (\"country in ['US', 'CA']\", {\"country\": \"CA\"}, True),
+    (\"tags not contains 'staff'\", {\"tags\": [\"vip\"]}, True),
+    (\"profile.active is true\", {\"profile\": {\"active\": True}}, True),
+    (\"deleted is null\", {\"deleted\": None}, True),
+    (\"deleted is not null\", {\"deleted\": None}, False),
+    (\"missing == null\", {}, False),
+    (\"score >= 1e2\", {\"score\": 100}, True),
+    ('name == \"a\\\\nline\"', {\"name\": \"a\\nline\"}, True),
+    (\"false or true and false\", {}, False),
+    (\"1 < age <= 10\", {\"age\": 5}, True),
+]
+for expression, record, expected in cases:
+    actual = evaluate(expression, record)
+    assert actual is expected, (expression, actual, expected)
+
+bad = [\"\", \"age >\", \"(age > 1\", \"x @ 1\", \"x in [1,,2]\", \"true junk\"]
+for expression in bad:
+    try:
+        evaluate(expression, {})
+    except FilterSyntaxError:
+        pass
+    else:
+        raise AssertionError(f\"accepted invalid expression: {expression"'!r}")
+print(f"ok: {len(cases)} additional behaviors and {len(bad)} syntax errors")
+PY' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ succeeded in 0ms:
+ok  "age > 30 and city == 'NY'" -> True (want True)
+ok  'not banned or score >= 4.5' -> True (want True)
+ok  "tags contains 'vip'" -> True (want True)
+ok: 12 additional behaviors and 6 syntax errors
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..0f283bea53cf8999026e1a0eab39e697cb4f4b71
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+codex
+The ticket cases now pass, along with checks for precedence, grouping, nested fields, null/boolean handling, list membership, chained comparisons, escaping, missing data, and malformed input. I found and corrected one parser-order edge case around `is not`; I’m doing a final source-level review now for ambiguity and accidental Python semantics.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,380p' filterlang.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ succeeded in 0ms:
+"""A small, safe expression language for filtering dictionaries.
+
+The language deliberately contains no function calls or attribute access.  It
+supports boolean operators, comparisons, membership tests, literals, lists,
+parentheses, and dotted paths through nested dictionaries.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+import re
+from typing import Any
+
+
+class FilterSyntaxError(ValueError):
+    """Raised when a filter expression is not valid."""
+
+
+@dataclass(frozen=True)
+class _Token:
+    kind: str
+    value: Any
+    position: int
+
+
+_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+_KEYWORDS = {
+    "and": "AND",
+    "or": "OR",
+    "not": "NOT",
+    "contains": "CONTAINS",
+    "in": "IN",
+    "is": "IS",
+    "true": "TRUE",
+    "false": "FALSE",
+    "null": "NULL",
+    "none": "NULL",
+}
+_SINGLE_CHAR = {
+    "(": "LPAREN",
+    ")": "RPAREN",
+    "[": "LBRACKET",
+    "]": "RBRACKET",
+    ",": "COMMA",
+}
+
+
+def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
+    pointer = " " * position + "^"
+    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
+
+
+def _read_string(expression: str, start: int) -> tuple[str, int]:
+    quote = expression[start]
+    chars: list[str] = []
+    i = start + 1
+    escapes = {
+        "\\": "\\",
+        "'": "'",
+        '"': '"',
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "b": "\b",
+        "f": "\f",
+    }
+
+    while i < len(expression):
+        char = expression[i]
+        if char == quote:
+            return "".join(chars), i + 1
+        if char != "\\":
+            chars.append(char)
+            i += 1
+            continue
+
+        escape_position = i
+        i += 1
+        if i == len(expression):
+            raise _syntax("Unterminated escape sequence", expression, escape_position)
+        escaped = expression[i]
+        if escaped in escapes:
+            chars.append(escapes[escaped])
+            i += 1
+        elif escaped in {"u", "x"}:
+            digits = 4 if escaped == "u" else 2
+            raw = expression[i + 1 : i + 1 + digits]
+            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
+                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
+            chars.append(chr(int(raw, 16)))
+            i += digits + 1
+        else:
+            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
+
+    raise _syntax("Unterminated string", expression, start)
+
+
+def _tokenize(expression: str) -> list[_Token]:
+    tokens: list[_Token] = []
+    i = 0
+
+    while i < len(expression):
+        char = expression[i]
+        if char.isspace():
+            i += 1
+            continue
+
+        if char in "'\"":
+            value, end = _read_string(expression, i)
+            tokens.append(_Token("LITERAL", value, i))
+            i = end
+            continue
+
+        # A leading sign belongs to a number only where a value can begin.
+        signed = char in "+-" and i + 1 < len(expression) and (
+            expression[i + 1].isdigit() or expression[i + 1] == "."
+        )
+        number_start = i + 1 if signed else i
+        number_match = _NUMBER.match(expression, number_start)
+        if number_match and (signed or char.isdigit() or char == "."):
+            raw = expression[i : number_match.end()]
+            try:
+                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
+            except ValueError:
+                raise _syntax("Invalid number", expression, i) from None
+            tokens.append(_Token("LITERAL", value, i))
+            i = number_match.end()
+            continue
+
+        two_chars = expression[i : i + 2]
+        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
+            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
+            tokens.append(_Token(kind, two_chars, i))
+            i += 2
+            continue
+        if char in "<>=":
+            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
+            i += 1
+            continue
+        if char == "!":
+            tokens.append(_Token("NOT", "!", i))
+            i += 1
+            continue
+        if char in _SINGLE_CHAR:
+            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
+            i += 1
+            continue
+
+        if char.isalpha() or char == "_":
+            end = i + 1
+            while end < len(expression) and (
+                expression[end].isalnum() or expression[end] in "_.-"
+            ):
+                end += 1
+            word = expression[i:end]
+            keyword = _KEYWORDS.get(word.casefold())
+            tokens.append(_Token(keyword or "IDENT", word, i))
+            i = end
+            continue
+
+        raise _syntax(f"Unexpected character {char!r}", expression, i)
+
+    tokens.append(_Token("EOF", None, len(expression)))
+    return tokens
+
+
+class _Missing:
+    def __bool__(self) -> bool:
+        return False
+
+
+_MISSING = _Missing()
+
+
+def _lookup(record: Mapping[str, Any], path: str) -> Any:
+    # Prefer an exact key.  This preserves records that genuinely use dots in
+    # field names while still making ``customer.address.city`` convenient.
+    if path in record:
+        return record[path]
+
+    value: Any = record
+    for part in path.split("."):
+        if not isinstance(value, Mapping) or part not in value:
+            return _MISSING
+        value = value[part]
+    return value
+
+
+def _contains(container: Any, item: Any) -> bool:
+    if container is _MISSING:
+        return False
+    if isinstance(container, str) and not isinstance(item, str):
+        return False
+    try:
+        return item in container
+    except (TypeError, ValueError):
+        return False
+
+
+def _equal(left: Any, right: Any) -> bool:
+    if left is _MISSING or right is _MISSING:
+        return False
+    # bool is a subclass of int in Python, but treating true as 1 is surprising
+    # in a language intended for hand-authored audience segments.
+    if isinstance(left, bool) != isinstance(right, bool):
+        return False
+    try:
+        return bool(left == right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _compare(operator: str, left: Any, right: Any) -> bool:
+    if operator == "==":
+        return _equal(left, right)
+    if operator == "!=":
+        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
+    if operator == "contains":
+        return _contains(left, right)
+    if operator == "not contains":
+        return not _contains(left, right)
+    if operator == "in":
+        return _contains(right, left)
+    if operator == "not in":
+        return not _contains(right, left)
+    if operator == "is":
+        return left is right
+    if operator == "is not":
+        return left is not right
+    if left is _MISSING or right is _MISSING:
+        return False
+    if isinstance(left, bool) or isinstance(right, bool):
+        return False
+    try:
+        return bool({"<": left < right, "<=": left <= right,
+                     ">": left > right, ">=": left >= right}[operator])
+    except (TypeError, ValueError):
+        return False
+
+
+class _Parser:
+    def __init__(self, expression: str, record: Mapping[str, Any]):
+        self.expression = expression
+        self.record = record
+        self.tokens = _tokenize(expression)
+        self.index = 0
+
+    @property
+    def current(self) -> _Token:
+        return self.tokens[self.index]
+
+    def _take(self, kind: str) -> _Token:
+        token = self.current
+        if token.kind != kind:
+            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
+                          self.expression, token.position)
+        self.index += 1
+        return token
+
+    @staticmethod
+    def _describe(token: _Token) -> str:
+        return "end of expression" if token.kind == "EOF" else repr(token.value)
+
+    def parse(self) -> Any:
+        if self.current.kind == "EOF":
+            raise _syntax("Expression is empty", self.expression, 0)
+        result = self._or()
+        if self.current.kind != "EOF":
+            raise _syntax(f"Unexpected token {self._describe(self.current)}",
+                          self.expression, self.current.position)
+        return result
+
+    def _or(self) -> Any:
+        left = self._and()
+        while self.current.kind == "OR":
+            self.index += 1
+            right = self._and()  # Always parse the RHS, even when short-circuiting.
+            left = bool(left) or bool(right)
+        return left
+
+    def _and(self) -> Any:
+        left = self._not()
+        while self.current.kind == "AND":
+            self.index += 1
+            right = self._not()
+            left = bool(left) and bool(right)
+        return left
+
+    def _not(self) -> Any:
+        if self.current.kind == "NOT":
+            self.index += 1
+            return not bool(self._not())
+        return self._comparison()
+
+    def _comparison_operator(self) -> str | None:
+        token = self.current
+        if token.kind == "COMPARE":
+            self.index += 1
+            return token.value
+        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
+            self.index += 2
+            return "is not"
+        if token.kind in {"CONTAINS", "IN", "IS"}:
+            self.index += 1
+            return token.value.casefold()
+        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
+            self.index += 2
+            return "not " + self.tokens[self.index - 1].value.casefold()
+        return None
+
+    def _comparison(self) -> Any:
+        left = self._primary()
+        results: list[bool] = []
+        while True:
+            operator = self._comparison_operator()
+            if operator is None:
+                break
+            right = self._primary()
+            results.append(_compare(operator, left, right))
+            left = right
+        return all(results) if results else left
+
+    def _primary(self) -> Any:
+        token = self.current
+        if token.kind == "LITERAL":
+            self.index += 1
+            return token.value
+        if token.kind == "TRUE":
+            self.index += 1
+            return True
+        if token.kind == "FALSE":
+            self.index += 1
+            return False
+        if token.kind == "NULL":
+            self.index += 1
+            return None
+        if token.kind == "IDENT":
+            self.index += 1
+            return _lookup(self.record, token.value)
+        if token.kind == "LPAREN":
+            self.index += 1
+            value = self._or()
+            self._take("RPAREN")
+            return value
+        if token.kind == "LBRACKET":
+            return self._list()
+        raise _syntax(f"Expected a value, found {self._describe(token)}",
+                      self.expression, token.position)
+
+    def _list(self) -> list[Any]:
+        self.index += 1
+        values: list[Any] = []
+        if self.current.kind == "RBRACKET":
+            self.index += 1
+            return values
+        while True:
+            values.append(self._primary())
+            if self.current.kind != "COMMA":
+                break
+            self.index += 1
+            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
+                break
+        self._take("RBRACKET")
+        return values
+
+
+def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
+    """Return whether *record* matches *expression*.
+
+    Examples of accepted expressions::
+
+        age > 30 and city == 'NY'
+        not banned or score >= 4.5
+        tags contains 'vip'
+        country in ['US', 'CA'] and profile.active is true
+
+    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
+    comparisons between incompatible value types simply do not match.
+    """
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..0f283bea53cf8999026e1a0eab39e697cb4f4b71
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,385 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return left is not _MISSING and right is not _MISSING and not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return left is right
++    if operator == "is not":
++        return left is not right
++    if left is _MISSING or right is _MISSING:
++        return False
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        return bool({"<": left < right, "<=": left <= right,
++                     ">": left > right, ">=": left >= right}[operator])
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
++
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3/filterlang.py
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 --version && python3 -m py_compile filterlang.py && python3 demo.py && python3 - <<'PY'
+from filterlang import evaluate, FilterSyntaxError
+
+checks = {
+    \"precedence\": evaluate(\"false or true and not false\", {}),
+    \"parentheses\": evaluate(\"(false or true) and false\", {}),
+    \"nested\": evaluate(\"profile.active is true\", {\"profile\": {\"active\": True}}),
+    \"list\": evaluate(\"country in ['US', 'CA']\", {\"country\": \"CA\"}),
+    \"escaped\": evaluate(r\"name == 'O\\'Brien'\", {\"name\": \"O'Brien\"}),
+    \"missing comparison\": not evaluate(\"missing is not null\", {}),
+    \"wrong type\": not evaluate(\"age > '30'\", {\"age\": 40}),
+    \"aliases\": evaluate(\"age = 40 && "'!banned", {"age": 40, "banned": False}),
+}
+assert all(checks.values()), checks
+for bad in ("", "age >", "(true", "x in [1,, 2]", "__import__('"'os')\"):
+    try:
+        evaluate(bad, {})
+    except FilterSyntaxError:
+        continue
+    raise AssertionError(f\"accepted malformed expression: {bad}\")
+print(\"extended checks: ok\")
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ exited 1 in 0ms:
+Python 3.14.4
+ok  "age > 30 and city == 'NY'" -> True (want True)
+ok  'not banned or score >= 4.5' -> True (want True)
+ok  "tags contains 'vip'" -> True (want True)
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+AssertionError: {'precedence': True, 'parentheses': False, 'nested': True, 'list': True, 'escaped': True, 'missing comparison': True, 'wrong type': True, 'aliases': True}
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import evaluate, FilterSyntaxError
+
+checks = [
+    evaluate(\"false or true and not false\", {}) is True,
+    evaluate(\"(false or true) and false\", {}) is False,
+    evaluate(\"profile.active is true\", {\"profile\": {\"active\": True}}) is True,
+    evaluate(\"country in ['US', 'CA']\", {\"country\": \"CA\"}) is True,
+    evaluate(r\"name == 'O\\'Brien'\", {\"name\": \"O'Brien\"}) is True,
+    evaluate(\"missing is not null\", {}) is False,
+    evaluate(\"age > '30'\", {\"age\": 40}) is False,
+    evaluate(\"age = 40 && "'!banned", {"age": 40, "banned": False}) is True,
+]
+assert all(checks), checks
+for bad in ("", "age >", "(true", "x in [1,, 2]", "__import__('"'os')\"):
+    try:
+        evaluate(bad, {})
+    except FilterSyntaxError:
+        continue
+    raise AssertionError(f\"accepted malformed expression: {bad}\")
+print(\"extended checks: ok\")
+PY
+wc -l filterlang.py demo.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ succeeded in 0ms:
+extended checks: ok
+     394 filterlang.py
+      14 demo.py
+     408 total
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "tail -n 35 filterlang.py && python3 - <<'PY'
+from filterlang import evaluate
+# A few adversarial payloads must only be parsed as invalid syntax.
+payloads = [
+    \"__import__('os').system('echo unsafe')\",
+    \"record.clear()\",
+    \"[x for x in y]\",
+    \"open('/etc/passwd').read()\",
+]
+for payload in payloads:
+    try:
+        evaluate(payload, {})
+    except ValueError:
+        pass
+    else:
+        raise AssertionError(payload)
+print('safety payloads rejected: ok')
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3
+ succeeded in 0ms:
+    def _list(self) -> list[Any]:
+        self.index += 1
+        values: list[Any] = []
+        if self.current.kind == "RBRACKET":
+            self.index += 1
+            return values
+        while True:
+            values.append(self._primary())
+            if self.current.kind != "COMMA":
+                break
+            self.index += 1
+            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
+                break
+        self._take("RBRACKET")
+        return values
+
+
+def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
+    """Return whether *record* matches *expression*.
+
+    Examples of accepted expressions::
+
+        age > 30 and city == 'NY'
+        not banned or score >= 4.5
+        tags contains 'vip'
+        country in ['US', 'CA'] and profile.active is true
+
+    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
+    comparisons between incompatible value types simply do not match.
+    """
+    if not isinstance(expression, str):
+        raise TypeError("expression must be a string")
+    if not isinstance(record, Mapping):
+        raise TypeError("record must be a mapping")
+    return bool(_Parser(expression, record).parse())
+safety payloads rejected: ok
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+codex
+Implemented `evaluate` in [filterlang.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3/filterlang.py).
+
+It now safely supports:
+
+- Boolean operators and precedence
+- Comparisons and `contains`
+- Parentheses and list membership
+- Strings, numbers, booleans, and null
+- Nested dictionary fields
+- Clear syntax errors
+- Missing fields and incompatible types
+- No `eval()` or `exec()`
+
+Verified `python3 demo.py` passes all three cases, plus extended and adversarial checks.
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..dbd319fafea846d39cca6a06e52a2b2757715482
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -1,10 +1,394 @@
+-"""Filter expression language for the segmentation service.
++"""A small, safe expression language for filtering dictionaries.
+ 
+-A record is a plain dict. `evaluate` decides whether a record matches an
+-expression written by a non-engineer in the segment builder UI.
++The language deliberately contains no function calls or attribute access.  It
++supports boolean operators, comparisons, membership tests, literals, lists,
++parentheses, and dotted paths through nested dictionaries.
+ """
+ 
++from __future__ import annotations
++
++from collections.abc import Mapping
++from dataclasses import dataclass
++import re
++from typing import Any
++
++
++class FilterSyntaxError(ValueError):
++    """Raised when a filter expression is not valid."""
++
++
++@dataclass(frozen=True)
++class _Token:
++    kind: str
++    value: Any
++    position: int
++
++
++_NUMBER = re.compile(r"(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
++_KEYWORDS = {
++    "and": "AND",
++    "or": "OR",
++    "not": "NOT",
++    "contains": "CONTAINS",
++    "in": "IN",
++    "is": "IS",
++    "true": "TRUE",
++    "false": "FALSE",
++    "null": "NULL",
++    "none": "NULL",
++}
++_SINGLE_CHAR = {
++    "(": "LPAREN",
++    ")": "RPAREN",
++    "[": "LBRACKET",
++    "]": "RBRACKET",
++    ",": "COMMA",
++}
++
++
++def _syntax(message: str, expression: str, position: int) -> FilterSyntaxError:
++    pointer = " " * position + "^"
++    return FilterSyntaxError(f"{message} at position {position}\n{expression}\n{pointer}")
++
++
++def _read_string(expression: str, start: int) -> tuple[str, int]:
++    quote = expression[start]
++    chars: list[str] = []
++    i = start + 1
++    escapes = {
++        "\\": "\\",
++        "'": "'",
++        '"': '"',
++        "n": "\n",
++        "r": "\r",
++        "t": "\t",
++        "b": "\b",
++        "f": "\f",
++    }
++
++    while i < len(expression):
++        char = expression[i]
++        if char == quote:
++            return "".join(chars), i + 1
++        if char != "\\":
++            chars.append(char)
++            i += 1
++            continue
++
++        escape_position = i
++        i += 1
++        if i == len(expression):
++            raise _syntax("Unterminated escape sequence", expression, escape_position)
++        escaped = expression[i]
++        if escaped in escapes:
++            chars.append(escapes[escaped])
++            i += 1
++        elif escaped in {"u", "x"}:
++            digits = 4 if escaped == "u" else 2
++            raw = expression[i + 1 : i + 1 + digits]
++            if len(raw) != digits or any(c not in "0123456789abcdefABCDEF" for c in raw):
++                raise _syntax("Invalid hexadecimal escape", expression, escape_position)
++            chars.append(chr(int(raw, 16)))
++            i += digits + 1
++        else:
++            raise _syntax(f"Unknown escape sequence \\{escaped}", expression, escape_position)
++
++    raise _syntax("Unterminated string", expression, start)
++
++
++def _tokenize(expression: str) -> list[_Token]:
++    tokens: list[_Token] = []
++    i = 0
++
++    while i < len(expression):
++        char = expression[i]
++        if char.isspace():
++            i += 1
++            continue
++
++        if char in "'\"":
++            value, end = _read_string(expression, i)
++            tokens.append(_Token("LITERAL", value, i))
++            i = end
++            continue
++
++        # A leading sign belongs to a number only where a value can begin.
++        signed = char in "+-" and i + 1 < len(expression) and (
++            expression[i + 1].isdigit() or expression[i + 1] == "."
++        )
++        number_start = i + 1 if signed else i
++        number_match = _NUMBER.match(expression, number_start)
++        if number_match and (signed or char.isdigit() or char == "."):
++            raw = expression[i : number_match.end()]
++            try:
++                value = float(raw) if any(c in raw for c in ".eE") else int(raw)
++            except ValueError:
++                raise _syntax("Invalid number", expression, i) from None
++            tokens.append(_Token("LITERAL", value, i))
++            i = number_match.end()
++            continue
++
++        two_chars = expression[i : i + 2]
++        if two_chars in {"==", "!=", "<=", ">=", "&&", "||"}:
++            kind = {"&&": "AND", "||": "OR"}.get(two_chars, "COMPARE")
++            tokens.append(_Token(kind, two_chars, i))
++            i += 2
++            continue
++        if char in "<>=":
++            tokens.append(_Token("COMPARE", "==" if char == "=" else char, i))
++            i += 1
++            continue
++        if char == "!":
++            tokens.append(_Token("NOT", "!", i))
++            i += 1
++            continue
++        if char in _SINGLE_CHAR:
++            tokens.append(_Token(_SINGLE_CHAR[char], char, i))
++            i += 1
++            continue
++
++        if char.isalpha() or char == "_":
++            end = i + 1
++            while end < len(expression) and (
++                expression[end].isalnum() or expression[end] in "_.-"
++            ):
++                end += 1
++            word = expression[i:end]
++            keyword = _KEYWORDS.get(word.casefold())
++            tokens.append(_Token(keyword or "IDENT", word, i))
++            i = end
++            continue
++
++        raise _syntax(f"Unexpected character {char!r}", expression, i)
++
++    tokens.append(_Token("EOF", None, len(expression)))
++    return tokens
++
++
++class _Missing:
++    def __bool__(self) -> bool:
++        return False
++
++
++_MISSING = _Missing()
++
++
++def _lookup(record: Mapping[str, Any], path: str) -> Any:
++    # Prefer an exact key.  This preserves records that genuinely use dots in
++    # field names while still making ``customer.address.city`` convenient.
++    if path in record:
++        return record[path]
++
++    value: Any = record
++    for part in path.split("."):
++        if not isinstance(value, Mapping) or part not in value:
++            return _MISSING
++        value = value[part]
++    return value
++
++
++def _contains(container: Any, item: Any) -> bool:
++    if container is _MISSING:
++        return False
++    if isinstance(container, str) and not isinstance(item, str):
++        return False
++    try:
++        return item in container
++    except (TypeError, ValueError):
++        return False
++
++
++def _equal(left: Any, right: Any) -> bool:
++    if left is _MISSING or right is _MISSING:
++        return False
++    # bool is a subclass of int in Python, but treating true as 1 is surprising
++    # in a language intended for hand-authored audience segments.
++    if isinstance(left, bool) != isinstance(right, bool):
++        return False
++    try:
++        return bool(left == right)
++    except (TypeError, ValueError):
++        return False
++
++
++def _compare(operator: str, left: Any, right: Any) -> bool:
++    # An absent field is not evidence for any comparison, including a negated
++    # one.  Authors can still test its truthiness explicitly with ``not field``.
++    if left is _MISSING or right is _MISSING:
++        return False
++    if operator == "==":
++        return _equal(left, right)
++    if operator == "!=":
++        return not _equal(left, right)
++    if operator == "contains":
++        return _contains(left, right)
++    if operator == "not contains":
++        return not _contains(left, right)
++    if operator == "in":
++        return _contains(right, left)
++    if operator == "not in":
++        return not _contains(right, left)
++    if operator == "is":
++        return _equal(left, right)
++    if operator == "is not":
++        return not _equal(left, right)
++    if isinstance(left, bool) or isinstance(right, bool):
++        return False
++    try:
++        if operator == "<":
++            return bool(left < right)
++        if operator == "<=":
++            return bool(left <= right)
++        if operator == ">":
++            return bool(left > right)
++        if operator == ">=":
++            return bool(left >= right)
++        raise AssertionError(f"unknown comparison operator: {operator}")
++    except (TypeError, ValueError):
++        return False
++
++
++class _Parser:
++    def __init__(self, expression: str, record: Mapping[str, Any]):
++        self.expression = expression
++        self.record = record
++        self.tokens = _tokenize(expression)
++        self.index = 0
++
++    @property
++    def current(self) -> _Token:
++        return self.tokens[self.index]
++
++    def _take(self, kind: str) -> _Token:
++        token = self.current
++        if token.kind != kind:
++            raise _syntax(f"Expected {kind.lower()}, found {self._describe(token)}",
++                          self.expression, token.position)
++        self.index += 1
++        return token
++
++    @staticmethod
++    def _describe(token: _Token) -> str:
++        return "end of expression" if token.kind == "EOF" else repr(token.value)
++
++    def parse(self) -> Any:
++        if self.current.kind == "EOF":
++            raise _syntax("Expression is empty", self.expression, 0)
++        result = self._or()
++        if self.current.kind != "EOF":
++            raise _syntax(f"Unexpected token {self._describe(self.current)}",
++                          self.expression, self.current.position)
++        return result
++
++    def _or(self) -> Any:
++        left = self._and()
++        while self.current.kind == "OR":
++            self.index += 1
++            right = self._and()  # Always parse the RHS, even when short-circuiting.
++            left = bool(left) or bool(right)
++        return left
++
++    def _and(self) -> Any:
++        left = self._not()
++        while self.current.kind == "AND":
++            self.index += 1
++            right = self._not()
++            left = bool(left) and bool(right)
++        return left
++
++    def _not(self) -> Any:
++        if self.current.kind == "NOT":
++            self.index += 1
++            return not bool(self._not())
++        return self._comparison()
++
++    def _comparison_operator(self) -> str | None:
++        token = self.current
++        if token.kind == "COMPARE":
++            self.index += 1
++            return token.value
++        if token.kind == "IS" and self.tokens[self.index + 1].kind == "NOT":
++            self.index += 2
++            return "is not"
++        if token.kind in {"CONTAINS", "IN", "IS"}:
++            self.index += 1
++            return token.value.casefold()
++        if token.kind == "NOT" and self.tokens[self.index + 1].kind in {"CONTAINS", "IN"}:
++            self.index += 2
++            return "not " + self.tokens[self.index - 1].value.casefold()
++        return None
++
++    def _comparison(self) -> Any:
++        left = self._primary()
++        results: list[bool] = []
++        while True:
++            operator = self._comparison_operator()
++            if operator is None:
++                break
++            right = self._primary()
++            results.append(_compare(operator, left, right))
++            left = right
++        return all(results) if results else left
+ 
+-def evaluate(expression, record):
+-    """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    def _primary(self) -> Any:
++        token = self.current
++        if token.kind == "LITERAL":
++            self.index += 1
++            return token.value
++        if token.kind == "TRUE":
++            self.index += 1
++            return True
++        if token.kind == "FALSE":
++            self.index += 1
++            return False
++        if token.kind == "NULL":
++            self.index += 1
++            return None
++        if token.kind == "IDENT":
++            self.index += 1
++            return _lookup(self.record, token.value)
++        if token.kind == "LPAREN":
++            self.index += 1
++            value = self._or()
++            self._take("RPAREN")
++            return value
++        if token.kind == "LBRACKET":
++            return self._list()
++        raise _syntax(f"Expected a value, found {self._describe(token)}",
++                      self.expression, token.position)
++
++    def _list(self) -> list[Any]:
++        self.index += 1
++        values: list[Any] = []
++        if self.current.kind == "RBRACKET":
++            self.index += 1
++            return values
++        while True:
++            values.append(self._primary())
++            if self.current.kind != "COMMA":
++                break
++            self.index += 1
++            if self.current.kind == "RBRACKET":  # Allow a trailing comma.
++                break
++        self._take("RBRACKET")
++        return values
++
++
++def evaluate(expression: str, record: Mapping[str, Any]) -> bool:
++    """Return whether *record* matches *expression*.
++
++    Examples of accepted expressions::
++
++        age > 30 and city == 'NY'
++        not banned or score >= 4.5
++        tags contains 'vip'
++        country in ['US', 'CA'] and profile.active is true
++
++    Invalid expressions raise :class:`FilterSyntaxError`.  Missing fields and
++    comparisons between incompatible value types simply do not match.
++    """
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, Mapping):
++        raise TypeError("record must be a mapping")
++    return bool(_Parser(expression, record).parse())
+
+tokens used
+59,680
+Implemented `evaluate` in [filterlang.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h4_underspec_t3/filterlang.py).
+
+It now safely supports:
+
+- Boolean operators and precedence
+- Comparisons and `contains`
+- Parentheses and list membership
+- Strings, numbers, booleans, and null
+- Nested dictionary fields
+- Clear syntax errors
+- Missing fields and incompatible types
+- No `eval()` or `exec()`
+
+Verified `python3 demo.py` passes all three cases, plus extended and adversarial checks.

@@ -1,0 +1,11 @@
+percentile() in stats.py is wrong. It uses nearest-rank as documented in its
+docstring, but the rank computation is off: percentile([1,2,3,4], 50) returns 3
+when the docstring says it must return 2, and percentile([1,2,3,4], 100) raises
+IndexError instead of returning 4.
+
+Fix the rank computation so it matches the documented nearest-rank definition.
+Do not change the docstring or the function signature. Handle p=0 and p=100.
+
+Verify with:
+  python3 -c "from stats import percentile as q; print(q([1,2,3,4],50), q([1,2,3,4],100), q([1,2,3,4],0))"
+It must print: 2 4 1

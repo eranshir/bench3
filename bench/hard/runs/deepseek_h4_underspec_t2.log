@@ -1,0 +1,5706 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+model: deepseek-v4-flash
+provider: deepseek
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf01-aa50-7881-831b-00d88a5e408c
+--------
+user
+Implement `evaluate` in filterlang.py so `python3 demo.py` passes.
+
+Those three cases are everything the ticket gave us. There is no grammar
+document and the person who wrote the ticket has left. Segment authors are
+non-engineers writing these by hand in a web form, and the expressions in
+production are more varied than the three below.
+
+Standard library only. Do not use eval() or exec().
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'ls -la' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+total 16
+drwxr-xr-x@  4 eranshir  staff  128 Aug  1 23:26 .
+drwxr-xr-x@ 16 eranshir  staff  512 Aug  1 23:26 ..
+-rw-r--r--@  1 eranshir  staff  507 Aug  1 23:26 demo.py
+-rw-r--r--@  1 eranshir  staff  336 Aug  1 23:26 filterlang.py
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'cat filterlang.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+"""Filter expression language for the segmentation service.
+
+A record is a plain dict. `evaluate` decides whether a record matches an
+expression written by a non-engineer in the segment builder UI.
+"""
+
+
+def evaluate(expression, record):
+    """Return True if `record` matches `expression`, else False."""
+    raise NotImplementedError
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'cat demo.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+"""The three cases from the ticket. Run: python3 demo.py"""
+from filterlang import evaluate
+
+CASES = [
+    ("age > 30 and city == 'NY'", {"age": 41, "city": "NY"}, True),
+    ("not banned or score >= 4.5", {"banned": True, "score": 4.9}, True),
+    ("tags contains 'vip'", {"tags": ["vip", "beta"]}, True),
+]
+
+if __name__ == "__main__":
+    for expr, rec, want in CASES:
+        got = evaluate(expr, rec)
+        print(f"{'ok ' if got == want else 'BAD'} {expr!r} -> {got} "
+              f"(want {want})")
+
+codex
+I'll look at the two files and the task. The demo needs `evaluate` to handle `and`/`or`/`not`, comparisons, and `contains`, but the ticket says production expressions are more varied, so I'll implement a small, well-documented expression language with a hand-rolled tokenizer + recursive-descent parser (stdlib only, no eval/exec).
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Now let me run the demo and a broader battery of edge cases to verify behavior.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 demo.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+ok  "age > 30 and city == 'NY'" -> True (want True)
+ok  'not banned or score >= 4.5' -> True (want True)
+ok  "tags contains 'vip'" -> True (want True)
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import evaluate
+
+cases = [
+    # basics
+    (\"age > 30 and city == 'NY'\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"not banned or score >= 4.5\", {\"banned\": True, \"score\": 4.9}, True),
+    (\"tags contains 'vip'\", {\"tags\": [\"vip\", \"beta\"]}, True),
+    (\"age > 50\", {\"age\": 41}, False),
+    (\"age <= 41\", {\"age\": 41}, True),
+    (\"city "'!= '"'LA'\", {\"city\": \"NY\"}, True),
+    (\"not banned\", {\"banned\": True}, False),
+    (\"banned == False\", {\"banned\": True}, False),
+    # precedence + parens
+    (\"age > 30 and (city == 'NY' or city == 'LA')\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"(age > 30 and city == 'NY') or tags contains 'gold'\", {\"age\": 41, \"city\": \"NY\", \"tags\": [\"vip\"]}, True),
+    (\"not (banned or score < 4.5)\", {\"banned\": True, \"score\": 4.9}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": False}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": True}, True),
+    (\"not age > 30\", {\"age\": 20}, True),
+    # strings / literals
+    (\"city == \\\"NY\\\"\", {\"city\": \"NY\"}, True),
+    (\"name contains 'Ann'\", {\"name\": \"Hannah\"}, True),
+    (\"tags contains 'gold'\", {\"tags\": [\"vip\", \"beta\"]}, False),
+    (\"name contains 'VIP'\", {\"name\": \"vip club\"}, False),
+    (\"active == true\", {\"active\": True}, True),
+    (\"active == True\", {\"active\": True}, True),
+    (\"status == null\", {\"status\": None}, True),
+    (\"status == None\", {}, True),
+    (\"x = 5\", {\"x\": 5}, True),
+    (\"age == 41.0\", {\"age\": 41}, True),
+    (\"score >= 1e2\", {\"score\": 100}, True),
+    (\"temp >= -5\", {\"temp\": -3}, True),
+    # membership / in
+    (\"country in ['US', 'CA']\", {\"country\": \"CA\"}, True),
+    (\"country in ['US', 'CA']\", {\"country\": \"IL\"}, False),
+    (\"name in 'hannah'\", {\"name\": \"ann\"}, True),
+    (\"'vip' in tags\", {\"tags\": [\"vip\"]}, True),
+    (\"attrs contains 'color'\", {\"attrs\": {\"color\": \"red\"}}, True),
+    # missing fields
+    (\"missing > 5\", {}, False),
+    (\"not missing\", {}, True),
+    (\"missing == 'x'\", {}, False),
+    (\"missing == None\", {}, True),
+    # dotted / case-insensitive / hyphenated / unicode
+    (\"user.age > 30\", {\"user\": {\"age\": 41}}, True),
+    (\"Age > 30\", {\"age\": 41}, True),
+    (\"last-order-date == '2024-01-01'\", {\"last-order-date\": \"2024-01-01\"}, True),
+    (\"גיל > 30\", {\"גיל\": 41}, True),
+    # type mismatches don't crash
+    (\"age > 30\", {\"age\": \"old\"}, False),
+    (\"age > 30\", {\"age\": None}, False),
+    (\"tags contains 'vip'\", {\"tags\": 7}, False),
+    (\"banned\", {\"banned\": True}, True),
+    (\"banned\", {\"banned\": False}, False),
+]
+
+fails = 0
+for expr, rec, want in cases:
+    got = evaluate(expr, rec)
+    if got "'!= want:
+        fails += 1
+        print(f"BAD  {expr!r} -> {got!r} (want {want!r}) rec={rec!r}")
+print(f"{len(cases) - fails}/{len(cases)} valid-expression cases passed")
+
+# malformed expressions must raise ValueError
+bad = ["", "age >", "age > 30 and", "(age", "age 30", "age >>> 30", "tags contains", "and banned", "age =="]
+for expr in bad:
+    try:
+        evaluate(expr, {})
+    except ValueError:
+        pass
+    except Exception as e:
+        print(f"BAD  {expr!r} raised wrong type {type(e).__name__}: {e}")
+    else:
+        print(f"BAD  {expr!r} did not raise")
+print("error-path checks done")
+PY' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ exited 1 in 0ms:
+Traceback (most recent call last):
+  File "<stdin>", line 59, in <module>
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 309, in evaluate
+    result = parser.parse_or()
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 158, in parse_or
+    value = self.parse_and()
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 166, in parse_and
+    value = bool(value) and bool(self.parse_not())
+                                 ~~~~~~~~~~~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 172, in parse_not
+    return self.parse_comparison()
+           ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 175, in parse_comparison
+    left = self.parse_operand()
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 205, in parse_operand
+    self.expect("RPAREN")
+    ~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 154, in expect
+    raise ValueError("expected %s at position %s" % (kind, where))
+ValueError: expected RPAREN at position 30
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+The demo passes, but my broader battery hit a parse error on a parenthesized expression. Let me debug the tokenizer on that expression.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import _tokenize
+expr = \"(age > 30 and city == 'NY') or tags contains 'gold'\"
+for i, c in enumerate(expr):
+    print(i, repr(c))
+print(\"---\")
+for t in _tokenize(expr):
+    print(t.kind, repr(t.value), t.pos)
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+0 '('
+1 'a'
+2 'g'
+3 'e'
+4 ' '
+5 '>'
+6 ' '
+7 '3'
+8 '0'
+9 ' '
+10 'a'
+11 'n'
+12 'd'
+13 ' '
+14 'c'
+15 'i'
+16 't'
+17 'y'
+18 ' '
+19 '='
+20 '='
+21 ' '
+22 "'"
+23 'N'
+24 'Y'
+25 "'"
+26 ')'
+27 ' '
+28 'o'
+29 'r'
+30 ' '
+31 't'
+32 'a'
+33 'g'
+34 's'
+35 ' '
+36 'c'
+37 'o'
+38 'n'
+39 't'
+40 'a'
+41 'i'
+42 'n'
+43 's'
+44 ' '
+45 "'"
+46 'g'
+47 'o'
+48 'l'
+49 'd'
+50 "'"
+---
+LPAREN '(' 0
+IDENT 'age' 1
+OP '>' 5
+NUM 30 7
+IDENT 'and' 10
+IDENT 'city' 14
+OP '==' 19
+STR 'NY' 22
+RPAREN ')' 26
+IDENT 'or' 28
+IDENT 'tags' 31
+IDENT 'contains' 36
+STR 'gold' 45
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Tokenizer looks correct. Let me isolate which parenthesized case actually fails.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import evaluate
+cases = [
+    (\"age > 30 and (city == 'NY' or city == 'LA')\", {\"age\": 41, \"city\": \"NY\"}),
+    (\"(age > 30 and city == 'NY') or tags contains 'gold'\", {\"age\": 41, \"city\": \"NY\", \"tags\": [\"vip\"]}),
+    (\"not (banned or score < 4.5)\", {\"banned\": True, \"score\": 4.9}),
+]
+for expr, rec in cases:
+    try:
+        print(\"OK \", repr(expr), \"->\", evaluate(expr, rec))
+    except Exception as e:
+        print(\"ERR\", repr(expr), type(e).__name__, e)
+        for i, c in enumerate(expr):
+            print(i, repr(c))
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+ERR "age > 30 and (city == 'NY' or city == 'LA')" ValueError expected RPAREN at position 30
+0 'a'
+1 'g'
+2 'e'
+3 ' '
+4 '>'
+5 ' '
+6 '3'
+7 '0'
+8 ' '
+9 'a'
+10 'n'
+11 'd'
+12 ' '
+13 '('
+14 'c'
+15 'i'
+16 't'
+17 'y'
+18 ' '
+19 '='
+20 '='
+21 ' '
+22 "'"
+23 'N'
+24 'Y'
+25 "'"
+26 ' '
+27 'o'
+28 'r'
+29 ' '
+30 'c'
+31 'i'
+32 't'
+33 'y'
+34 ' '
+35 '='
+36 '='
+37 ' '
+38 "'"
+39 'L'
+40 'A'
+41 "'"
+42 ')'
+ERR "(age > 30 and city == 'NY') or tags contains 'gold'" ValueError unexpected token 'tags' at position 31
+0 '('
+1 'a'
+2 'g'
+3 'e'
+4 ' '
+5 '>'
+6 ' '
+7 '3'
+8 '0'
+9 ' '
+10 'a'
+11 'n'
+12 'd'
+13 ' '
+14 'c'
+15 'i'
+16 't'
+17 'y'
+18 ' '
+19 '='
+20 '='
+21 ' '
+22 "'"
+23 'N'
+24 'Y'
+25 "'"
+26 ')'
+27 ' '
+28 'o'
+29 'r'
+30 ' '
+31 't'
+32 'a'
+33 'g'
+34 's'
+35 ' '
+36 'c'
+37 'o'
+38 'n'
+39 't'
+40 'a'
+41 'i'
+42 'n'
+43 's'
+44 ' '
+45 "'"
+46 'g'
+47 'o'
+48 'l'
+49 'd'
+50 "'"
+ERR 'not (banned or score < 4.5)' ValueError expected RPAREN at position 15
+0 'n'
+1 'o'
+2 't'
+3 ' '
+4 '('
+5 'b'
+6 'a'
+7 'n'
+8 'n'
+9 'e'
+10 'd'
+11 ' '
+12 'o'
+13 'r'
+14 ' '
+15 's'
+16 'c'
+17 'o'
+18 'r'
+19 'e'
+20 ' '
+21 '<'
+22 ' '
+23 '4'
+24 '.'
+25 '5'
+26 ')'
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Interesting — `or` isn't being consumed inside parentheses. Let me inspect the actual file content; the patch may not match what I intended.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '95,180p' filterlang.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+                "invalid character %r at position %d in expression %r"
+                % (text[pos], pos, text)
+            )
+        raw = match.group()
+        if kind == "WS":
+            pos = match.end()
+            continue
+        if kind == "NUM":
+            value = int(raw) if raw.isdigit() else float(raw)
+        elif kind == "STR":
+            value = _unescape(raw[1:-1])
+        else:
+            value = raw
+        tokens.append(_Token(kind, value, pos))
+        pos = match.end()
+    return tokens
+
+
+class _Parser:
+    def __init__(self, tokens, record):
+        self.tokens = tokens
+        self.record = record
+        self.pos = 0
+
+    def peek(self):
+        if self.pos < len(self.tokens):
+            return self.tokens[self.pos]
+        return None
+
+    def next_token(self):
+        token = self.peek()
+        if token is None:
+            raise ValueError("unexpected end of expression")
+        self.pos += 1
+        return token
+
+    def accept(self, kind):
+        token = self.peek()
+        if token is not None and token.kind == kind:
+            self.pos += 1
+            return token
+        return None
+
+    def accept_keyword(self, word):
+        token = self.peek()
+        if (
+            token is not None
+            and token.kind == "IDENT"
+            and token.value.lower() == word
+        ):
+            self.pos += 1
+            return True
+        return False
+
+    def expect(self, kind):
+        token = self.accept(kind)
+        if token is None:
+            got = self.peek()
+            where = got.pos if got else "end of expression"
+            raise ValueError("expected %s at position %s" % (kind, where))
+        return token
+
+    def parse_or(self):
+        value = self.parse_and()
+        while self.accept_keyword("or"):
+            value = bool(value) or bool(self.parse_and())
+        return value
+
+    def parse_and(self):
+        value = self.parse_not()
+        while self.accept_keyword("and"):
+            value = bool(value) and bool(self.parse_not())
+        return value
+
+    def parse_not(self):
+        if self.accept_keyword("not"):
+            return not bool(self.parse_not())
+        return self.parse_comparison()
+
+    def parse_comparison(self):
+        left = self.parse_operand()
+        token = self.peek()
+        if token is not None and token.kind == "OP":
+            op = self.next_token().value
+            right = self.parse_operand()
+            return self._compare(left, op, right)
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+The code matches my intent. Let me trace the parser directly to find where `or` gets lost.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import _tokenize, _Parser
+
+expr = \"age > 30 and (city == 'NY' or city == 'LA')\"
+tokens = _tokenize(expr)
+for i, t in enumerate(tokens):
+    print(i, t.kind, repr(t.value), t.pos)
+
+p = _Parser(tokens, {\"age\": 41, \"city\": \"NY\"})
+
+def step(label):
+    t = p.peek()
+    print(f\"{label}: pos={p.pos} peek={t.kind if t else None} {repr(t.value) if t else ''}\")
+
+step(\"start\")
+v = p.parse_or()
+print(\"result\", v, \"final pos\", p.pos)
+step(\"end\")
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ exited 1 in 0ms:
+0 IDENT 'age' 0
+1 OP '>' 4
+2 NUM 30 6
+3 IDENT 'and' 9
+4 LPAREN '(' 13
+5 IDENT 'city' 14
+6 OP '==' 19
+7 STR 'NY' 22
+8 IDENT 'or' 27
+9 IDENT 'city' 30
+10 OP '==' 35
+11 STR 'LA' 38
+12 RPAREN ')' 42
+start: pos=0 peek=IDENT 'age'
+Traceback (most recent call last):
+  File "<stdin>", line 15, in <module>
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 158, in parse_or
+    value = self.parse_and()
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 166, in parse_and
+    value = bool(value) and bool(self.parse_not())
+                                 ~~~~~~~~~~~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 172, in parse_not
+    return self.parse_comparison()
+           ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 175, in parse_comparison
+    left = self.parse_operand()
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 205, in parse_operand
+    self.expect("RPAREN")
+    ~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py", line 154, in expect
+    raise ValueError("expected %s at position %s" % (kind, where))
+ValueError: expected RPAREN at position 30
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Let me look at the exact lines around the failure (175–210) to see what's actually there.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '170,215p' filterlang.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+        if self.accept_keyword("not"):
+            return not bool(self.parse_not())
+        return self.parse_comparison()
+
+    def parse_comparison(self):
+        left = self.parse_operand()
+        token = self.peek()
+        if token is not None and token.kind == "OP":
+            op = self.next_token().value
+            right = self.parse_operand()
+            return self._compare(left, op, right)
+        if self.accept_keyword("contains"):
+            right = self.parse_operand()
+            return self._contains(left, right)
+        if self.accept_keyword("in"):
+            right = self.parse_operand()
+            return self._contains(right, left)
+        return left
+
+    def parse_operand(self):
+        token = self.peek()
+        if token is None:
+            raise ValueError("unexpected end of expression")
+        if token.kind == "MINUS":
+            self.next_token()
+            value = self.parse_operand()
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return -value
+            raise ValueError(
+                "unary '-' may only be applied to a number at position %d"
+                % token.pos
+            )
+        if token.kind == "LPAREN":
+            self.next_token()
+            value = self.parse_or()
+            self.expect("RPAREN")
+            return value
+        if token.kind == "LBRACK":
+            return self.parse_list()
+        if token.kind in ("NUM", "STR"):
+            self.next_token()
+            return token.value
+        if token.kind == "IDENT":
+            self.next_token()
+            lower = token.value.lower()
+            if lower == "true":
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..2072bdea9f606283b9608c516ec07e88647402b1
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,314 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
++
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
+ 
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            value = bool(value) or bool(self.parse_and())
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            value = bool(value) and bool(self.parse_not())
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Found it — a classic bug: `bool(value) or bool(self.parse_and())` short-circuits, so the right-hand side of `or`/`and` never gets parsed (the operator token is already consumed). Since this language is pure, I'll evaluate both sides eagerly and combine.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 demo.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+ok  "age > 30 and city == 'NY'" -> True (want True)
+ok  'not banned or score >= 4.5' -> True (want True)
+ok  "tags contains 'vip'" -> True (want True)
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import evaluate
+
+cases = [
+    # basics
+    (\"age > 30 and city == 'NY'\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"not banned or score >= 4.5\", {\"banned\": True, \"score\": 4.9}, True),
+    (\"tags contains 'vip'\", {\"tags\": [\"vip\", \"beta\"]}, True),
+    (\"age > 50\", {\"age\": 41}, False),
+    (\"age <= 41\", {\"age\": 41}, True),
+    (\"city "'!= '"'LA'\", {\"city\": \"NY\"}, True),
+    (\"not banned\", {\"banned\": True}, False),
+    (\"banned == False\", {\"banned\": True}, False),
+    # precedence + parens
+    (\"age > 30 and (city == 'NY' or city == 'LA')\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"(age > 30 and city == 'NY') or tags contains 'gold'\", {\"age\": 41, \"city\": \"NY\", \"tags\": [\"vip\"]}, True),
+    (\"not (banned or score < 4.5)\", {\"banned\": True, \"score\": 4.9}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": False}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": True}, True),
+    (\"not age > 30\", {\"age\": 20}, True),
+    (\"a and b\", {\"a\": False, \"b\": \"unparseable "'!!! garbage"}, False),
+    # strings / literals
+    ("city == '"\\\"NY\\\"\", {\"city\": \"NY\"}, True),
+    (\"name contains 'Ann'\", {\"name\": \"Hannah\"}, True),
+    (\"tags contains 'gold'\", {\"tags\": [\"vip\", \"beta\"]}, False),
+    (\"name contains 'VIP'\", {\"name\": \"vip club\"}, False),
+    (\"active == true\", {\"active\": True}, True),
+    (\"active == True\", {\"active\": True}, True),
+    (\"status == null\", {\"status\": None}, True),
+    (\"status == None\", {}, True),
+    (\"x = 5\", {\"x\": 5}, True),
+    (\"age == 41.0\", {\"age\": 41}, True),
+    (\"score >= 1e2\", {\"score\": 100}, True),
+    (\"temp >= -5\", {\"temp\": -3}, True),
+    (\"temp >= -5\", {\"temp\": -8}, False),
+    # membership / in
+    (\"country in ['US', 'CA']\", {\"country\": \"CA\"}, True),
+    (\"country in ['US', 'CA']\", {\"country\": \"IL\"}, False),
+    (\"name in 'hannah'\", {\"name\": \"ann\"}, True),
+    (\"'vip' in tags\", {\"tags\": [\"vip\"]}, True),
+    (\"attrs contains 'color'\", {\"attrs\": {\"color\": \"red\"}}, True),
+    # missing fields
+    (\"missing > 5\", {}, False),
+    (\"not missing\", {}, True),
+    (\"missing == 'x'\", {}, False),
+    (\"missing == None\", {}, True),
+    # dotted / case-insensitive / hyphenated / unicode
+    (\"user.age > 30\", {\"user\": {\"age\": 41}}, True),
+    (\"Age > 30\", {\"age\": 41}, True),
+    (\"last-order-date == '2024-01-01'\", {\"last-order-date\": \"2024-01-01\"}, True),
+    (\"גיל > 30\", {\"גיל\": 41}, True),
+    # type mismatches don't crash
+    (\"age > 30\", {\"age\": \"old\"}, False),
+    (\"age > 30\", {\"age\": None}, False),
+    (\"tags contains 'vip'\", {\"tags\": 7}, False),
+    (\"banned\", {\"banned\": True}, True),
+    (\"banned\", {\"banned\": False}, False),
+    # escaped strings
+    (\"name == 'it\\\\'s'\", {\"name\": \"it's\"}, True),
+    (\"path == 'a\\\\\\\\b'\", {\"path\": \"a\\\\b\"}, True),
+]
+
+fails = 0
+for expr, rec, want in cases:
+    got = evaluate(expr, rec)
+    if got "'!= want:
+        fails += 1
+        print(f"BAD  {expr!r} -> {got!r} (want {want!r}) rec={rec!r}")
+print(f"{len(cases) - fails}/{len(cases)} valid-expression cases passed")
+
+bad = ["", "age >", "age > 30 and", "(age", "age 30", "age >>> 30", "tags contains", "and banned", "age ==", "age > 30 )"]
+for expr in bad:
+    try:
+        evaluate(expr, {})
+    except ValueError:
+        pass
+    except Exception as e:
+        print(f"BAD  {expr!r} raised wrong type {type(e).__name__}: {e}")
+    else:
+        print(f"BAD  {expr!r} did not raise")
+print("error-path checks done")
+PY' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+BAD  "name contains 'Ann'" -> False (want True) rec={'name': 'Hannah'}
+47/48 valid-expression cases passed
+error-path checks done
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+That failure is my test's mistake, not the code's: `'Ann'` (capital A) is correctly *not* a substring of `'Hannah'` — matching is case-sensitive. Let me correct that expectation and re-run the full battery.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+from filterlang import evaluate
+
+cases = [
+    (\"age > 30 and city == 'NY'\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"not banned or score >= 4.5\", {\"banned\": True, \"score\": 4.9}, True),
+    (\"tags contains 'vip'\", {\"tags\": [\"vip\", \"beta\"]}, True),
+    (\"age > 50\", {\"age\": 41}, False),
+    (\"age <= 41\", {\"age\": 41}, True),
+    (\"city "'!= '"'LA'\", {\"city\": \"NY\"}, True),
+    (\"not banned\", {\"banned\": True}, False),
+    (\"banned == False\", {\"banned\": True}, False),
+    (\"age > 30 and (city == 'NY' or city == 'LA')\", {\"age\": 41, \"city\": \"NY\"}, True),
+    (\"(age > 30 and city == 'NY') or tags contains 'gold'\", {\"age\": 41, \"city\": \"NY\", \"tags\": [\"vip\"]}, True),
+    (\"not (banned or score < 4.5)\", {\"banned\": True, \"score\": 4.9}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": False}, False),
+    (\"a or b and c\", {\"a\": False, \"b\": True, \"c\": True}, True),
+    (\"not age > 30\", {\"age\": 20}, True),
+    (\"a and b\", {\"a\": False, \"b\": \"unparseable "'!!! garbage"}, False),
+    ("city == '"\\\"NY\\\"\", {\"city\": \"NY\"}, True),
+    (\"name contains 'ann'\", {\"name\": \"Hannah\"}, True),
+    (\"name contains 'Ann'\", {\"name\": \"Hannah\"}, False),
+    (\"tags contains 'gold'\", {\"tags\": [\"vip\", \"beta\"]}, False),
+    (\"active == true\", {\"active\": True}, True),
+    (\"active == True\", {\"active\": True}, True),
+    (\"status == null\", {\"status\": None}, True),
+    (\"status == None\", {}, True),
+    (\"x = 5\", {\"x\": 5}, True),
+    (\"age == 41.0\", {\"age\": 41}, True),
+    (\"score >= 1e2\", {\"score\": 100}, True),
+    (\"temp >= -5\", {\"temp\": -3}, True),
+    (\"temp >= -5\", {\"temp\": -8}, False),
+    (\"country in ['US', 'CA']\", {\"country\": \"CA\"}, True),
+    (\"country in ['US', 'CA']\", {\"country\": \"IL\"}, False),
+    (\"name in 'hannah'\", {\"name\": \"ann\"}, True),
+    (\"'vip' in tags\", {\"tags\": [\"vip\"]}, True),
+    (\"attrs contains 'color'\", {\"attrs\": {\"color\": \"red\"}}, True),
+    (\"missing > 5\", {}, False),
+    (\"not missing\", {}, True),
+    (\"missing == 'x'\", {}, False),
+    (\"missing == None\", {}, True),
+    (\"user.age > 30\", {\"user\": {\"age\": 41}}, True),
+    (\"Age > 30\", {\"age\": 41}, True),
+    (\"last-order-date == '2024-01-01'\", {\"last-order-date\": \"2024-01-01\"}, True),
+    (\"גיל > 30\", {\"גיל\": 41}, True),
+    (\"age > 30\", {\"age\": \"old\"}, False),
+    (\"age > 30\", {\"age\": None}, False),
+    (\"tags contains 'vip'\", {\"tags\": 7}, False),
+    (\"banned\", {\"banned\": True}, True),
+    (\"banned\", {\"banned\": False}, False),
+    (\"name == 'it\\\\'s'\", {\"name\": \"it's\"}, True),
+    (\"path == 'a\\\\\\\\b'\", {\"path\": \"a\\\\b\"}, True),
+]
+
+fails = 0
+for expr, rec, want in cases:
+    got = evaluate(expr, rec)
+    if got "'!= want:
+        fails += 1
+        print(f"BAD  {expr!r} -> {got!r} (want {want!r}) rec={rec!r}")
+print(f"{len(cases) - fails}/{len(cases)} valid-expression cases passed")
+
+bad = ["", "age >", "age > 30 and", "(age", "age 30", "age >>> 30", "tags contains", "and banned", "age ==", "age > 30 )"]
+for expr in bad:
+    try:
+        evaluate(expr, {})
+    except ValueError:
+        pass
+    except Exception as e:
+        print(f"BAD  {expr!r} raised wrong type {type(e).__name__}: {e}")
+    else:
+        print(f"BAD  {expr!r} did not raise")
+print("error-path checks done")
+PY' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+48/48 valid-expression cases passed
+error-path checks done
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+All 48 valid-expression cases pass and every malformed expression raises `ValueError`. Final verification: compile check, demo output, and type-error guards.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 -m py_compile filterlang.py && python3 demo.py && python3 - <<'PY'
+from filterlang import evaluate
+for expr, rec in [(\"a > 1\", None), (123, {}), (None, {\"a\": 1})]:
+    try:
+        evaluate(expr, rec)
+        print(\"BAD: no error\")
+    except TypeError:
+        print(\"ok  TypeError for\", repr(expr), repr(rec))
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+ok  "age > 30 and city == 'NY'" -> True (want True)
+ok  'not banned or score >= 4.5' -> True (want True)
+ok  "tags contains 'vip'" -> True (want True)
+ok  TypeError for 'a > 1' None
+ok  TypeError for 123 {}
+ok  TypeError for None {'a': 1}
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "rg -n '"'^def evaluate'"' filterlang.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2
+ succeeded in 0ms:
+303:def evaluate(expression, record):
+
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+codex
+Done — `python3 demo.py` passes all three cases, and `evaluate` now handles a full mini-language instead of just those examples.
+
+Implementation in [filterlang.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py:303): a hand-rolled tokenizer plus recursive-descent parser (stdlib only, no eval/exec), with the assumed grammar documented in the module docstring since the ticket had none.
+
+What it supports:
+
+- Logic: `and`, `or`, `not` (case-insensitive, standard precedence `not` > `and` > `or`), and parentheses for grouping.
+- Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`, plus `=` as an alias for `==`.
+- Membership: `tags contains 'vip'` (substring for strings, item lookup for lists/sets, key lookup for dicts) and the reversed `value in [...]` form.
+- Literals: integers, floats (including `-2`, `1e3`), single/double-quoted strings with escapes, `true`/`false` in any case, and `None`/`null`.
+- Fields: bare identifiers, including hyphenated names and dotted paths into nested dicts (`user.age`), with exact-match-first then case-insensitive lookup.
+
+A few judgment calls worth flagging, since the ticket was silent:
+
+- A missing field resolves to `None`, so `not banned` is `True` when the field is absent, and ordering comparisons against missing fields return `False`.
+- Type mismatches (e.g. `age > 30` when `age` is `"old"`) return `False` rather than crashing, so one bad record can't break a segment run.
+- Malformed expressions raise `ValueError` with position info so the web form can surface authoring mistakes — the one behavior that was genuinely ambiguous, so easy to change if you'd prefer `False`.
+
+I verified it against 48 valid expressions (precedence, parens, missing fields, nested dicts, Unicode/Hebrew keys, string escapes, `in`/`contains` variants) plus malformed-input checks, all passing.
+diff --git a/filterlang.py b/filterlang.py
+index cf377864c93fda430014e571bcb10b0db2bce871..4cfd4f2ba6d7255c37b8ed8c5cde1d0c72113632
+--- a/filterlang.py
++++ b/filterlang.py
+@@ -2,9 +2,316 @@
+ 
+ A record is a plain dict. `evaluate` decides whether a record matches an
+ expression written by a non-engineer in the segment builder UI.
++
++The original ticket defines no formal grammar, so the language is a small,
++permissive subset that covers the ticket's cases and the natural ways an
++author extends them:
++
++    Logic:          and, or, not (any casing, usual precedence
++                    not > and > or), plus parentheses for grouping.
++    Comparisons:    ==, !=, <, <=, >, >=  (a single ``=`` is accepted as
++                    an alias for ``==``).
++    Membership:     ``field contains value`` -- substring match for
++                    strings, item membership for lists/tuples/sets, key
++                    lookup for dicts.  ``value in list`` is the same
++                    operation with the operands reversed.
++    Values:         numbers (30, 4.5, -2, 1e3), single- or double-quoted
++                    strings with backslash escapes, True/False in any
++                    casing, and None/null.
++    Fields:         bare identifiers, optionally hyphenated or dotted
++                    (``user.age`` walks nested dicts).  A field is looked
++                    up by exact name first, then case-insensitively; a
++                    missing field behaves like None.
++
++Edge-case behavior:
++    * Comparisons that don't make sense for the values involved (e.g.
++      ``'abc' > 5`` or a missing field compared with ``<``) evaluate to
++      False instead of raising, so one bad record can't break a run.
++    * Malformed expressions raise ValueError so the segment builder UI
++      can flag the problem while the expression is being authored.
++
++Standard library only; no eval()/exec().
+ """
+ 
++import re
++
++
++_TOKEN_RE = re.compile(
++    r"""
++      (?P<WS>\s+)
++    | (?P<NUM>(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)
++    | (?P<STR>'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")
++    | (?P<OP>==|!=|>=|<=|>|<|=)
++    | (?P<LPAREN>\()
++    | (?P<RPAREN>\))
++    | (?P<LBRACK>\[)
++    | (?P<RBRACK>\])
++    | (?P<COMMA>,)
++    | (?P<MINUS>-)
++    | (?P<IDENT>[^\W\d][\w-]*(?:\.[^\W\d][\w-]*)*)
++    | (?P<BAD>.)
++    """,
++    re.VERBOSE,
++)
++
++
++_KEYWORDS = frozenset({"and", "or", "not", "contains", "in"})
++
++_ESCAPES = {
++    "n": "\n",
++    "t": "\t",
++    "r": "\r",
++    "'": "'",
++    '"': '"',
++    "\\": "\\",
++}
++
++
++class _Token:
++    __slots__ = ("kind", "value", "pos")
++
++    def __init__(self, kind, value, pos):
++        self.kind = kind
++        self.value = value
++        self.pos = pos
++
++
++def _unescape(text):
++    def replace(match):
++        char = match.group(1)
++        return _ESCAPES.get(char, "\\" + char)
++
++    return re.sub(r"\\(.)", replace, text)
+ 
++
++def _tokenize(text):
++    tokens = []
++    pos = 0
++    while pos < len(text):
++        match = _TOKEN_RE.match(text, pos)
++        kind = match.lastgroup if match else None
++        if kind is None or kind == "BAD":
++            raise ValueError(
++                "invalid character %r at position %d in expression %r"
++                % (text[pos], pos, text)
++            )
++        raw = match.group()
++        if kind == "WS":
++            pos = match.end()
++            continue
++        if kind == "NUM":
++            value = int(raw) if raw.isdigit() else float(raw)
++        elif kind == "STR":
++            value = _unescape(raw[1:-1])
++        else:
++            value = raw
++        tokens.append(_Token(kind, value, pos))
++        pos = match.end()
++    return tokens
++
++
++class _Parser:
++    def __init__(self, tokens, record):
++        self.tokens = tokens
++        self.record = record
++        self.pos = 0
++
++    def peek(self):
++        if self.pos < len(self.tokens):
++            return self.tokens[self.pos]
++        return None
++
++    def next_token(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        self.pos += 1
++        return token
++
++    def accept(self, kind):
++        token = self.peek()
++        if token is not None and token.kind == kind:
++            self.pos += 1
++            return token
++        return None
++
++    def accept_keyword(self, word):
++        token = self.peek()
++        if (
++            token is not None
++            and token.kind == "IDENT"
++            and token.value.lower() == word
++        ):
++            self.pos += 1
++            return True
++        return False
++
++    def expect(self, kind):
++        token = self.accept(kind)
++        if token is None:
++            got = self.peek()
++            where = got.pos if got else "end of expression"
++            raise ValueError("expected %s at position %s" % (kind, where))
++        return token
++
++    def parse_or(self):
++        value = self.parse_and()
++        while self.accept_keyword("or"):
++            right = self.parse_and()
++            value = bool(value) or bool(right)
++        return value
++
++    def parse_and(self):
++        value = self.parse_not()
++        while self.accept_keyword("and"):
++            right = self.parse_not()
++            value = bool(value) and bool(right)
++        return value
++
++    def parse_not(self):
++        if self.accept_keyword("not"):
++            return not bool(self.parse_not())
++        return self.parse_comparison()
++
++    def parse_comparison(self):
++        left = self.parse_operand()
++        token = self.peek()
++        if token is not None and token.kind == "OP":
++            op = self.next_token().value
++            right = self.parse_operand()
++            return self._compare(left, op, right)
++        if self.accept_keyword("contains"):
++            right = self.parse_operand()
++            return self._contains(left, right)
++        if self.accept_keyword("in"):
++            right = self.parse_operand()
++            return self._contains(right, left)
++        return left
++
++    def parse_operand(self):
++        token = self.peek()
++        if token is None:
++            raise ValueError("unexpected end of expression")
++        if token.kind == "MINUS":
++            self.next_token()
++            value = self.parse_operand()
++            if isinstance(value, (int, float)) and not isinstance(value, bool):
++                return -value
++            raise ValueError(
++                "unary '-' may only be applied to a number at position %d"
++                % token.pos
++            )
++        if token.kind == "LPAREN":
++            self.next_token()
++            value = self.parse_or()
++            self.expect("RPAREN")
++            return value
++        if token.kind == "LBRACK":
++            return self.parse_list()
++        if token.kind in ("NUM", "STR"):
++            self.next_token()
++            return token.value
++        if token.kind == "IDENT":
++            self.next_token()
++            lower = token.value.lower()
++            if lower == "true":
++                return True
++            if lower == "false":
++                return False
++            if lower in ("none", "null"):
++                return None
++            if lower in _KEYWORDS:
++                raise ValueError(
++                    "unexpected keyword %r at position %d"
++                    % (token.value, token.pos)
++                )
++            return self.lookup(token.value)
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++
++    def parse_list(self):
++        self.next_token()  # consume '['
++        items = []
++        if self.accept("RBRACK"):
++            return items
++        while True:
++            items.append(self.parse_or())
++            if self.accept("RBRACK"):
++                return items
++            self.expect("COMMA")
++
++    def lookup(self, name):
++        """Resolve a field name against the record.
++
++        Tries the exact name first (which lets a literal key like
++        "user.age" win over nested lookup), then falls back to a dotted
++        path into nested dicts, matching each path segment
++        case-insensitively.  A missing field resolves to None.
++        """
++        record = self.record
++        if name in record:
++            return record[name]
++        current = record
++        for part in name.split("."):
++            if not isinstance(current, dict):
++                return None
++            if part in current:
++                current = current[part]
++                continue
++            fallback = None
++            for key, value in current.items():
++                if isinstance(key, str) and key.lower() == part.lower():
++                    fallback = value
++                    break
++            if fallback is None:
++                return None
++            current = fallback
++        return current
++
++    @staticmethod
++    def _compare(left, op, right):
++        if op in ("==", "="):
++            return left == right
++        if op == "!=":
++            return left != right
++        # Ordering only makes sense for comparable scalar types; never
++        # order booleans (True == 1 in Python, which surprises authors).
++        if isinstance(left, bool) or isinstance(right, bool):
++            return False
++        try:
++            if op == "<":
++                return left < right
++            if op == "<=":
++                return left <= right
++            if op == ">":
++                return left > right
++            if op == ">=":
++                return left >= right
++        except TypeError:
++            return False
++        return False  # pragma: no cover - the tokenizer only emits these ops
++
++    @staticmethod
++    def _contains(container, item):
++        try:
++            return item in container
++        except TypeError:
++            return False
++
++
+ def evaluate(expression, record):
+     """Return True if `record` matches `expression`, else False."""
+-    raise NotImplementedError
++    if not isinstance(expression, str):
++        raise TypeError("expression must be a string")
++    if not isinstance(record, dict):
++        raise TypeError("record must be a dict")
++    tokens = _tokenize(expression)
++    parser = _Parser(tokens, record)
++    result = parser.parse_or()
++    token = parser.peek()
++    if token is not None:
++        raise ValueError(
++            "unexpected token %r at position %d" % (token.value, token.pos)
++        )
++    return bool(result)
+
+tokens used
+93,820
+Done — `python3 demo.py` passes all three cases, and `evaluate` now handles a full mini-language instead of just those examples.
+
+Implementation in [filterlang.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/deepseek_h4_underspec_t2/filterlang.py:303): a hand-rolled tokenizer plus recursive-descent parser (stdlib only, no eval/exec), with the assumed grammar documented in the module docstring since the ticket had none.
+
+What it supports:
+
+- Logic: `and`, `or`, `not` (case-insensitive, standard precedence `not` > `and` > `or`), and parentheses for grouping.
+- Comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=`, plus `=` as an alias for `==`.
+- Membership: `tags contains 'vip'` (substring for strings, item lookup for lists/sets, key lookup for dicts) and the reversed `value in [...]` form.
+- Literals: integers, floats (including `-2`, `1e3`), single/double-quoted strings with escapes, `true`/`false` in any case, and `None`/`null`.
+- Fields: bare identifiers, including hyphenated names and dotted paths into nested dicts (`user.age`), with exact-match-first then case-insensitive lookup.
+
+A few judgment calls worth flagging, since the ticket was silent:
+
+- A missing field resolves to `None`, so `not banned` is `True` when the field is absent, and ordering comparisons against missing fields return `False`.
+- Type mismatches (e.g. `age > 30` when `age` is `"old"`) return `False` rather than crashing, so one bad record can't break a segment run.
+- Malformed expressions raise `ValueError` with position info so the web form can surface authoring mistakes — the one behavior that was genuinely ambiguous, so easy to change if you'd prefer `False`.
+
+I verified it against 48 valid expressions (precedence, parens, missing fields, nested dicts, Unicode/Hebrew keys, string escapes, `in`/`contains` variants) plus malformed-input checks, all passing.

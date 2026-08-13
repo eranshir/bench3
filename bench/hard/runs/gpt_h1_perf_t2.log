@@ -1,0 +1,1390 @@
+Reading additional input from stdin...
+OpenAI Codex v0.144.1
+--------
+workdir: /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+model: gpt-5.6-sol
+provider: openai
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: high
+reasoning summaries: none
+session id: 019fbf07-2f77-7312-b312-f6dff8e296f5
+--------
+user
+`python3 bench.py` is unusably slow. Make it fast.
+
+Both functions in analytics.py must keep computing exactly what they compute
+now, for every input, including the edge cases and the error behaviour. Only
+the speed should change. Their signatures must stay as they are.
+
+The standard library is available. Do not add third-party dependencies.
+codex
+I’ll profile the benchmark and inspect the implementations/tests first, then optimize only the internals while preserving outputs and exceptions exactly.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "pwd && rg --files -g '"'!*__pycache__*'"' && git status --short && sed -n '1,240p' analytics.py && sed -n '1,260p' bench.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+ exited 128 in 0ms:
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+analytics.py
+bench.py
+fatal: not a git repository (or any of the parent directories): .git
+
+codex
+The workspace is not a Git checkout, so I’ll work directly against the two files and use differential testing against the original implementation as the correctness oracle.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "sed -n '1,280p' analytics.py; sed -n '1,320p' bench.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+ succeeded in 0ms:
+"""Sliding-window analytics over a numeric series."""
+
+
+def rolling_median(values, window):
+    """Median of every consecutive `window`-sized slice, left to right.
+
+    Returns a list of length max(0, len(values) - window + 1).
+    For an even window the median is the mean of the two central elements.
+    Raises ValueError if window is not positive.
+    """
+    if window <= 0:
+        raise ValueError("window must be positive")
+    out = []
+    for i in range(len(values) - window + 1):
+        chunk = sorted(values[i:i + window])
+        mid = window // 2
+        if window % 2:
+            out.append(float(chunk[mid]))
+        else:
+            out.append((chunk[mid - 1] + chunk[mid]) / 2.0)
+    return out
+
+
+def window_distinct_counts(values, window):
+    """Count of distinct values in every consecutive `window`-sized slice.
+
+    Returns a list of length max(0, len(values) - window + 1).
+    Raises ValueError if window is not positive.
+    """
+    if window <= 0:
+        raise ValueError("window must be positive")
+    return [len(set(values[i:i + window]))
+            for i in range(len(values) - window + 1)]
+"""Timing harness. Run: python3 bench.py"""
+import random
+import time
+
+from analytics import rolling_median, window_distinct_counts
+
+random.seed(7)
+
+
+def timed(label, fn, *a):
+    t = time.perf_counter()
+    out = fn(*a)
+    print(f"{label:<28} {time.perf_counter() - t:8.2f}s  ({len(out)} results)")
+    return out
+
+
+if __name__ == "__main__":
+    series = [random.randint(0, 10_000) for _ in range(100_000)]
+    timed("rolling_median n=100k w=1001", rolling_median, series, 1001)
+
+    series2 = [random.randint(0, 500) for _ in range(200_000)]
+    timed("distinct n=200k w=2001", window_distinct_counts, series2, 2001)
+
+codex
+The bottlenecks are the expected ones: every median window is re-sorted, and every distinct-count window rebuilds a set. I’m measuring the baseline now, then I’ll replace those with sliding state and explicitly test tricky values such as duplicates, infinities, NaNs, oversized windows, invalid windows, and unhashable elements.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc '/usr/bin/time -p python3 bench.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+ succeeded in 8089ms:
+rolling_median n=100k w=1001     3.95s  (99000 results)
+distinct n=200k w=2001           4.12s  (198000 results)
+real 8.12
+user 8.06
+sys 0.03
+
+codex
+The safe fast path will cover built-in numeric lists/tuples (including mixed ints/floats, signed zero, infinities, booleans, and complex values for distinct counts). Inputs with unusual comparison/hash semantics—and median windows containing NaN, whose sort order is intentionally peculiar—will retain the original code path verbatim, preserving those behaviors rather than approximating them.
+apply patch
+patch: completed
+/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2/analytics.py
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc 'python3 -m py_compile analytics.py && /usr/bin/time -p python3 bench.py' in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+ succeeded in 207ms:
+rolling_median n=100k w=1001     0.12s  (99000 results)
+distinct n=200k w=2001           0.02s  (198000 results)
+real 0.19
+user 0.18
+sys 0.00
+
+codex
+The benchmark is now about 0.19 seconds end-to-end versus 8.12 seconds before (roughly 43× overall; median ~33× and distinct counts ~200× on this harness). I’m now doing randomized differential checks against the preserved reference paths, including exact float bit patterns so signed-zero regressions cannot hide behind normal equality.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "python3 - <<'PY'
+import math
+import random
+import struct
+from analytics import (
+    rolling_median, window_distinct_counts,
+    _rolling_median_reference, _window_distinct_counts_reference,
+)
+
+def bits(x):
+    return struct.pack('>d', x)
+
+random.seed(20260801)
+pool = [-10**100, -9, -1, 0, 1, 2, 9, 10**100, False, True,
+        -math.inf, -3.5, -0.0, 0.0, 2.25, math.inf]
+median_cases = 0
+distinct_cases = 0
+for n in range(30):
+    for _ in range(150):
+        values = [random.choice(pool) for _ in range(n)]
+        for window in range(1, n + 3):
+            try:
+                expected = _rolling_median_reference(values, window)
+            except Exception as exc:
+                try:
+                    rolling_median(values, window)
+                except Exception as got:
+                    assert (type(got), str(got)) == (type(exc), str(exc)), (values, window, exc, got)
+                else:
+                    raise AssertionError(('missing median exception', values, window, exc))
+            else:
+                actual = rolling_median(values, window)
+                assert len(actual) == len(expected)
+                assert all(bits(a) == bits(e) for a, e in zip(actual, expected)), (values, window, expected, actual)
+            median_cases += 1
+
+            expected = _window_distinct_counts_reference(values, window)
+            actual = window_distinct_counts(values, window)
+            assert actual == expected, (values, window, expected, actual)
+            distinct_cases += 1
+
+# NaNs and non-numeric/unhashable values exercise the literal reference path.
+for values in ([1.0, math.nan, 2.0, math.nan], [3, 'x', 1], [[1], [1]]):
+    for window in range(1, 6):
+        for fast, ref in ((rolling_median, _rolling_median_reference),
+                          (window_distinct_counts, _window_distinct_counts_reference)):
+            try:
+                expected = ref(values, window)
+            except Exception as exc:
+                try:
+                    fast(values, window)
+                except Exception as got:
+                    assert (type(got), str(got)) == (type(exc), str(exc))
+                else:
+                    raise AssertionError(('missing fallback exception', fast.__name__, values, window))
+            else:
+                actual = fast(values, window)
+                if fast is rolling_median:
+                    assert all(bits(a) == bits(e) for a, e in zip(actual, expected))
+                else:
+                    assert actual == expected
+
+for fn in (rolling_median, window_distinct_counts):
+    for window in (0, -1, -100):
+        try:
+            fn([1, 2], window)
+        except ValueError as exc:
+            assert str(exc) == 'window must be positive'
+        else:
+            raise AssertionError(('missing ValueError', fn.__name__, window))
+
+print(f'passed {median_cases} median and {distinct_cases} distinct randomized cases')
+PY" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+ succeeded in 1541ms:
+passed 74250 median and 74250 distinct randomized cases
+
+codex
+Differential testing passed 74,250 randomized cases per function, with exception type/message checks on failing cases and fallback coverage for NaNs, mixed incomparable types, and unhashable values. The optimized median keeps stable tie order by original index, which is what preserves exact signed-zero behavior.
+hook: PreToolUse
+hook: PreToolUse Completed
+exec
+/bin/zsh -lc "nl -ba analytics.py | sed -n '1,260p'; python3 bench.py" in /Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+ succeeded in 181ms:
+rolling_median n=100k w=1001     0.13s  (99000 results)
+distinct n=200k w=2001           0.02s  (198000 results)
+
+codex
+Implemented performance optimizations in [analytics.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2/analytics.py:24):
+
+- `rolling_median`: sliding dual heaps, `O(n log window)`.
+- `window_distinct_counts`: sliding frequency table, `O(n)`.
+- Preserved reference behavior for unusual inputs, custom objects, and NaNs.
+- Function signatures unchanged; standard library only.
+
+Benchmark:
+
+```text
+Before: 8.12s
+After:  0.19s
+Speedup: ~43× overall
+```
+
+Passed 74,250 randomized differential cases per function, including exact output and exception checks.
+diff --git a/analytics.py b/analytics.py
+index e3e63f1bc2622a0c6aae3ee53b6cb85c43105e66..35064bec0615894e916d57caedc0b3156d24a288
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,15 +1,15 @@
+ """Sliding-window analytics over a numeric series."""
+ 
++import heapq
++import math
+ 
+-def rolling_median(values, window):
+-    """Median of every consecutive `window`-sized slice, left to right.
+ 
+-    Returns a list of length max(0, len(values) - window + 1).
+-    For an even window the median is the mean of the two central elements.
+-    Raises ValueError if window is not positive.
+-    """
+-    if window <= 0:
+-        raise ValueError("window must be positive")
++_ORDERED_NUMBER_TYPES = (int, float, bool)
++_HASHABLE_NUMBER_TYPES = (int, float, bool, complex)
++
++
++def _rolling_median_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     out = []
+     for i in range(len(values) - window + 1):
+         chunk = sorted(values[i:i + window])
+@@ -21,13 +21,158 @@
+     return out
+ 
+ 
+-def window_distinct_counts(values, window):
+-    """Count of distinct values in every consecutive `window`-sized slice.
++def _numeric_medians(values, window):
++    """O(n log window) sliding medians for totally ordered built-in numbers."""
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++
++    # ``small`` is a max-heap encoded as a min-heap.  The original index is
++    # part of each key so equal values retain sorted()'s stable ordering.  The
++    # original value is also retained (not reconstructed by negation), which
++    # matters for signed zero.
++    small = []
++    large = []
++    delayed = set()
++    side = bytearray(n)       # 0: small, 1: large
++    small_size = 0
++    large_size = 0
++
++    def prune_small():
++        while small and small[0][2] in delayed:
++            index = heapq.heappop(small)[2]
++            delayed.remove(index)
+ 
++    def prune_large():
++        while large and large[0][1] in delayed:
++            index = heapq.heappop(large)[1]
++            delayed.remove(index)
++
++    def rebalance():
++        nonlocal small_size, large_size
++        if small_size > large_size + 1:
++            prune_small()
++            _, _, index, value = heapq.heappop(small)
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            small_size -= 1
++            large_size += 1
++        elif small_size < large_size:
++            prune_large()
++            value, index = heapq.heappop(large)
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++            large_size -= 1
++        prune_small()
++        prune_large()
++
++    def add(index):
++        nonlocal small_size, large_size
++        value = values[index]
++        if not small or (value, index) <= (small[0][3], small[0][2]):
++            heapq.heappush(small, (-value, -index, index, value))
++            side[index] = 0
++            small_size += 1
++        else:
++            heapq.heappush(large, (value, index))
++            side[index] = 1
++            large_size += 1
++        rebalance()
++
++    def remove(index):
++        nonlocal small_size, large_size
++        delayed.add(index)
++        if side[index] == 0:
++            small_size -= 1
++            prune_small()
++        else:
++            large_size -= 1
++            prune_large()
++        rebalance()
++
++    for index in range(window):
++        add(index)
++
++    out = []
++    odd = window % 2
++    for start in range(result_count):
++        if odd:
++            out.append(float(small[0][3]))
++        else:
++            out.append((small[0][3] + large[0][0]) / 2.0)
++
++        incoming = start + window
++        if incoming < n:
++            remove(start)
++            add(incoming)
++    return out
++
++
++def rolling_median(values, window):
++    """Median of every consecutive `window`-sized slice, left to right.
++
+     Returns a list of length max(0, len(values) - window + 1).
++    For an even window the median is the mean of the two central elements.
+     Raises ValueError if window is not positive.
+     """
+     if window <= 0:
+         raise ValueError("window must be positive")
++
++    # Keep the old implementation for arbitrary sequences and objects: their
++    # slicing, comparison, and conversion methods may have observable custom
++    # behavior.  NaN also needs the old path because sorted() deliberately does
++    # not impose a total ordering on it.
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _rolling_median_reference(values, window)
++    if window > len(values):
++        return []
++    if not all(type(value) in _ORDERED_NUMBER_TYPES and
++               not (type(value) is float and math.isnan(value))
++               for value in values):
++        return _rolling_median_reference(values, window)
++    return _numeric_medians(values, window)
++
++
++def _window_distinct_counts_reference(values, window):
++    """The general implementation, kept for its exact Python semantics."""
+     return [len(set(values[i:i + window]))
+             for i in range(len(values) - window + 1)]
++
++
++def window_distinct_counts(values, window):
++    """Count of distinct values in every consecutive `window`-sized slice.
++
++    Returns a list of length max(0, len(values) - window + 1).
++    Raises ValueError if window is not positive.
++    """
++    if window <= 0:
++        raise ValueError("window must be positive")
++
++    if type(window) is not int or type(values) not in (list, tuple):
++        return _window_distinct_counts_reference(values, window)
++    n = len(values)
++    result_count = n - window + 1
++    if result_count <= 0:
++        return []
++    if not all(type(value) in _HASHABLE_NUMBER_TYPES for value in values):
++        return _window_distinct_counts_reference(values, window)
++
++    counts = {}
++    for value in values[:window]:
++        counts[value] = counts.get(value, 0) + 1
++
++    out = [len(counts)]
++    for incoming in range(window, n):
++        outgoing_value = values[incoming - window]
++        old_count = counts[outgoing_value]
++        if old_count == 1:
++            del counts[outgoing_value]
++        else:
++            counts[outgoing_value] = old_count - 1
++
++        incoming_value = values[incoming]
++        counts[incoming_value] = counts.get(incoming_value, 0) + 1
++        out.append(len(counts))
++    return out
+
+tokens used
+39,998
+Implemented performance optimizations in [analytics.py](/Users/eranshir/Documents/Projects/deepseek/bench/hard/work/gpt_h1_perf_t2/analytics.py:24):
+
+- `rolling_median`: sliding dual heaps, `O(n log window)`.
+- `window_distinct_counts`: sliding frequency table, `O(n)`.
+- Preserved reference behavior for unusual inputs, custom objects, and NaNs.
+- Function signatures unchanged; standard library only.
+
+Benchmark:
+
+```text
+Before: 8.12s
+After:  0.19s
+Speedup: ~43× overall
+```
+
+Passed 74,250 randomized differential cases per function, including exact output and exception checks.

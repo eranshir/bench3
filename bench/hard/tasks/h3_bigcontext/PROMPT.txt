@@ -1,0 +1,18 @@
+The settlement report disagrees with finance.
+
+    python3 -m ledgerkit.cli report --tenant acme
+    python3 -m ledgerkit.cli report --tenant kitsune
+
+expected_totals.md holds the reconciled figures for those two tenants. They
+are correct; the code is wrong. The other tenants are wrong in the same ways
+even though their expected figures are not written down here.
+
+Fix ledgerkit so the reported numbers are right, for every tenant and every
+currency, not just for the two shown.
+
+Constraints:
+- Do not change expected_totals.md, the catalog prices, the fx rate table,
+  the tax rates, the tenant configuration, or the order data. The inputs are
+  correct; the logic that consumes them is not.
+- Keep the public API and module layout as they are.
+- Standard library only.

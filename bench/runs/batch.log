@@ -1,0 +1,79 @@
+########## deepseek trial 1  (21:47:19) ##########
+=== deepseek / t1_bugfix / trial 1 ===
+  -> 27s, 46116 tokens, passed=1, failed_tests=0 
+=== deepseek / t2_multifile / trial 1 ===
+  -> 20s, 54800 tokens, passed=1, failed_tests=0 
+=== deepseek / t3_tdd / trial 1 ===
+  -> 21s, 54418 tokens, passed=1, failed_tests=0 
+=== deepseek / t4_debug / trial 1 ===
+  -> 35s, 55810 tokens, passed=1, failed_tests=0 
+=== deepseek / t5_refactor / trial 1 ===
+  -> 23s, 54556 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## gpt trial 1  (21:49:25) ##########
+=== gpt / t1_bugfix / trial 1 ===
+  -> 35s, 18427 tokens, passed=1, failed_tests=0 
+=== gpt / t2_multifile / trial 1 ===
+  -> 59s, 15330 tokens, passed=1, failed_tests=0 
+=== gpt / t3_tdd / trial 1 ===
+  -> 37s, 12298 tokens, passed=1, failed_tests=0 
+=== gpt / t4_debug / trial 1 ===
+  -> 51s, 15368 tokens, passed=1, failed_tests=0 
+=== gpt / t5_refactor / trial 1 ===
+  -> 68s, 16749 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## deepseek trial 2  (21:53:35) ##########
+=== deepseek / t1_bugfix / trial 2 ===
+  -> 15s, 53701 tokens, passed=1, failed_tests=0 
+=== deepseek / t2_multifile / trial 2 ===
+  -> 30s, 56568 tokens, passed=1, failed_tests=0 
+=== deepseek / t3_tdd / trial 2 ===
+  -> 24s, 54992 tokens, passed=1, failed_tests=0 
+=== deepseek / t4_debug / trial 2 ===
+  -> 18s, 54745 tokens, passed=1, failed_tests=0 
+=== deepseek / t5_refactor / trial 2 ===
+  -> 22s, 54765 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## gpt trial 2  (21:55:25) ##########
+=== gpt / t1_bugfix / trial 2 ===
+  -> 54s, 32513 tokens, passed=1, failed_tests=0 
+=== gpt / t2_multifile / trial 2 ===
+  -> 92s, 17542 tokens, passed=1, failed_tests=0 
+=== gpt / t3_tdd / trial 2 ===
+  -> 34s, 12425 tokens, passed=1, failed_tests=0 
+=== gpt / t4_debug / trial 2 ===
+  -> 63s, 17794 tokens, passed=1, failed_tests=0 
+=== gpt / t5_refactor / trial 2 ===
+  -> 37s, 21326 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## deepseek trial 3  (22:00:13) ##########
+=== deepseek / t1_bugfix / trial 3 ===
+  -> 16s, 53910 tokens, passed=1, failed_tests=0 
+=== deepseek / t2_multifile / trial 3 ===
+  -> 48s, 58868 tokens, passed=1, failed_tests=0 
+=== deepseek / t3_tdd / trial 3 ===
+  -> 17s, 53780 tokens, passed=1, failed_tests=0 
+=== deepseek / t4_debug / trial 3 ===
+  -> 26s, 54904 tokens, passed=1, failed_tests=0 
+=== deepseek / t5_refactor / trial 3 ===
+  -> 27s, 55416 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## gpt trial 3  (22:02:28) ##########
+=== gpt / t1_bugfix / trial 3 ===
+  -> 45s, 16139 tokens, passed=1, failed_tests=0 
+=== gpt / t2_multifile / trial 3 ===
+  -> 65s, 25158 tokens, passed=1, failed_tests=0 
+=== gpt / t3_tdd / trial 3 ===
+  -> 38s, 12054 tokens, passed=1, failed_tests=0 
+=== gpt / t4_debug / trial 3 ===
+  -> 58s, 22715 tokens, passed=1, failed_tests=0 
+=== gpt / t5_refactor / trial 3 ===
+  -> 40s, 14019 tokens, passed=1, failed_tests=0 
+
+results -> /Users/eranshir/Documents/Projects/deepseek/bench/results.csv
+########## batch complete 22:06:37 ##########

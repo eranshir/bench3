@@ -1,0 +1,7 @@
+`python3 bench.py` is unusably slow. Make it fast.
+
+Both functions in analytics.py must keep computing exactly what they compute
+now, for every input, including the edge cases and the error behaviour. Only
+the speed should change. Their signatures must stay as they are.
+
+The standard library is available. Do not add third-party dependencies.
