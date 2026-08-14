@@ -1,0 +1,16 @@
+The module `csvish.py` has a `parse_rows(text, delimiter=',')` function that
+parses text into rows of fields. Its current implementation is naive and
+wrong on standard CSV edge cases.
+
+Your job:
+1. Fix `parse_rows` so it correctly handles: fields quoted with double
+   quotes containing the delimiter; quoted fields containing newlines;
+   escaped quotes (a pair of double quotes inside a quoted field); empty
+   fields (including trailing ones); and a trailing newline at end of input.
+2. Write a test file `test_csvish.py` (unittest) covering at least those
+   five cases. Run it with `python3 -m unittest test_csvish -v` and iterate
+   until everything is green.
+
+Rules: keep the signature `parse_rows(text, delimiter=',')` and the return
+shape (list of list of str). Do not import third-party CSV modules —
+implement the parsing yourself.

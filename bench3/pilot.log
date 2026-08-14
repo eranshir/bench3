@@ -5,3 +5,11 @@ skip (done): deepseek-flash writing/w2_rewrite t1
   -> 1.5s in=296 cached=256 out=97 reas=0 cost=$0.00007 passed=1 calls=0 reply='Onboarding a new team member involves several important step'
   -> 2.2s in=296 cached=0 out=107 reas=0 cost=$0.00022 passed=1 calls=0 reply='Onboarding a new team member to the codebase involves many s'
   -> 1.9s in=296 cached=256 out=112 reas=0 cost=$0.00022 passed=1 calls=0 reply='Onboarding a new team member to a codebase involves many ste'
+  -> 2.3s in=296 cached=256 out=114 reas=0 cost=$0.00023 passed=1 calls=0 reply='Onboarding a new team member to the codebase has many steps,'
+  -> 95.9s in=497 cached=128 out=144 reas=7952 cost=$0.00188 passed=1 calls=0 reply='Onboarding a new team member to the codebase involves a cons'
+  -> 92.9s in=497 cached=384 out=99 reas=8482 cost=$0.00166 passed=1 calls=0 reply='Onboarding a new team member to the codebase involves many i'
+  -> 86.0s in=497 cached=384 out=115 reas=7238 cost=$0.00176 passed=1 calls=0 reply='Onboarding a new team member to the codebase involves many i'
+  -> 6.1s in=297 cached=0 out=243 reas=132 cost=$0.00877 passed=1 calls=0 reply='Onboarding involves several important stages that help new t'
+  -> 36.3s in=297 cached=0 out=2469 reas=2335 cost=$0.07555 passed=1 calls=0 reply='Onboarding has many important steps to get a new team member'
+  -> 19.4s in=297 cached=0 out=1383 reas=1261 cost=$0.04297 passed=1 calls=0 reply='Many distinct, individually important onboarding steps help '
+=== singleshot done: Fri Aug 14 14:45:25 IDT 2026 ===

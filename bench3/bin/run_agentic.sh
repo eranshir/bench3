@@ -45,7 +45,9 @@ out = []
 for cat in sorted(root.iterdir()):
     if not cat.is_dir(): continue
     for t in sorted((root/cat).iterdir()):
-        if (t/'PROMPT.txt').exists():
+        # exact filename match: macOS is case-insensitive, so (t/'PROMPT.txt')
+        # would also match singleshot tasks' lowercase prompt.txt
+        if any(p.name == 'PROMPT.txt' for p in t.iterdir() if p.is_file()):
             out.append(f"{cat.name}/{t.name}")
 print(' '.join(out))
 EOF
