@@ -60,9 +60,23 @@ def run_detail(r):
             else:
                 detail['content'] = p.read_text(errors='replace')[-8000:]
     sp = r.get('session_path') or ''
-    if sp:
-        detail['has_session'] = Path(sp).exists()
+    if sp and Path(sp).exists():
         detail['session_path'] = sp
+        try:
+            sys.path.insert(0, str(BENCH / 'bin'))
+            from lib.session import parse_session
+            sess = parse_session(Path(sp))
+            # compact trajectory: user asks, assistant messages (reasoning+text), tool counts
+            traj = []
+            for ev in sess['events'][-60:]:
+                if ev['type'] == 'user':
+                    traj.append({'type': 'user', 'text': ev['text'][:300]})
+                elif ev['type'] == 'assistant':
+                    traj.append({'type': 'assistant', 'text': (ev.get('text') or '')[:600],
+                                 'reasoning': (ev.get('reasoning') or '')[:400]})
+            detail['trajectory'] = traj
+        except Exception:
+            pass
     gl = RUNS / (r['arm'] + '_' + r['task'].replace('/', '-') + '_t' + r['trial'] + '.grade')
     if gl.exists():
         detail['grade'] = gl.read_text(errors='replace')[-4000:]

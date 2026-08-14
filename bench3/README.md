@@ -54,9 +54,25 @@ remain available as ground truth for the DeepSeek arms.
 
 Task layout: `tasks/<category>/<task>/` with `PROMPT.txt` (agentic), or
 `prompt.txt` + `mode.txt` (+ `system.txt`, `tools.json`, `check.py`,
-`max_tokens.txt`) for single-shot. Objective graders are validated in **both
-directions**: they must fail on the shipped fixture and pass on a reference
-solution.
+`max_tokens.txt`, optional `effort.txt`) for single-shot. Objective graders
+are validated in **both directions**: they must fail on the shipped fixture
+and pass on a reference solution.
+
+### Reasoning-effort policy (per task type, not per arm)
+
+Reasoning effort is pinned by task type, applied identically to all arms via
+per-provider wire mapping (`effort.txt` in the task dir):
+
+- **high** — objective reasoning, tool-use, coding, agentic tasks.
+- **off** (generation mode) — creativity and writing tasks. Why: measured at
+  the pilot's start, **deepseek-v4-flash at ANY enabled thinking effort burns
+  its entire output budget on reasoning** (verified: 16K reasoning tokens, 0
+  content at high; 68K reasoning chars at low) — an artifact that would score
+  it as failing every generation task. Wire mapping for `off`: deepseek sends
+  `thinking: disabled`; gpt/grok send `reasoning_effort: low`.
+
+This is a documented methodology choice, not a per-arm adjustment: every arm
+gets the same policy, and the wire spelling is the only per-provider part.
 
 ## Running
 
