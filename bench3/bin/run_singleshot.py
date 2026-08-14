@@ -34,19 +34,28 @@ CRED_KEYS = {
 }
 
 
-def call_api(provider, key, body, timeout=900):
+def call_api(provider, key, body, timeout=900, retries=2):
+    """Call the provider API with a bounded retry on 429/5xx (rate limits).
+    Only the successful response is returned, so cost accounting is exact."""
     base, path = ENDPOINTS[provider]
     req = urllib.request.Request(base + "/" + path, method="POST")
     req.add_header("Authorization", "Bearer " + key)
     req.add_header("Content-Type", "application/json")
     t0 = time.time()
-    try:
-        with urllib.request.urlopen(req, data=json.dumps(body).encode(), timeout=timeout) as r:
-            return json.loads(r.read().decode()), time.time() - t0, None
-    except urllib.error.HTTPError as e:
-        return None, time.time() - t0, "HTTP %d: %s" % (e.code, e.read().decode()[:300])
-    except Exception as e:
-        return None, time.time() - t0, str(e)[:300]
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            with urllib.request.urlopen(req, data=json.dumps(body).encode(), timeout=timeout) as r:
+                return json.loads(r.read().decode()), time.time() - t0, None
+        except urllib.error.HTTPError as e:
+            msg = "HTTP %d: %s" % (e.code, e.read().decode()[:200])
+            if e.code in (429, 500, 502, 503) and attempt <= retries:
+                time.sleep(20 * attempt)
+                continue
+            return None, time.time() - t0, msg
+        except Exception as e:
+            return None, time.time() - t0, str(e)[:300]
 
 
 def wire_params(provider, effort, max_tokens):

@@ -77,7 +77,7 @@ print(a['provider'], a['model'], a['effort'])
     src="$ROOT/tasks/$task"
     [ -d "$src" ] || { echo "no such task: $task" >&2; continue; }
     # resume: skip already-recorded cells
-    if grep -q "^$arm,$catname/$tname,$TRIAL," "$RESULTS" 2>/dev/null; then
+    if grep -q "^$arm,[^,]*,[^,]*,$catname,$tname,$TRIAL," "$RESULTS" 2>/dev/null; then
       echo "skip (done): $arm $task t$TRIAL"; continue
     fi
     work="$WORK/${arm}_${catname}-${tname}_t${TRIAL}"
