@@ -5,3 +5,4 @@ results -> /Users/eranshir/Documents/Projects/deepseek/bench3/results/results.cs
 === deepseek-pro / coding/c2_perf / trial 2 ===
 ./bin/run_agentic_all.sh: line 8: 49786 Killed: 9               ./run_agentic.sh "$arm" "$trial" 2>&1
      49787 Done                    | tail -1
+results -> /Users/eranshir/Documents/Projects/deepseek/bench3/results/results.csv

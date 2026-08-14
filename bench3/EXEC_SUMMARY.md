@@ -20,8 +20,12 @@ spend under $2.
    the full chain, flash sometimes, gpt stops after one wave, grok emits
    the plan as prose instead of function calls). This is a format/ceiling
    finding, not a per-model quality ranking.
-4. **Cost is dominated by gpt-sol but total spend stayed under $2.**
-   gpt-sol's arm cost ~$1; grok ~$0.2; both DeepSeek arms combined ~$0.11.
-5. **Judge disagreement is real.** deepseek-v4-pro rubric scores run ~0.8
+4. **Agentic coding/workflow tasks saturate — every arm solves all of
+   them** (c1 concurrency, c2 perf rewrite, a1 chained bugs, a2 TDD),
+   with gpt-sol the most token-efficient on the agent loop (mostly cached
+   input) and deepseek the cheapest overall.
+5. **Cost per passing task: flash $0.003, pro $0.006, grok $0.015,
+   gpt-sol $0.049 (16x flash).** Total spend ~$1.5 for 115+ runs.
+6. **Judge disagreement is real.** deepseek-v4-pro rubric scores run ~0.8
    points higher than gpt-5.6-sol on the same outputs (47% exact
    agreement); both are reported and the spread is shown in the webapp.
