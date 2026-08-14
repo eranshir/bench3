@@ -94,7 +94,10 @@ print(a['provider'], a['model'], a['effort'])
     start=$(date +%s)
     ( cd "$work" && DSH_HOME="$DSH_HOME" dsh --profile headless "$prompt" ) > "$log" 2>&1 &
     agent=$!
-    ( sleep "${LIMIT:-900}"; kill -9 "$agent" 2>/dev/null ) >/dev/null 2>&1 &
+    # kill the wrapper AND the dsh child (the wrapper's death orphans dsh,
+    # which would keep burning tokens). headless runs only, so the web GUI
+    # is never matched.
+    ( sleep "${LIMIT:-900}"; kill -9 "$agent" 2>/dev/null; pkill -9 -f "dsh --profile headless" 2>/dev/null ) >/dev/null 2>&1 &
     watchdog=$!
     wait "$agent"; rc=$?
     kill "$watchdog" 2>/dev/null; wait "$watchdog" 2>/dev/null
