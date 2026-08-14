@@ -104,6 +104,7 @@ function renderOverview() {
   html2 += "<div class='panel full'><h3>Pass rate by category</h3><div id='radar' class='chart'></div></div>";
   html2 += "<div class='panel full'><h3>Cost per run vs pass rate (per task)</h3><div id='scatter' class='chart'></div></div>";
   html2 += "<div class='panel full'><h3>Cost per passing task</h3><div id='cpp' class='chart'></div></div>";
+  html2 += "<div class='panel full'><h3>Rubric quality (creativity + writing, mean per judge)</h3><div id='qual' class='chart'></div></div>";
   html2 += '</div>';
 
   $('#view').innerHTML = findings + cards + html2;
@@ -174,10 +175,42 @@ function renderOverview() {
     yAxis: { type: 'value', name: 'USD / passing task', nameTextStyle: { color: '#7d8aa3' }, axisLabel: { color: '#7d8aa3', formatter: function(v) { return fmtMoney(v); } }, splitLine: { lineStyle: { color: '#1a2233' } } },
     series: [{ type: 'bar', data: cppData.map(function(d) { return { value: d.value, itemStyle: { color: ARM_COLORS[d.name] } }; }), barMaxWidth: 60 }],
   });
+
+  renderQuality();
 }
 
 function runsForAll(a) {
   return DATA.runs.filter(function(r) { return r.arm === a; });
+}
+
+function renderQuality() {
+  var judged = DATA.runs.filter(function(r) { return r.judged; });
+  if (!judged.length) return;
+  var series = [];
+  var byJudge = {};
+  judged.forEach(function(r) {
+    var j = r.judged;
+    byJudge[j.judge] = byJudge[j.judge] || {};
+    byJudge[j.judge][r.arm] = byJudge[j.judge][r.arm] || [];
+    byJudge[j.judge][r.arm].push(j.mean);
+  });
+  var names = Object.keys(byJudge);
+  names.forEach(function(jn) {
+    var data = ARMS.filter(function(a) { return byJudge[jn][a]; }).map(function(a) {
+      var vals = byJudge[jn][a];
+      return { name: DATA.arms[a] ? DATA.arms[a].display : a, value: +(sum(vals) / vals.length).toFixed(2) };
+    });
+    series.push({ name: jn.indexOf('deepseek') >= 0 ? 'deepseek-v4-pro judge' : 'gpt-5.6-sol judge', type: 'bar', data: data, barMaxWidth: 40 });
+  });
+  if (!series.length) return;
+  chart($('#qual'), {
+    tooltip: { trigger: 'item', formatter: function(p) { return p.seriesName + '<br/>' + p.name + ': ' + p.value + '/5'; } },
+    legend: { bottom: 0, textStyle: { color: '#7d8aa3' } },
+    grid: { left: 50, right: 20, top: 20, bottom: 40 },
+    xAxis: { type: 'category', data: series[0].data.map(function(d) { return d.name; }), axisLabel: { color: '#7d8aa3', interval: 0, rotate: 20 } },
+    yAxis: { type: 'value', name: 'mean rubric / 5', max: 5, nameTextStyle: { color: '#7d8aa3' }, axisLabel: { color: '#7d8aa3' }, splitLine: { lineStyle: { color: '#1a2233' } } },
+    series: series,
+  });
 }
 
 // ---------- categories ----------
