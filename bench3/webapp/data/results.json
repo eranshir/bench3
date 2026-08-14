@@ -135,12 +135,12 @@
  },
  "ladder": {
   "a1_chained": {
-   "difficulty": 0.25,
-   "overall": 0.75,
-   "discrimination": 0.5,
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
    "per_arm": {
     "deepseek-pro": 1.0,
-    "grok": 0.5,
+    "grok": 1.0,
     "gpt-sol": 1.0
    }
   },
@@ -149,7 +149,8 @@
    "overall": 1.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 1.0
+    "deepseek-flash": 1.0,
+    "deepseek-pro": 1.0
    }
   },
   "creativity/k2_story": {
@@ -157,7 +158,8 @@
    "overall": 1.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 1.0
+    "deepseek-flash": 1.0,
+    "deepseek-pro": 1.0
    }
   },
   "writing/w1_explain": {
@@ -165,7 +167,8 @@
    "overall": 1.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 1.0
+    "deepseek-flash": 1.0,
+    "deepseek-pro": 1.0
    }
   },
   "writing/w2_rewrite": {
@@ -173,7 +176,8 @@
    "overall": 1.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 1.0
+    "deepseek-flash": 1.0,
+    "deepseek-pro": 1.0
    }
   },
   "reasoning/r1_tiling": {
@@ -181,7 +185,8 @@
    "overall": 0.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 0.0
+    "deepseek-flash": 0.0,
+    "deepseek-pro": 0.0
    }
   },
   "reasoning/r2_expectedflips": {
@@ -189,15 +194,18 @@
    "overall": 1.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 1.0
+    "deepseek-flash": 1.0,
+    "deepseek-pro": 1.0
    }
   },
   "tool-use/t1_orchestrate": {
-   "difficulty": 0.33,
-   "overall": 0.67,
-   "discrimination": 0.0,
+   "difficulty": 0.4,
+   "overall": 0.6,
+   "discrimination": 1.0,
    "per_arm": {
-    "deepseek-flash": 0.67
+    "deepseek-flash": 0.67,
+    "gpt-sol": 0.0,
+    "deepseek-pro": 1.0
    }
   },
   "tool-use/t2_toolselect": {
@@ -205,7 +213,9 @@
    "overall": 0.0,
    "discrimination": 0.0,
    "per_arm": {
-    "deepseek-flash": 0.0
+    "deepseek-flash": 0.0,
+    "gpt-sol": 0.0,
+    "deepseek-pro": 0.0
    }
   }
  },
@@ -299,46 +309,6 @@
       "type": "assistant",
       "text": "All four chained defects are fixed, matching the reference implementation exactly. Summary of what was wrong and what changed:\n\n1. **`svc/config.py` (BUG 1)** \u2014 default `DB_PATH` pointed at `/var/svc-prod/data.db`, a non-writable prod path, so the first `connect()` blew up with `PermissionError` before any query. Now defaults to a writable dev path next to the module (`svc/dev.db`), still overridable via `SVC_DB`.\n\n2. **`svc/db.py` (BUG 2)** \u2014 the `transactions` schema was missing the `currency` column that `reports.py` and `run_check.py` select/insert. Added `currency TEXT NOT NULL DEFAULT 'U",
       "reasoning": ""
-     }
-    ]
-   }
-  },
-  {
-   "arm": "grok",
-   "vendor": "grok",
-   "model": "grok-4.6",
-   "category": "agentic-workflow",
-   "task": "a1_chained",
-   "trial": "1",
-   "effort": "high",
-   "mode": "agentic",
-   "seconds": 1,
-   "input_tokens": 0,
-   "cache_read_tokens": 0,
-   "output_tokens": 0,
-   "reasoning_tokens": 0,
-   "cost_usd": 0.0,
-   "passed": 0,
-   "tests_failed": "2",
-   "grade_seconds": "0",
-   "notes": "cli_exit_1",
-   "session_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/.dsh-home/sessions/--Users-eranshir-Documents-Projects-deepseek-bench3-work-grok_agentic-workflow-a1_chained_t1--/session-3eefeadb-51fe-469c-99b6-f00b26c6463e/session.jsonl.zstd",
-   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/grok_agentic-workflow-a1_chained_t1.log",
-   "detail": {
-    "content": "The four chained defects are fixed. `python3 -m svc.seed` then `python3 run_check.py` prints `all checks passed`, and the hidden tests pass.\n\n1. **`svc/config.py`** \u2014 default `DB_PATH` was `/var/svc-prod/data.db` (not writable). It now defaults to a writable `svc/dev.db`.\n2. **`svc/db.py` schema** \u2014 `transactions` was missing `currency`. The table now includes `currency TEXT NOT NULL DEFAULT \"USD\"`.\n3. **`svc/db.py` migration** \u2014 `CREATE TABLE IF NOT EXISTS` never upgrades a stale file from `seed.py`. `connect()` now `ALTER TABLE`s in the missing `currency` column.\n4. **`svc/reports.py`** \u2014 end date was exclusive (`at < ?`) and pagination was 0-indexed (`page * per_page`). It now uses `at <= ?` and `(page - 1) * per_page`.\n\n`run_check.py` and the public `connect` / `report_totals` signatures are unchanged.\n",
-    "session_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/.dsh-home/sessions/--Users-eranshir-Documents-Projects-deepseek-bench3-work-grok_agentic-workflow-a1_chained_t1--/session-3eefeadb-51fe-469c-99b6-f00b26c6463e/session.jsonl.zstd",
-    "trajectory": [
-     {
-      "type": "user",
-      "text": ""
-     },
-     {
-      "type": "user",
-      "text": ""
-     },
-     {
-      "type": "user",
-      "text": ""
      }
     ]
    }
@@ -1288,11 +1258,377 @@
     "content": "Onboarding a new team member involves several important steps to get them up to speed quickly. First, set up the development environment, including dependencies and tool configuration. Next, give a tour of the repository structure so they understand how parts fit together. Then, assign a small, well-defined task appropriate to their experience, enabling a meaningful, low-risk first contribution. Throughout, a senior colleague must remain available for questions and guidance, as the learning curve is steep.\n\nWORDS: 75",
     "tool_calls": []
    }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "creativity",
+   "task": "creativity/k1_product",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 16,
+   "input_tokens": 134,
+   "cache_read_tokens": 0,
+   "output_tokens": 814,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000764,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_creativity-k1_product_t1.json",
+   "detail": {
+    "content": "**1. Concept**  \nThe **Tactile Bridge** is a wearable haptic morse-code communicator and proximity alerter built around a Raspberry Pi Pico, a vibrating motor, a force-sensitive resistor pad, a VL53L1X time-of-flight sensor, and a 3D-printed vibration-isolated wristband. The device translates incoming environmental distance data into vibratory morse pulses on the wearer\u2019s wrist \u2014 a slow, rhythmic pattern when an obstacle is near, a steady continuous vibration when someone touches the wearer\u2019s shoulder, and a distinct double-pulse cadence when a familiar doorway-height object is detected at head level. The user replies by pressing the FSR pad with a thumb or finger, sending short or long presses (dots and dashes) that the same device converts into a simple, fixed set of predefined outgoing messages \u2014 like \u201cyes,\u201d \u201cno,\u201d \u201chelp,\u201d or \u201cI need to sit down\u201d \u2014 via a low-power 915MHz LoRa radio to a paired caregiver unit. No screen, no speaker, no keyboard; everything is learned through a one-time guided hand-over-hand training session where a sighted-hearing person physically shapes the user\u2019s fingers into the three core gestures.\n\n**2. Five most important design decisions**  \n- **Morse-on-skin as the sole output modality:** Vibration patterns require no residual vision or hearing and can be learned purely through repetitive tactile exposure, with no screen or speaker.  \n- **Single input surface (FSR pad) mapped to two press durations:** A force-sensing resistor with a fixed threshold separates intentional long/short presses from incidental contact, allowing full expressive input with one finger.  \n- **Time-of-flight proximity sensor instead of a camera:** An infrared laser ranging module delivers obstacle distance without any visual interpretation, consuming milliwatts and returning a single numeric distance value that is trivially mappable to vibration cadence.  \n- **Raspberry Pi Pico (RP2040) as the brain:** A $4 microcontroller with deep-sleep modes, hardware PWM for the vibration motor, and built-in ADC for the FSR keeps BOM far under $50 while running on 2 AA alkaline cells for over 12 hours at a 20Hz sensor polling rate.  \n- **LoRa 915MHz radio with a fixed 4-message codebook:** Outgoing messages are pre-programmed and triggered by specific morse sequences, so the user never has to spell; each message corresponds to a distinct 2\u20134 character pattern that can be learned as a single motor gesture.\n\n**3. Single biggest risk and de-risking plan**  \nThe biggest risk is that **new users cannot reliably distinguish or produce dots and dashes by touch alone** \u2014 especially under stress or while walking \u2014 because the entire interaction depends on precise temporal discrimination of vibration pulses (e.g., 80ms vs 300ms) and deliberate finger press durations, which is cognitively and motorically demanding for someone with no sight and no hearing.  \n**De-risking:** I would run a 2-week pilot with 3 deaf-blind adults, using a wearable prototype that logs every press duration and every emitted vibration pattern, plus a third accelerometer that records whether the user was stationary or walking at the time. The metric would be **message accuracy (outgoing) and alert recognition accuracy (incoming) after only three 20-minute training sessions**. If accuracy is below 80%, I would switch from temporal-only encoding to a **spatial-temporal hybrid**: replace the single motor with three small pancake vibration motors spaced 2cm apart on the wrist, where \u201cdot\u201d = one motor fires, \u201cdash\u201d = two adjacent motors fire simultaneously, and \u201cseparator\u201d = a brief all-three pulse \u2014 reducing reliance on timing judgments and giving the user a topographic map of the code on their skin. This change adds roughly $6 to the BOM but keeps the total under $50.",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "creativity",
+   "task": "creativity/k2_story",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 5,
+   "input_tokens": 87,
+   "cache_read_tokens": 0,
+   "output_tokens": 192,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000204,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_creativity-k2_story_t1.json",
+   "detail": {
+    "content": "The receiver was slick in her grip. A payphone on the corner of a dead block, its chrome scuffed to a dull gleam. She had no dime, just a brass key pressed into her palm by a man who smelled of cheap gin. The dial tone was a flat hum. Behind her, the street was wet and black, the smell of rain rising from the cracks in the tar. She hung up.\n\nA car crawled past, its headlights pale. Her shadow stretched long, then snapped back. She turned the key over, felt the small teeth bite her thumb. No name on it, no number. Just a weight that fit her fist. The man had said, \u201cWait for the blue door.\u201d But every door on this row was the same gray. The rain began to whisper on the awning.\n\nShe stepped out, letting the first drops hit her face. The key was still in her pocket.\n\nWORD COUNT: 200",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "gpt-sol",
+   "vendor": "OpenAI",
+   "model": "gpt-5.6-sol",
+   "category": "tool-use",
+   "task": "tool-use/t1_orchestrate",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 4,
+   "input_tokens": 440,
+   "cache_read_tokens": 0,
+   "output_tokens": 300,
+   "reasoning_tokens": 233,
+   "cost_usd": 0.0112,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/gpt-sol_tool-use-t1_orchestrate_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\":\"AAPL\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\":\"MSFT\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\":\"GOOG\"}"
+     }
+    ],
+    "check": "{\n \"passed\": false,\n \"score\": 1,\n \"total\": 5,\n \"checks\": {\n  \"fetch all three symbols\": true,\n  \"apply fee on subtotal 3000 at 1.5%\": false,\n  \"convert net 2955 USD to EUR at 0.92\": false,\n  \"build invoice for acme-42\": false,\n  \"dependency order respected\": false\n },\n \"sequence\": [\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"AAPL\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"MSFT\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"GOOG\"\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "gpt-sol",
+   "vendor": "OpenAI",
+   "model": "gpt-5.6-sol",
+   "category": "tool-use",
+   "task": "tool-use/t2_toolselect",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 1,
+   "input_tokens": 483,
+   "cache_read_tokens": 0,
+   "output_tokens": 58,
+   "reasoning_tokens": 34,
+   "cost_usd": 0.004155,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/gpt-sol_tool-use-t2_toolselect_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [
+     {
+      "name": "find_account_by_email",
+      "args": "{\"email\":\"user@example.com\"}"
+     }
+    ],
+    "check": "{\n \"passed\": false,\n \"score\": 4,\n \"total\": 8,\n \"checks\": {\n  \"find account by email\": true,\n  \"check failed logins\": false,\n  \"unlock\": false,\n  \"notify\": false,\n  \"no compliance dump\": true,\n  \"no reset/lock\": true,\n  \"no billing/settings/history noise\": true,\n  \"order\": false\n },\n \"sequence\": [\n  [\n   \"find_account_by_email\",\n   {\n    \"email\": \"user@example.com\"\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "reasoning",
+   "task": "reasoning/r1_tiling",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 216,
+   "input_tokens": 136,
+   "cache_read_tokens": 0,
+   "output_tokens": 20000,
+   "reasoning_tokens": 20000,
+   "cost_usd": 0.017457,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_reasoning-r1_tiling_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [],
+    "check": "{\"passed\": false, \"expected\": 299303201, \"got\": null, \"text_tail\": \"\"}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "reasoning",
+   "task": "reasoning/r2_expectedflips",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 15,
+   "input_tokens": 151,
+   "cache_read_tokens": 0,
+   "output_tokens": 1350,
+   "reasoning_tokens": 1050,
+   "cost_usd": 0.001238,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_reasoning-r2_expectedflips_t1.json",
+   "detail": {
+    "content": "Let the states be:\n\n- \\(S\\): no streak yet (either no flips or last flip was T)\n- \\(H\\): one consecutive head (last flip was H, but not HH)\n- \\(D\\): done (got HH)\n\nLet \\(E_S\\) and \\(E_H\\) be the expected additional flips from states \\(S\\) and \\(H\\).\n\nFrom \\(S\\):\n\n\\[\nE_S = 1 + \\frac12 E_S + \\frac12 E_H\n\\]\n\nFrom \\(H\\):\n\n\\[\nE_H = 1 + \\frac12 E_D + \\frac12 E_S\n\\]\n\nSince \\(E_D = 0\\),\n\n\\[\nE_H = 1 + \\frac12 E_S\n\\]\n\nNow solve:\n\n\\[\nE_S = 1 + \\frac12 E_S + \\frac12 E_H\n\\]\n\n\\[\n\\frac12 E_S = 1 + \\frac12 E_H\n\\]\n\n\\[\nE_S = 2 + E_H\n\\]\n\nSubstitute \\(E_H = 1 + \\frac12 E_S\\):\n\n\\[\nE_S = 2 + \\left(1 + \\frac12 E_S\\right)\n\\]\n\n\\[\nE_S = 3 + \\frac12 E_S\n\\]\n\n\\[\n\\frac12 E_S = 3\n\\]\n\n\\[\nE_S = 6\n\\]\n\nSo the expected number of flips starting from no streak is \\(6\\).\n\nFINAL ANSWER: 6",
+    "tool_calls": [],
+    "check": "{\"passed\": true, \"expected\": \"6\", \"got\": \"6\", \"text_tail\": \"HH)\\n\\nLet \\\\(E_S\\\\) and \\\\(E_H\\\\) be the expected additional flips from states \\\\(S\\\\) and \\\\(H\\\\).\\n\\nFrom \\\\(S\\\\):\\n\\n\\\\[\\nE_S = 1 + \\\\frac12 E_S + \\\\frac12 E_H\\n\\\\]\\n\\nFrom \\\\(H\\\\):\\n\\n\\\\[\\nE_H = 1 + \\\\frac12 E_D + \\\\frac12 E_S\\n\\\\]\\n\\nSince \\\\(E_D = 0\\\\),\\n\\n\\\\[\\nE_H = 1 + \\\\frac12 E_S\\n\\\\]\\n\\nNow solve:\\n\\n\\\\[\\nE_S = 1 + \\\\frac12 E_S + \\\\frac12 E_H\\n\\\\]\\n\\n\\\\[\\n\\\\frac12 E_S = 1 + \\\\frac12 E_H\\n\\\\]\\n\\n\\\\[\\nE_S = 2 + E_H\\n\\\\]\\n\\nSubstitute \\\\(E_H = 1 + \\\\frac12 E_S\\\\):\\n\\n\\\\[\\nE_S = 2 + \\\\left(1 + \\\\frac12 E_S\\\\right)\\n\\\\]\\n\\n\\\\[\\nE_S = 3 + \\\\frac12 E_S\\n\\\\]\\n\\n\\\\[\\n\\\\frac12 E_S = 3\\n\\\\]\\n\\n\\\\[\\nE_S = 6\\n\\\\]\\n\\nSo the expected number of flips starting from no streak is \\\\(6\\\\).\\n\\nFINAL ANSWER: 6\"}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "tool-use",
+   "task": "tool-use/t1_orchestrate",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 10,
+   "input_tokens": 899,
+   "cache_read_tokens": 0,
+   "output_tokens": 998,
+   "reasoning_tokens": 662,
+   "cost_usd": 0.001246,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_tool-use-t1_orchestrate_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"AAPL\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"MSFT\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"GOOG\"}"
+     },
+     {
+      "name": "apply_fee",
+      "args": "{\"amount_usd\": 3000, \"fee_pct\": 1.5}"
+     },
+     {
+      "name": "convert_currency",
+      "args": "{\"amount_usd\": 2955, \"to_currency\": \"EUR\", \"rate\": 0.92}"
+     },
+     {
+      "name": "build_invoice",
+      "args": "{\"client_id\": \"acme-42\", \"lines\": [\"10 shares AAPL @ $150.00 = $1,500.00\", \"5 shares MSFT @ $200.00 = $1,000.00\", \"2 shares GOOG @ $250.00 = $500.00\"]}"
+     }
+    ],
+    "check": "{\n \"passed\": true,\n \"score\": 5,\n \"total\": 5,\n \"checks\": {\n  \"fetch all three symbols\": true,\n  \"apply fee on subtotal 3000 at 1.5%\": true,\n  \"convert net 2955 USD to EUR at 0.92\": true,\n  \"build invoice for acme-42\": true,\n  \"dependency order respected\": true\n },\n \"sequence\": [\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"AAPL\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"MSFT\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"GOOG\"\n   }\n  ],\n  [\n   \"apply_fee\",\n   {\n    \"amount_usd\": 3000,\n    \"fee_pct\": 1.5\n   }\n  ],\n  [\n   \"convert_currency\",\n   {\n    \"amount_usd\": 2955,\n    \"to_currency\": \"EUR\",\n    \"rate\": 0.92\n   }\n  ],\n  [\n   \"build_invoice\",\n   {\n    \"client_id\": \"acme-42\",\n    \"lines\": [\n     \"10 shares AAPL @ $150.00 = $1,500.00\",\n     \"5 shares MSFT @ $200.00 = $1,000.00\",\n     \"2 shares GOOG @ $250.00 = $500.00\"\n    ]\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "tool-use",
+   "task": "tool-use/t2_toolselect",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 4,
+   "input_tokens": 1108,
+   "cache_read_tokens": 0,
+   "output_tokens": 293,
+   "reasoning_tokens": 244,
+   "cost_usd": 0.00072,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_tool-use-t2_toolselect_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [
+     {
+      "name": "list_failed_logins",
+      "args": "{\"account_id\": 48291}"
+     }
+    ],
+    "check": "{\n \"passed\": false,\n \"score\": 4,\n \"total\": 8,\n \"checks\": {\n  \"find account by email\": false,\n  \"check failed logins\": true,\n  \"unlock\": false,\n  \"notify\": false,\n  \"no compliance dump\": true,\n  \"no reset/lock\": true,\n  \"no billing/settings/history noise\": true,\n  \"order\": false\n },\n \"sequence\": [\n  [\n   \"list_failed_logins\",\n   {\n    \"account_id\": 48291\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "writing",
+   "task": "writing/w1_explain",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 3,
+   "input_tokens": 50,
+   "cache_read_tokens": 0,
+   "output_tokens": 149,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000151,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_writing-w1_explain_t1.json",
+   "detail": {
+    "content": "Imagine you\u2019re building a LEGO castle with a friend. You both agree to trade pieces: you give a blue brick, they give a red flag\u2014at the exact same time. A database transaction works like this trade. It\u2019s a rule that says \u201call steps happen, or none happen.\u201d If you hand over your brick but your friend suddenly drops the flag, the trade \u201crolls back,\u201d and you get your brick back. Nothing is half-done, so the castle never ends up with a missing piece.\n\nFor parents: The analogy captures atomicity (all-or-nothing) and rollback. Technically, transactions also guarantee consistency, isolation, and durability (ACID), which the analogy omits for simplicity.",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "writing",
+   "task": "writing/w2_rewrite",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 2,
+   "input_tokens": 296,
+   "cache_read_tokens": 0,
+   "output_tokens": 107,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000217,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_writing-w2_rewrite_t1.json",
+   "detail": {
+    "content": "Onboarding a new team member to the codebase involves many steps. First, set up the development environment, including installing dependencies and configuring tools. Next, give a tour of the repository structure so the new person understands how parts of the system fit together. Then, assign a small, well-defined task suited to their experience, allowing a meaningful, low-risk first contribution. Throughout, an experienced colleague must remain available to answer questions and provide guidance, since the learning curve for a new codebase can be steep.\n\nWORDS: 78",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "creativity",
+   "task": "creativity/k1_product",
+   "trial": "2",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 16,
+   "input_tokens": 134,
+   "cache_read_tokens": 128,
+   "output_tokens": 844,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000792,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_creativity-k1_product_t2.json",
+   "detail": {
+    "content": "**1) Concept**\n\nThe **TapCom** is a handheld, refreshable haptic communicator that lets a deaf-blind user send and receive text through vibration and shape. The user reads incoming messages by placing a thumb on a 4-by-4 grid of micro vibration motors \u2014 each character is encoded as a distinct, two-motor \u201ctap pattern\u201d on the grid (a novel, compact haptic alphabet derived from Braille dot positions). To reply or compose, the user presses one of six large, tactilely distinct silicone keys (arranged as three columns for dots 1\u20136) to type Braille directly, exactly as they would on a mechanical Braille writer. A small companion dock, built from a $3 microcontroller and a standard Bluetooth module, relays SMS, email, or voice-to-text from a paired phone into the TapCom\u2019s pattern library, and sends the user\u2019s Braille input back to the phone as text. The entire device is the size of a deck of cards, fits in a pocket, and is designed to be operated entirely by touch and vibration \u2014 no screen, speaker, or keyboard.\n\n**2) Five Most Important Design Decisions**\n\n1. **Use a 4\u00d74 grid of eccentric rotating mass (ERM) motors instead of pins or actuators** \u2014 ERM motors cost under $0.80 each and can be driven directly by a low-power shift register, yielding 16 individually controllable vibration points for under $13, versus hundreds of dollars for piezoelectric Braille cells.\n2. **Encode characters as two simultaneous vibration points (2-of-16 code) rather than full Braille dots** \u2014 2-of-16 yields 120 unique patterns, enough for letters, numbers, and shortcuts, while requiring only two motors active at once, keeping peak current under 120 mA and enabling 12+ hours on 2 AA batteries.\n3. **Six dedicated, dome-switch Braille input keys with a central \u201cspace/enter\u201d rocker** \u2014 Dome switches give crisp tactile feedback and cost $0.15 each; using real Braille dot positions means any Braille-literate user needs zero new training for output (input is identical to a Perkins Brailler).\n4. **All processing on a $2.50 ARM Cortex-M0+ microcontroller with an I\u00b2C Bluetooth module, not on the phone** \u2014 the device stores the entire pattern library and handles all haptic timing locally, so it works even if the phone\u2019s screen reader or OS accessibility stack fails, and it avoids audio/screen dependencies entirely.\n5. **Housing is a single injection-molded ABS clamshell with a recessed \u201cthumb bowl\u201d over the motor grid** \u2014 the concave guide and raised grid dividers let a user orient their thumb to the correct position without sight or hearing, and the one-piece molded shell keeps assembly cost under $4.\n\n**3) Single Biggest Risk and De-risking Approach**\n\n**Risk:** The 2-of-16 vibration grid code may be difficult or impossible to learn and distinguish reliably for users who are proficient in Braille but have never felt simultaneous vibration patterns. If character recognition is too slow or error-prone, the entire concept fails.\n\n**De-risking:** Build a $40 prototype with the exact ERM motors and grid geometry, then run a two-week structured learning study with 5\u201310 deaf-blind Braille users (recruited through state deaf-blind services). Measure character recognition accuracy and speed after 2, 5, and 10 hours of practice. **If accuracy is below 90% after 10 hours, fall back to a \u201csequential Braille\u201d mode** \u2014 instead of two simultaneous motors, the device vibrates the six Braille dot positions in sequence on the same grid (a motor at position 1, then 2, then 3, etc.) with 100 ms intervals, which maps directly to Braille and requires no new code learning, at the cost of 3\u00d7 slower reading speed. The prototype costs under $40 and the test takes 3 weeks, so we fail cheap and fast before committing to tooling.",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "deepseek-pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "category": "creativity",
+   "task": "creativity/k2_story",
+   "trial": "2",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 5,
+   "input_tokens": 87,
+   "cache_read_tokens": 0,
+   "output_tokens": 226,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000233,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-pro_creativity-k2_story_t2.json",
+   "detail": {
+    "content": "The payphone rang twice before she lifted the receiver. No voice, just a hum, then a click. She hung up and felt the cold metal key in her coat. The booth glass was wet from the last shower, and the smell of rain hung thick in the alley. A car passed slow, its headlights sweeping the brick like a searchlight. She waited.\n\nA man in a dull hat stepped from a doorway. He did not look at her. He walked to the phone, picked up the dead receiver, listened, then set it back. His hand went to his belt. She stepped back into shadow. The key in her pocket felt warm now, like a live thing. He turned and walked the other way. Her breath came out in a white curl. The rain had stopped, but the air still held that damp, gray smell. She knew the lock that key belonged to\u2014rusted, on a steel door two blocks north. But she would not go yet. She watched the man vanish past the corner. Then she lit a cigarette. The key was still in her pocket.\n\nWORD COUNT: 183",
+    "tool_calls": []
+   }
   }
  ],
  "counts": {
-  "runs": 28,
-  "passed": 20,
-  "cost": 0.294019
+  "runs": 39,
+  "passed": 28,
+  "cost": 0.332396
  }
 }

@@ -96,6 +96,8 @@ def main():
         with open(p) as f:
             for r in csv.DictReader(f):
                 r = dict(r)
+                if not r.get('task'):
+                    continue  # skip malformed/interrupted rows
                 r['cost_usd'] = float(r.get('cost_usd') or 0)
                 r['seconds'] = int(r.get('seconds') or 0)
                 r['input_tokens'] = int(r.get('input_tokens') or 0)

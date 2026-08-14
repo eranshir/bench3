@@ -233,7 +233,7 @@ def main():
                 resp, secs, err = call_api(provider, key, body)
             notes = ""
             if err:
-                notes = err
+                notes = " ".join(err.split())[:200]  # single-line, no CSV corruption
                 print("  FAILED: %s" % err)
                 append_row(results, {"arm": aid, "vendor": a["vendor"], "model": a["model"], "category": catname,
                                      "task": task, "trial": trial, "effort": a["effort"], "mode": "singleshot",
