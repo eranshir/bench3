@@ -206,6 +206,34 @@ function renderTasks() {
   $('#view').innerHTML = out;
 }
 
+// ---------- difficulty ladder ----------
+function renderLadder() {
+  var ladder = DATA.ladder || {};
+  var keys = Object.keys(ladder);
+  if (!keys.length) { $('#view').innerHTML = "<div class='panel'><h3>No ladder data yet</h3></div>"; return; }
+  keys.sort(function(a, b) { return ladder[b].difficulty - ladder[a].difficulty || ladder[b].discrimination - ladder[a].discrimination; });
+  var h = "<div class='panel full'><h3>Difficulty ladder — hardest first</h3>";
+  h += "<div class='legend'>";
+  ARMS.forEach(function(a) { if (DATA.arms[a]) h += "<span><span class='dot' style='background:" + ARM_COLORS[a] + "'></span>" + DATA.arms[a].display + '</span>'; });
+  h += '</div>';
+  h += '<table><thead><tr><th>task</th><th>difficulty</th><th>discrimination</th>';
+  ARMS.forEach(function(a) { h += '<th>' + (DATA.arms[a] ? DATA.arms[a].display : a) + '</th>'; });
+  h += '</tr></thead><tbody>';
+  keys.forEach(function(t) {
+    var L = ladder[t];
+    h += '<tr onclick="openTask(\'' + t + '\')"><td><strong>' + esc(t) + '</strong></td>';
+    h += '<td>' + L.difficulty + '</td><td>' + L.discrimination + '</td>';
+    ARMS.forEach(function(a) {
+      if (L.per_arm[a] === undefined) { h += '<td>—</td>'; return; }
+      var rate = L.per_arm[a];
+      h += '<td><span class="' + passClass(rate) + '">' + Math.round(100 * rate) + '%</span></td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table></div>';
+  $('#view').innerHTML = h;
+}
+
 // ---------- run detail ----------
 function openTask(task) {
   var runs = DATA.runs.filter(function(r) { return r.task === task; });
@@ -265,6 +293,7 @@ function setView(name) {
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.view === name); });
   if (name === 'overview') renderOverview();
   else if (name === 'categories') renderCategories();
+  else if (name === 'ladder') renderLadder();
   else renderTasks();
 }
 

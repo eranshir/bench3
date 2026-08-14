@@ -133,6 +133,72 @@
    }
   }
  },
+ "ladder": {
+  "creativity/k1_product": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "creativity/k2_story": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "writing/w1_explain": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "writing/w2_rewrite": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "reasoning/r1_tiling": {
+   "difficulty": 1.0,
+   "overall": 0.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 0.0
+   }
+  },
+  "reasoning/r2_expectedflips": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "tool-use/t1_orchestrate": {
+   "difficulty": 0.0,
+   "overall": 1.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 1.0
+   }
+  },
+  "tool-use/t2_toolselect": {
+   "difficulty": 1.0,
+   "overall": 0.0,
+   "discrimination": 0.0,
+   "per_arm": {
+    "deepseek-flash": 0.0
+   }
+  }
+ },
  "runs": [
   {
    "arm": "deepseek-flash",
@@ -278,11 +344,201 @@
     },
     "judge": "deepseek-official"
    }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "reasoning",
+   "task": "reasoning/r1_tiling",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 198,
+   "input_tokens": 136,
+   "cache_read_tokens": 128,
+   "output_tokens": 20000,
+   "reasoning_tokens": 20000,
+   "cost_usd": 0.005619,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_reasoning-r1_tiling_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [],
+    "check": "{\"passed\": false, \"expected\": 299303201, \"got\": null, \"text_tail\": \"\"}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "reasoning",
+   "task": "reasoning/r2_expectedflips",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 8,
+   "input_tokens": 151,
+   "cache_read_tokens": 128,
+   "output_tokens": 997,
+   "reasoning_tokens": 719,
+   "cost_usd": 0.000301,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_reasoning-r2_expectedflips_t1.json",
+   "detail": {
+    "content": "Let\n\n- \\(E_0\\) = expected additional flips starting with no current streak of heads,\n- \\(E_1\\) = expected additional flips starting with one head already in the streak,\n- \\(E_D = 0\\) = done once HH has appeared.\n\nFrom state 0:\n\n\\[\nE_0 = 1 + \\frac12 E_0 + \\frac12 E_1\n\\]\n\nbecause a tail returns to state 0, and a head moves to state 1.\n\nFrom state 1:\n\n\\[\nE_1 = 1 + \\frac12 E_D + \\frac12 E_0\n= 1 + \\frac12 E_0\n\\]\n\nbecause a head completes HH, and a tail resets to state 0.\n\nSubstitute \\(E_1\\) into the first equation:\n\n\\[\nE_0 = 1 + \\frac12 E_0 + \\frac12\\left(1 + \\frac12 E_0\\right)\n\\]\n\n\\[\nE_0 = 1 + \\frac12 E_0 + \\frac12 + \\frac14 E_0\n\\]\n\n\\[\nE_0 = \\frac32 + \\frac34 E_0\n\\]\n\n\\[\n\\frac14 E_0 = \\frac32\n\\]\n\n\\[\nE_0 = 6\n\\]\n\nFINAL ANSWER: 6",
+    "tool_calls": [],
+    "check": "{\"passed\": true, \"expected\": \"6\", \"got\": \"6\", \"text_tail\": \" with one head already in the streak,\\n- \\\\(E_D = 0\\\\) = done once HH has appeared.\\n\\nFrom state 0:\\n\\n\\\\[\\nE_0 = 1 + \\\\frac12 E_0 + \\\\frac12 E_1\\n\\\\]\\n\\nbecause a tail returns to state 0, and a head moves to state 1.\\n\\nFrom state 1:\\n\\n\\\\[\\nE_1 = 1 + \\\\frac12 E_D + \\\\frac12 E_0\\n= 1 + \\\\frac12 E_0\\n\\\\]\\n\\nbecause a head completes HH, and a tail resets to state 0.\\n\\nSubstitute \\\\(E_1\\\\) into the first equation:\\n\\n\\\\[\\nE_0 = 1 + \\\\frac12 E_0 + \\\\frac12\\\\left(1 + \\\\frac12 E_0\\\\right)\\n\\\\]\\n\\n\\\\[\\nE_0 = 1 + \\\\frac12 E_0 + \\\\frac12 + \\\\frac14 E_0\\n\\\\]\\n\\n\\\\[\\nE_0 = \\\\frac32 + \\\\frac34 E_0\\n\\\\]\\n\\n\\\\[\\n\\\\frac14 E_0 = \\\\frac32\\n\\\\]\\n\\n\\\\[\\nE_0 = 6\\n\\\\]\\n\\nFINAL ANSWER: 6\"}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "tool-use",
+   "task": "tool-use/t1_orchestrate",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 7,
+   "input_tokens": 899,
+   "cache_read_tokens": 896,
+   "output_tokens": 989,
+   "reasoning_tokens": 649,
+   "cost_usd": 0.000405,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_tool-use-t1_orchestrate_t1.json",
+   "detail": {
+    "content": "",
+    "tool_calls": [
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"AAPL\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"MSFT\"}"
+     },
+     {
+      "name": "fetch_quote",
+      "args": "{\"symbol\": \"GOOG\"}"
+     },
+     {
+      "name": "apply_fee",
+      "args": "{\"amount_usd\": 3000, \"fee_pct\": 1.5}"
+     },
+     {
+      "name": "convert_currency",
+      "args": "{\"amount_usd\": 2955, \"to_currency\": \"EUR\", \"rate\": 0.92}"
+     },
+     {
+      "name": "build_invoice",
+      "args": "{\"client_id\": \"acme-42\", \"lines\": [\"AAPL: 10 shares @ 150.00 = 1500.00\", \"MSFT: 5 shares @ 200.00 = 1000.00\", \"GOOG: 2 shares @ 250.00 = 500.00\"]}"
+     }
+    ],
+    "check": "{\n \"passed\": true,\n \"score\": 5,\n \"total\": 5,\n \"checks\": {\n  \"fetch all three symbols\": true,\n  \"apply fee on subtotal 3000 at 1.5%\": true,\n  \"convert net 2955 USD to EUR at 0.92\": true,\n  \"build invoice for acme-42\": true,\n  \"dependency order respected\": true\n },\n \"sequence\": [\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"AAPL\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"MSFT\"\n   }\n  ],\n  [\n   \"fetch_quote\",\n   {\n    \"symbol\": \"GOOG\"\n   }\n  ],\n  [\n   \"apply_fee\",\n   {\n    \"amount_usd\": 3000,\n    \"fee_pct\": 1.5\n   }\n  ],\n  [\n   \"convert_currency\",\n   {\n    \"amount_usd\": 2955,\n    \"to_currency\": \"EUR\",\n    \"rate\": 0.92\n   }\n  ],\n  [\n   \"build_invoice\",\n   {\n    \"client_id\": \"acme-42\",\n    \"lines\": [\n     \"AAPL: 10 shares @ 150.00 = 1500.00\",\n     \"MSFT: 5 shares @ 200.00 = 1000.00\",\n     \"GOOG: 2 shares @ 250.00 = 500.00\"\n    ]\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "tool-use",
+   "task": "tool-use/t2_toolselect",
+   "trial": "1",
+   "effort": "high",
+   "mode": "singleshot",
+   "seconds": 1,
+   "input_tokens": 1108,
+   "cache_read_tokens": 1024,
+   "output_tokens": 149,
+   "reasoning_tokens": 81,
+   "cost_usd": 0.0002,
+   "passed": 0,
+   "tests_failed": "1",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_tool-use-t2_toolselect_t1.json",
+   "detail": {
+    "content": "I'll handle this step by step. First, let me identify the account from the email address.",
+    "tool_calls": [
+     {
+      "name": "find_account_by_email",
+      "args": "{\"email\": \"user@example.com\"}"
+     }
+    ],
+    "check": "{\n \"passed\": false,\n \"score\": 4,\n \"total\": 8,\n \"checks\": {\n  \"find account by email\": true,\n  \"check failed logins\": false,\n  \"unlock\": false,\n  \"notify\": false,\n  \"no compliance dump\": true,\n  \"no reset/lock\": true,\n  \"no billing/settings/history noise\": true,\n  \"order\": false\n },\n \"sequence\": [\n  [\n   \"find_account_by_email\",\n   {\n    \"email\": \"user@example.com\"\n   }\n  ]\n ]\n}\n\n---STDERR---\n"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "creativity",
+   "task": "creativity/k1_product",
+   "trial": "2",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 9,
+   "input_tokens": 134,
+   "cache_read_tokens": 128,
+   "output_tokens": 658,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.000203,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_creativity-k1_product_t2.json",
+   "detail": {
+    "content": "**(1) Concept**  \nThe **TactiPulse Band** is a wrist-worn device that translates environmental cues (doorbell, fire alarm, phone vibration, or a caregiver\u2019s remote button) into a sequence of discrete, localized vibrations on the skin, using a 3\u00d72 grid of six small haptic motors. It receives signals via a low-power 433 MHz RF receiver (no pairing, no screen) and maps each event to a unique spatiotemporal pattern (e.g., doorbell = two pulses near the thumb, fire = rapid buzzing across all six motors). A tiny piezo-based \u201csilent buzzer\u201d is deliberately omitted; instead, an onboard accelerometer detects the user\u2019s own hand tap as the only input (e.g., tap twice to acknowledge an alarm, tap thrice to request help from a paired RF transmitter). Power comes from two AA batteries via a boost converter to 3.3V, with a duty-cycled radio (wake every 500ms) and motor pulses limited to 200ms bursts, yielding >12h runtime.\n\n**(2) Five Most Important Design Decisions**  \n1. **Use RF pulse-width encoding instead of Bluetooth/IR** \u2013 eliminates pairing, screens, and protocol overhead, while reducing cost to a $3 transmitter/receiver pair.  \n2. **Replace all buttons with a single accelerometer-based tap detector** \u2013 no keyboard or exposed switches, and the user\u2019s own body motion becomes the only input, using a simple threshold algorithm.  \n3. **Employ six eccentric rotating mass (ERM) motors in a linear array** \u2013 creates a spatiotemporal \u201cspelling\u201d language (e.g., left-to-right sweep = low battery) that is learnable in under an hour, without needing complex tactors.  \n4. **Duty-cycle the RF receiver at 20% (500ms on, 2s off)** \u2013 cuts idle current to ~30\u00b5A, allowing two AA alkalines (2000mAh) to power the MCU, receiver, and occasional motor bursts for 14+ hours.  \n5. **Use a dedicated low-power MSP430 MCU with internal 12-bit ADC and no external crystal** \u2013 runs at 1MHz, sleeps at <1\u00b5A, and costs <$2, while the accelerometer\u2019s interrupt pin wakes it only on tap events.\n\n**(3) Biggest Risk and De-risking**  \n**Risk:** The haptic vocabulary is too ambiguous in real-world conditions (e.g., vibration patterns feel identical when the device is worn loosely, or during movement).  \n**De-risking:** Build a 10-person prototype trial with deaf-blind volunteers (not sighted surrogates) and test each pattern under three conditions: resting, walking, and gripping a cane. Use a forced-choice paradigm where users identify the event from a menu of 6 options, iterating pattern designs (duration, inter-pulse gap, motor ordering) until accuracy >95%. Additionally, include a \u201ccalibration mode\u201d where the user taps once to set baseline vibration intensity for their skin sensitivity, stored in flash, and make the strap rigid with a silicone liner to stabilize motor contact.",
+    "tool_calls": []
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "creativity",
+   "task": "creativity/k2_story",
+   "trial": "2",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 5,
+   "input_tokens": 87,
+   "cache_read_tokens": 0,
+   "output_tokens": 300,
+   "reasoning_tokens": 0,
+   "cost_usd": 9.6e-05,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_creativity-k2_story_t2.json",
+   "detail": {
+    "content": "The booth stank of stale smoke. Rain smell crept through the cracked glass, sharp and clean. I pressed the cold metal to my ear. The line hissed.\n\n\u201cYou got it?\u201d The voice was flat, like a slap.\n\n\u201cMaybe.\u201d I watched the street. Neon bled on wet asphalt.\n\n\u201cDon\u2019t play dumb. The key. The one from the lockbox.\u201d\n\nI slid my hand into my coat. My fingers found the ridged edge. Heavy. Wrong.\n\n\u201cIt\u2019s not the one you want.\u201d\n\nA pause. Then: \u201cThen it\u2019s the one we bury you with.\u201d\n\nThe line died. I hung up. The booth\u2019s light buzzed, tired and thin. Outside, a car passed, slow. Its tires kissed the gutter. The rain smell grew thick, like a wet dog shaking off.\n\nI turned. On the shelf below the phone, a matchbook. Someone had left it. I picked it up. Inside, a note: *Wrong key, wrong door.*\n\nMy gut went cold. I stepped out. The air clung to my skin. I walked two blocks, then slipped into an alley. My hand went to my pocket again. The key was still there. Fool\u2019s gold. But it fit something.\n\nThe rain began. I heard a distant siren. And I thought of the lockbox\u2014empty now, except for a lie.\n\nThe key was still in her pocket.\n\nWORD COUNT: 200",
+    "tool_calls": []
+   }
   }
  ],
  "counts": {
-  "runs": 4,
-  "passed": 4,
-  "cost": 0.000517
+  "runs": 10,
+  "passed": 8,
+  "cost": 0.007341
  }
 }

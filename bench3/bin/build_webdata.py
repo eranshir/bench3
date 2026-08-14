@@ -120,11 +120,35 @@ def main():
             if t.is_dir() and (t / 'PROMPT.txt').exists() or (t / 'prompt.txt').exists():
                 tasks[t.name] = task_meta(cat.name, t.name)
 
+    # difficulty ladder per task (hardest -> down), plus discrimination
+    ladder = {}
+    by_task = defaultdict(list)
+    for r in runs:
+        by_task[r['task']].append(r)
+    for task, g in by_task.items():
+        per_arm = {}
+        counts = defaultdict(int)
+        rates = defaultdict(int)
+        for r in g:
+            counts[r['arm']] += 1
+            rates[r['arm']] += r['passed']
+        for a in counts:
+            per_arm[a] = rates[a] / counts[a]
+        vals = list(per_arm.values())
+        overall = sum(rates.values()) / len(g)
+        ladder[task] = {
+            'difficulty': round(1 - overall, 2),
+            'overall': round(overall, 2),
+            'discrimination': round(max(vals) - min(vals), 2) if vals else 0,
+            'per_arm': {k: round(v, 2) for k, v in per_arm.items()},
+        }
+
     bundle = {
         'built_at': None,
         'arms': {k: {'display': v['display'], 'vendor': v['vendor'], 'model': v['model'],
                     'prices': v['prices']} for k, v in arms.items()},
         'tasks': tasks,
+        'ladder': ladder,
         'runs': runs,
         'counts': {'runs': len(runs),
                    'passed': sum(r['passed'] for r in runs),
