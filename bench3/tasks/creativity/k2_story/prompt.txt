@@ -1,0 +1,7 @@
+Write a noir scene of exactly 200 words (count them). Rules:
+- every adjective must be at most 2 syllables
+- the scene must include: a payphone, a key, and the smell of rain
+- the final sentence must be: "The key was still in her pocket."
+- no character may be named
+
+Output the scene, then a line "WORD COUNT: <n>".

@@ -1,0 +1,18 @@
+The file `analytics.py` implements two sliding-window functions that are
+correct but O(n*w): `rolling_median` and `window_distinct_counts`. On a
+150,000-point series with a window of 2,500 they take tens of seconds
+(verify with `python3 bench.py`).
+
+Rewrite both functions to be fast — sub-quadratic in n — WITHOUT changing
+their observable behaviour: identical outputs on every input, identical
+exceptions for invalid input (window <= 0, window > len(values)).
+
+- `rolling_median(values, window)` -> list[float]: median per window, with
+  the same even-length averaging as now.
+- `window_distinct_counts(values, window)` -> list[int]: distinct count
+  per window.
+
+You may import from the standard library and restructure internals, but
+keep the module's public names and signatures. Verify correctness and
+speed with `python3 bench.py` — after your change both functions should
+finish in well under a second on the given sizes.

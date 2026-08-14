@@ -1,0 +1,23 @@
+Rewrite the passage below. Requirements: preserve every factual claim
+exactly (no additions, no omissions), cut at least 40% of the words, and
+make it clearer and more direct. Output the rewritten passage, then a line
+"WORDS: <n>" (original was 128 words).
+
+---
+
+The process of onboarding a new team member to the codebase is one that
+involves a considerable number of different steps and stages, each of which
+is important in its own way and contributes to the overall goal of getting
+the new person up to speed as quickly as is reasonably possible. First of
+all, one needs to set up the development environment, which includes things
+like installing the necessary dependencies and configuring various tools
+and settings. Following that, the new team member should be given a tour of
+the repository structure so that they can understand how the different
+parts of the system fit together and relate to one another. Then, they
+should be assigned a small, well-defined task that is appropriate for their
+level of experience, which gives them the opportunity to make their first
+contribution to the codebase in a way that is both meaningful and
+low-risk. Throughout this entire process, it is of the utmost importance
+that a more experienced colleague remains available to answer questions
+and provide guidance, because the learning curve involved in joining a new
+codebase can be quite steep and challenging for newcomers.

@@ -1,0 +1,5 @@
+You flip a fair coin repeatedly until you get two consecutive heads (HH).
+
+What is the expected number of flips? Derive it with a state-based argument
+(states: no streak, one H, done), then give the exact answer (as an integer
+or reduced fraction) on a line starting with FINAL ANSWER:.

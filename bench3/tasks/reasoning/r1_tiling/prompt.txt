@@ -1,0 +1,4 @@
+How many ways are there to tile a 3 x 30 rectangle with 2 x 1 dominoes?
+
+Work it out step by step (derive the recurrence), then give the final
+answer as the exact integer on a line starting with FINAL ANSWER:

@@ -1,0 +1,13 @@
+This is a small reporting service (`svc/`): config.py, db.py, seed.py,
+reports.py. It is broken — running `python3 seed.py` and then
+`python3 run_check.py` fails.
+
+There are four chained defects, each masking the next: fix them in
+whatever order the errors reveal them. Do not change run_check.py and do
+not change the public API of the svc module (connect, report_totals
+signatures). Fixing one link will expose the next.
+
+Note: `seed.py` intentionally creates the development database with the
+current (old) schema, the way a dev box would already have a stale file.
+A correct service makes `python3 seed.py` then `python3 run_check.py`
+print `all checks passed`.

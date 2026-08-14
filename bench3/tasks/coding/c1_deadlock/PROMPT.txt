@@ -1,0 +1,14 @@
+Run `python3 stress.py`. It demonstrates three concurrency bugs in pool.py:
+
+Bug 1: concurrent withdraws lose updates (the read-modify-write is not atomic).
+Bug 2: transfer() and reconcile() can deadlock (they take two locks in opposite orders).
+Bug 3: the worker pool can lose tasks (check-then-act race on the queue).
+
+Fix all three in pool.py. Do not change the public API (Ledger.deposit/withdraw/
+transfer/reconcile, WorkerPool.submit/stop, constructor signatures). Use
+threading primitives only. Verify with `python3 stress.py` — all three checks
+must print OK, and the process must exit promptly (no hang).
+
+Note: bug 1's race is subtle — a naive fix that adds a lock only around the
+write, or that removes the audit yield, does not count. The read-modify-write
+must be atomic as a whole.

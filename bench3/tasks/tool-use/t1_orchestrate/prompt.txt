@@ -1,0 +1,21 @@
+You are an order-processing agent. Today's stock quotes (USD) are:
+AAPL = 150.00, MSFT = 200.00, GOOG = 250.00.
+
+A client (client_id "acme-42") places this order:
+- 10 shares of AAPL
+- 5 shares of MSFT
+- 2 shares of GOOG
+
+Process it end to end using the available tools, in dependency order:
+1. Fetch a quote for each symbol.
+2. Compute the subtotal, then apply the 1.5% processing fee.
+3. Convert the net USD amount to EUR (rate 0.92 EUR per USD).
+4. Build the invoice with client_id and one line item per symbol.
+
+IMPORTANT: this is a planning-only session. NO tool results will be
+returned to you — you will not get the quote values back. All numbers you
+need are in this prompt: compute the subtotal, fee, and EUR total yourself
+from the stated prices, and emit the COMPLETE sequence of tool calls in one
+response, in dependency order, passing the computed values as arguments.
+Do not stop after the first wave expecting results. Do not describe the
+steps in prose — make all the tool calls.

@@ -1,0 +1,3 @@
+Explain what a database transaction is to a smart 10-year-old, in at most
+150 words. Use one concrete analogy. Then add a 2-sentence note for their
+parent on what is technically accurate vs simplified.

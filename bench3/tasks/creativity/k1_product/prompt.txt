@@ -1,0 +1,11 @@
+Design a product concept for a low-cost assistive device for deaf-blind
+people. Hard constraints:
+- bill-of-materials cost under $50
+- usable by someone with no sight and no hearing
+- must be operated without any screen, speaker, or keyboard
+- must run for 12+ hours on 2 AA batteries
+
+Deliver: (1) a one-paragraph concept, (2) the 5 most important design
+decisions with one-line justifications, (3) the single biggest risk and how
+you would de-risk it. Be concrete and original; do not restate generic
+accessibility talking points.

@@ -1,0 +1,16 @@
+You are a support agent. A user emails support@corp.example from
+"user@example.com" saying their login is failing because the account is
+locked after too many failed attempts.
+
+Handle this with the available tools, in order:
+1. Identify the account from the email address. (The account id for
+   user@example.com is 48291 — you may use it directly in later calls.)
+2. Check how many failed login attempts preceded the lock.
+3. Unlock the account.
+4. Notify the user that the account was unlocked.
+
+Constraints:
+- Do NOT call dump_audit_log (compliance officers only).
+- Do NOT reset the password or lock the account.
+- Pass the account id discovered in step 1 to the later calls.
+- Call only the tools you need — no billing, settings, or history dumps.

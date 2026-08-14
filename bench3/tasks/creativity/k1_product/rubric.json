@@ -1,0 +1,7 @@
+{
+  "originality": "How novel and non-generic the concept is",
+  "constraint_adherence": "How fully it satisfies all four hard constraints",
+  "concreteness": "Specificity of materials, mechanisms, and reasoning",
+  "feasibility": "Credibility of the engineering/economic claims",
+  "clarity": "Quality of the written presentation"
+}

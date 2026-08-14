@@ -1,0 +1,14 @@
+[
+{"type":"function","function":{"name":"get_account","description":"Get an account by numeric id.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"find_account_by_email","description":"Find an account by email address; returns the account id.","parameters":{"type":"object","properties":{"email":{"type":"string"}},"required":["email"]}}},
+{"type":"function","function":{"name":"list_failed_logins","description":"List recent failed login attempts for an account.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"get_login_history","description":"Get full login history for an account (successes and failures).","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"unlock_account","description":"Unlock a locked account.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"lock_account","description":"Lock an account (admin action).","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"reset_password","description":"Reset an account password and email a temporary one.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"get_audit_events","description":"Get audit events for one account.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"dump_audit_log","description":"Dump the full system audit log. Compliance officers only; read-only.","parameters":{"type":"object","properties":{},"required":[]}}},
+{"type":"function","function":{"name":"notify_user","description":"Send a notification message to an account holder.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"},"message":{"type":"string"}},"required":["account_id","message"]}}},
+{"type":"function","function":{"name":"get_account_settings","description":"Get account preference settings.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}},
+{"type":"function","function":{"name":"get_billing_info","description":"Get billing information for an account.","parameters":{"type":"object","properties":{"account_id":{"type":"integer"}},"required":["account_id"]}}}
+]

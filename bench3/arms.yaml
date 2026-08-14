@@ -1,0 +1,52 @@
+# Arms under test. The same harness and tools for every arm.
+#
+# provider/model are the DSH route + model id (agentic mode) AND the wire
+# model id (single-shot mode). Prices are per 1M tokens, USD. Where a price is
+# not published it is marked TBD and calibrated during the pilot.
+#
+# effort: reasoning effort pinned for both modes (matched across arms).
+#   deepseek-v4-flash/pro: high (deepseek dialect)
+#   gpt-5.6-sol:           high (matches prior work; xhigh is its native default)
+#   grok-4.6:              high (xai supports low/medium/high; high is max)
+
+arms:
+  deepseek-flash:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+    display: DeepSeek V4 Flash
+    vendor: DeepSeek
+    effort: high
+    prices:
+      input: 0.14
+      cached_input: 0.0028
+      output: 0.28
+  deepseek-pro:
+    provider: deepseek-official
+    model: deepseek-v4-pro
+    display: DeepSeek V4 Pro
+    vendor: DeepSeek
+    effort: high
+    prices:
+      input: 0.42
+      cached_input: 0.0084
+      output: 0.87
+  gpt-sol:
+    provider: openai
+    model: gpt-5.6-sol
+    display: GPT-5.6 Sol
+    vendor: OpenAI
+    effort: high
+    prices:
+      input: 5.00
+      cached_input: 0.50
+      output: 30.00
+  grok:
+    provider: xai
+    model: grok-4.6
+    display: Grok 4.6
+    vendor: xAI
+    effort: high
+    prices:
+      input: 2.00
+      cached_input: 0.20
+      output: 6.00

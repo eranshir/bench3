@@ -1,0 +1,60 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "fetch_quote",
+      "description": "Fetch the current USD price of a stock symbol.",
+      "parameters": {
+        "type": "object",
+        "properties": { "symbol": { "type": "string", "description": "Ticker, e.g. AAPL" } },
+        "required": ["symbol"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "apply_fee",
+      "description": "Apply a percentage processing fee to a USD amount and return the net.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "amount_usd": { "type": "number" },
+          "fee_pct": { "type": "number", "description": "Fee as a percentage, e.g. 1.5 means 1.5%" }
+        },
+        "required": ["amount_usd", "fee_pct"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "convert_currency",
+      "description": "Convert a USD amount to another currency at a given rate.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "amount_usd": { "type": "number" },
+          "to_currency": { "type": "string" },
+          "rate": { "type": "number", "description": "Units of target currency per USD" }
+        },
+        "required": ["amount_usd", "to_currency", "rate"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "build_invoice",
+      "description": "Create an invoice for a client from line items.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "client_id": { "type": "string" },
+          "lines": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["client_id", "lines"]
+      }
+    }
+  }
+]
