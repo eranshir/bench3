@@ -111,7 +111,8 @@ def main():
     for r in runs:
         r['detail'] = run_detail(r)
 
-    # merge rubric judging into runs (keyed by arm|task|trial)
+    # merge rubric judging into runs: primary judge (deepseek) + any
+    # cross-check judge (gpt) kept separately so disagreement is visible
     judged = {}
     jp = RESULTS / 'judged.csv'
     if jp.exists():
@@ -122,11 +123,17 @@ def main():
                     j['mean'] = float(j.get('mean') or 0)
                 except Exception:
                     j['scores'] = {}
-                judged[(j['arm'], j['task'], j['trial'])] = j
+                judged.setdefault((j['arm'], j['task'], j['trial']), {})[j['judge']] = j
     for r in runs:
-        j = judged.get((r['arm'], r['task'], r['trial']))
-        if j:
-            r['judged'] = {'mean': j['mean'], 'scores': j['scores'], 'judge': j['judge']}
+        js = judged.get((r['arm'], r['task'], r['trial']))
+        if not js:
+            continue
+        primary = js.get('deepseek-official') or next(iter(js.values()))
+        r['judged'] = {'mean': primary['mean'], 'scores': primary['scores'], 'judge': primary['judge']}
+        others = {k: v for k, v in js.items() if k != primary['judge']}
+        if others:
+            o = next(iter(others.values()))
+            r['judged']['crosscheck'] = {'mean': o['mean'], 'scores': o['scores'], 'judge': o['judge']}
 
     tasks = {}
     for cat in sorted(TASKS.iterdir()):

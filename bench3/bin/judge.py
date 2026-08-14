@@ -48,14 +48,18 @@ def judge_one(base, judge_arm, key, model, effort, task, prompt, rubric, output)
             + chr(10) + chr(10) + 'CANDIDATE OUTPUT:' + chr(10) + chr(10) + output[:9000])
     body = {'model': model, 'messages': [
         {'role': 'system', 'content': sys_prompt},
-        {'role': 'user', 'content': user}],
-        'max_tokens': 4096}
+        {'role': 'user', 'content': user}]}
     if judge_arm == 'deepseek-official':
         # deepseek reasoning at ANY enabled effort burns the budget; judging
         # is a simple JSON task, so disable thinking entirely
         body['thinking'] = {'type': 'disabled'}
+        body['max_tokens'] = 4096
     else:
         body['reasoning_effort'] = 'low'
+        if judge_arm == 'openai':
+            body['max_completion_tokens'] = 4096
+        else:
+            body['max_tokens'] = 4096
     resp, dt, err = call(base, key, body)
     if err:
         return None, err
@@ -105,13 +109,13 @@ def main():
     if judged_path.exists():
         with open(judged_path) as f:
             for r in csv.DictReader(f):
-                done.add((r['arm'], r['task'], r['trial']))
+                done.add((r['judge'], r['arm'], r['task'], r['trial']))
 
     judged = []
     cost_total = 0.0
     random.seed(2026)
     for r in subj:
-        if (r['arm'], r['task'], r['trial']) in done:
+        if (judge_arm, r['arm'], r['task'], r['trial']) in done:
             continue
         out_path = Path(r['log_path'])
         if not out_path.exists():

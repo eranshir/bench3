@@ -268,9 +268,16 @@ function openTask(task) {
     h += '</div>';
     if (r.judged && r.judged.scores) {
       var s = r.judged.scores;
-      h += '<h4 style="margin:8px 0 4px">Rubric scores (' + esc(r.judged.judge) + ')</h4>';
+      h += '<h4 style="margin:8px 0 4px">Rubric scores (' + esc(r.judged.judge) + (r.judged.crosscheck ? ' · cross-check ' + esc(r.judged.crosscheck.judge) : '') + ')</h4>';
       h += '<div class="kv">';
-      Object.keys(s).forEach(function(k) { h += '<div><div class="k">' + esc(k) + '</div><div class="v">' + s[k] + '/5</div></div>'; });
+      Object.keys(s).forEach(function(k) {
+        var v = s[k] + '/5';
+        if (r.judged.crosscheck && r.judged.crosscheck.scores[k] !== undefined) {
+          var c = r.judged.crosscheck.scores[k];
+          v += ' <span style="color:' + (c >= s[k] ? '#3ecf8e' : '#f5b942') + '">(xcheck ' + c + ')</span>';
+        }
+        h += '<div><div class="k">' + esc(k) + '</div><div class="v">' + v + '</div></div>';
+      });
       h += '</div>';
     }
     if (tc) h += '<h4 style="margin:8px 0 4px">Tool calls</h4>' + tc;
