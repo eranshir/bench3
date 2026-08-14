@@ -45,9 +45,20 @@ the sticker price suggests. grok was the fastest on a1_chained (43s).
 
 gpt-5.6-sol is ~16x flash and ~3x grok per passing task at list prices.
 
-### Judge disagreement
+### Subjective quality (creativity + writing) and judge bias
 
-deepseek-v4-pro rubric scores average 0.8 points higher than gpt-5.6-sol
-on the same outputs (47% exact per-criterion agreement). Both judges are
-reported everywhere; the webapp shows the spread per criterion. Treat
-single-judge scores as having +/- 1 point of judge noise.
+| arm | v4-pro judge | gpt-5.6-sol judge |
+|---|---|---|
+| deepseek-v4-flash | 4.36 | 3.65 |
+| deepseek-v4-pro | 4.39 | 3.55 |
+| gpt-5.6-sol | 4.37 | 4.23 |
+| grok-4.6 | 3.93 | 3.39 |
+
+The two judges disagree in level and rank: deepseek-v4-pro compresses all
+arms to ~4.0-4.4, while gpt-5.6-sol spreads them 3.4-4.2 with gpt-sol
+first. That pattern is consistent with each judge favouring its own
+vendor's prose (blind judging removes the *label*, not the style
+preference). The only arm both judges agree on is **grok: lowest on
+subjective quality by both** (3.93 / 3.39) — a robust finding.
+
+Per-criterion agreement between judges: 41% exact, 86% within 1 point.
