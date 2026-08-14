@@ -59,6 +59,32 @@ def run_detail(r):
                     detail['content'] = p.read_text(errors='replace')[:12000]
             else:
                 detail['content'] = p.read_text(errors='replace')[-8000:]
+    # diff the agent's work dir against the task fixture (agentic runs)
+    if r.get('mode') == 'agentic':
+        # agentic CSV stores category and task in separate columns
+        task_rel = (r.get('category') or '') + '/' + r['task']
+        work = BENCH / 'work' / (r['arm'] + '_' + (r.get('category') or '') + '-' + r['task'] + '_t' + r['trial'])
+        src = TASKS / task_rel
+        if work.exists() and src.exists():
+            import difflib
+            diffs = []
+            for f in sorted(src.rglob('*')):
+                if not f.is_file():
+                    continue
+                rel = str(f.relative_to(src))
+                if rel in ('PROMPT.txt', 'hidden_test.py') or '__pycache__' in rel:
+                    continue
+                wf = work / rel
+                if not wf.exists():
+                    diffs.append({'file': rel, 'status': 'deleted'})
+                    continue
+                a = f.read_text(errors='replace')
+                b = wf.read_text(errors='replace')
+                if a != b:
+                    ud = list(difflib.unified_diff(a.splitlines(), b.splitlines(), 'orig/' + rel, 'fixed/' + rel, lineterm=''))
+                    diffs.append({'file': rel, 'status': 'modified', 'diff': '\n'.join(ud[:400])})
+            if diffs:
+                detail['diffs'] = diffs
     sp = r.get('session_path') or ''
     if sp and Path(sp).exists():
         detail['session_path'] = sp

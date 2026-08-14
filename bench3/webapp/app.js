@@ -305,6 +305,13 @@ function openTask(task) {
     }
     if (tc) h += '<h4 style="margin:8px 0 4px">Tool calls</h4>' + tc;
     if (d.content) h += '<h4 style="margin:8px 0 4px">Output</h4><pre>' + esc(d.content) + '</pre>';
+    if (d.diffs && d.diffs.length) {
+      h += '<h4 style="margin:8px 0 4px">Changed files (' + d.diffs.length + ')</h4>';
+      h += '<div class="kv">';
+      d.diffs.forEach(function(x) { h += '<div><div class="k">' + esc(x.file) + '</div><div class="v">' + esc(x.status) + '</div></div>'; });
+      h += '</div>';
+      d.diffs.forEach(function(x) { if (x.diff) h += '<pre>' + esc(x.diff) + '</pre>'; });
+    }
     if (d.grade) h += '<h4 style="margin:8px 0 4px">Hidden-test grade</h4><pre>' + esc(d.grade) + '</pre>';
     if (d.check) h += '<h4 style="margin:8px 0 4px">Checker</h4><pre>' + esc(d.check) + '</pre>';
     if (d.trajectory && d.trajectory.length) {
