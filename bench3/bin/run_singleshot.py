@@ -78,6 +78,59 @@ def wire_params(provider, effort, max_tokens):
     return {"thinking": {"type": "enabled", "effort": effort}, "max_tokens": max_tokens}
 
 
+def call_openai_responses(key, model, messages, tools, effort, max_tokens, retries=2):
+    """gpt-5.6-sol rejects function tools with reasoning_effort in
+    chat/completions; the Responses API supports both. Returns a response
+    NORMALIZED to the chat-completions shape so check.py and the webapp
+    work unchanged."""
+    resp_tools = [{'type': 'function', 'name': t['function']['name'],
+                   'description': t['function']['description'],
+                   'parameters': t['function']['parameters']} for t in tools]
+    body = {'model': model, 'input': messages, 'tools': resp_tools,
+            'max_output_tokens': max_tokens}
+    if effort == 'off':
+        body['reasoning'] = {'effort': 'low'}
+    else:
+        body['reasoning'] = {'effort': effort}
+    req = urllib.request.Request('https://api.openai.com/v1/responses', method='POST')
+    req.add_header('Authorization', 'Bearer ' + key)
+    req.add_header('Content-Type', 'application/json')
+    t0 = time.time()
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            with urllib.request.urlopen(req, data=json.dumps(body).encode(), timeout=900) as r:
+                resp = json.loads(r.read().decode())
+                break
+        except urllib.error.HTTPError as e:
+            msg = 'HTTP %d: %s' % (e.code, e.read().decode()[:200])
+            if e.code in (429, 500, 502, 503) and attempt <= retries:
+                time.sleep(20 * attempt)
+                continue
+            return None, time.time() - t0, msg
+        except Exception as e:
+            return None, time.time() - t0, str(e)[:300]
+    # normalize to chat-completions shape
+    text = ''.join(o.get('text', '') for o in resp.get('output', []) if o.get('type') == 'message')
+    calls = [{'id': o.get('call_id', ''), 'type': 'function',
+              'function': {'name': o.get('name', ''), 'arguments': o.get('arguments', '{}')}}
+             for o in resp.get('output', []) if o.get('type') == 'function_call']
+    message = {'role': 'assistant', 'content': text}
+    if calls:
+        message['tool_calls'] = calls
+    u = resp.get('usage', {})
+    usage = {
+        'prompt_tokens': u.get('input_tokens', 0),
+        'completion_tokens': u.get('output_tokens', 0),
+        'total_tokens': u.get('total_tokens', 0),
+        'prompt_tokens_details': {'cached_tokens': (u.get('input_tokens_details') or {}).get('cached_tokens', 0)},
+        'completion_tokens_details': {'reasoning_tokens': (u.get('output_tokens_details') or {}).get('reasoning_tokens', 0)},
+    }
+    normalized = {'choices': [{'message': message}], 'usage': usage, '_raw_responses': resp}
+    return normalized, time.time() - t0, None
+
+
 def extract_usage(provider, resp):
     u = resp.get("usage", {})
     p = u.get("prompt_tokens", 0)
@@ -173,7 +226,11 @@ def main():
                 body["tool_choice"] = "auto"
 
             print("=== %s / %s / trial %s ===" % (aid, task, trial))
-            resp, secs, err = call_api(provider, key, body)
+            if provider == "openai" and tools:
+                # gpt-5.6-sol: function tools + reasoning only via Responses API
+                resp, secs, err = call_openai_responses(key, a["model"], messages, tools, effort, max_tokens)
+            else:
+                resp, secs, err = call_api(provider, key, body)
             notes = ""
             if err:
                 notes = err
