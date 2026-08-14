@@ -95,6 +95,23 @@ def main():
     for r in runs:
         r['detail'] = run_detail(r)
 
+    # merge rubric judging into runs (keyed by arm|task|trial)
+    judged = {}
+    jp = RESULTS / 'judged.csv'
+    if jp.exists():
+        with open(jp) as f:
+            for j in csv.DictReader(f):
+                try:
+                    j['scores'] = json.loads(j.get('scores') or '{}')
+                    j['mean'] = float(j.get('mean') or 0)
+                except Exception:
+                    j['scores'] = {}
+                judged[(j['arm'], j['task'], j['trial'])] = j
+    for r in runs:
+        j = judged.get((r['arm'], r['task'], r['trial']))
+        if j:
+            r['judged'] = {'mean': j['mean'], 'scores': j['scores'], 'judge': j['judge']}
+
     tasks = {}
     for cat in sorted(TASKS.iterdir()):
         if not cat.is_dir():

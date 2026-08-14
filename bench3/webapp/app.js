@@ -236,7 +236,15 @@ function openTask(task) {
     h += '<div><div class="k">cost</div><div class="v">' + fmtMoney(r.cost_usd) + '</div></div>';
     h += '<div><div class="k">mode</div><div class="v">' + r.mode + '</div></div>';
     if (r.notes) h += '<div><div class="k">notes</div><div class="v">' + esc(r.notes) + '</div></div>';
+    if (r.judged) h += '<div><div class="k">rubric mean</div><div class="v">' + r.judged.mean + '/5</div></div>';
     h += '</div>';
+    if (r.judged && r.judged.scores) {
+      var s = r.judged.scores;
+      h += '<h4 style="margin:8px 0 4px">Rubric scores (' + esc(r.judged.judge) + ')</h4>';
+      h += '<div class="kv">';
+      Object.keys(s).forEach(function(k) { h += '<div><div class="k">' + esc(k) + '</div><div class="v">' + s[k] + '/5</div></div>'; });
+      h += '</div>';
+    }
     if (tc) h += '<h4 style="margin:8px 0 4px">Tool calls</h4>' + tc;
     if (d.content) h += '<h4 style="margin:8px 0 4px">Output</h4><pre>' + esc(d.content) + '</pre>';
     if (d.grade) h += '<h4 style="margin:8px 0 4px">Hidden-test grade</h4><pre>' + esc(d.grade) + '</pre>';

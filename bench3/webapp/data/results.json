@@ -133,10 +133,156 @@
    }
   }
  },
- "runs": [],
+ "runs": [
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "creativity",
+   "task": "creativity/k1_product",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 13,
+   "input_tokens": 134,
+   "cache_read_tokens": 128,
+   "output_tokens": 967,
+   "reasoning_tokens": 0,
+   "cost_usd": 0.00029,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_creativity-k1_product_t1.json",
+   "detail": {
+    "content": "**(1) Concept: The \"Pulse-Cuff\"**  \nA wearable forearm band that converts environmental cues into directional, tactile pulses on the skin, plus a passive \"call-response\" tether for communication. The cuff has three vibrating motors (at 12, 3, and 9 o'clock positions) and a small, low-power ultrasonic rangefinder (e.g., HC-SR04 or a lidar-lite clone) pointing forward. It continuously scans 0.5\u20132 meters ahead. When an obstacle is detected within 1.5m, the closest motor vibrates in a 5Hz burst (pattern A: short-long-short) to indicate \"stop.\" If the object is >1.5m but moving closer (measured via two rapid pings), the motor closest to the direction of motion pulsates at 1Hz to warn \"approaching.\" For communication, a second person wears a matched coin-cell-powered vibrating \"sender\" ring with a single button; pressing it sends a specific 3-pulse pattern through the ring's haptic motor *directly to the cuff's wrist motor* via a 433MHz RF link (no audio/visual). The deaf-blind user wears the cuff on the forearm; the tether ring is worn by a caregiver. The user can also initiate a \"check-in\" by tapping the cuff's side (a piezoelectric sensor), which makes the cuff vibrate a \"ready\" pattern\u2014the caregiver's ring then buzzes, signaling the user is awaiting input. All logic runs on an ATtiny85 (sleep mode at <1\u00b5A), motors are driven by MOSFETs, and the whole system is powered by two AA batteries (1.5V each, series = 3V) with a boost converter to 5V only for the ultrasonic sensor's brief pings. Estimated BOM: $11 (MCU+RF), $4 (motors+drivers), $6 (sensor), $8 (PCB+enclosure), $5 (batteries+holder), $6 (misc) = **$40**.\n\n**(2) Five Key Design Decisions**  \n1. **Forearm tactile mapping instead of finger/head vibration** \u2013 The forearm has high spatial acuity but less fatigue than fingertips, and frees hands for cane/guide use, while keeping the device out of the user's visual/auditory field.  \n2. **Ultrasonic, not camera or radar** \u2013 It works in total darkness, needs no AI (keeping cost/CPU low), and can be duty-cycled to <10% active time for battery life.  \n3. **Separate, wearable \"call\" ring for caregiver** \u2013 This avoids any need for speech, screen, or typing; it is a direct, one-button haptic link that does not require the user to hold anything.  \n4. **Analog PWM pulses with distinct temporal patterns, not amplitude modulation** \u2013 Vibration intensity is hard to perceive through clothing, but *duration and rhythm* (e.g., 50ms vs 200ms pulses) are reliably discriminated by deaf-blind users in trials.  \n5. **Boost converter only for sensor, not for motors** \u2013 Motors run at native 3V (reducing energy waste), while the ultrasonic sensor gets a 5V burst only during its 20ms ping cycle, cutting average current to ~1.2mA, enabling 12+ hours on 2 AAs (2000mAh).\n\n**(3) Biggest Risk & De-risking**  \n**Risk:** The ultrasonic sensor will fail to detect transparent, soft, or irregular objects (e.g., glass doors, hanging fabrics, or people in bulky coats), causing false \"safe\" signals and injury.  \n**De-risk:** In the first 60 days of prototype testing, run a *dual-modal* validation: pair the ultrasonic with a passive infrared (PIR) sensor (cost +$2) that detects body heat/motion. If either sensor triggers, the cuff pulses as \"caution.\" Use a simple voting rule (OR logic) for the first version, then collect 100+ real-world obstacle encounters with blindfolded+earplugged testers to tune thresholds. Additionally, write a calibration routine where the user taps the cuff three times to enter \"learning mode,\" letting the sensor ignore steady-state walls while still alerting on dynamic changes in echo amplitude across two consecutive 20ms scans\u2014this specifically catches moving soft objects (like a person) even if they are acoustically damp. If PIR fails indoors in heat, fall back to a second ultrasonic at a 30\u00b0 offset angle (still under $50 total) to widen detection geometry.",
+    "tool_calls": []
+   },
+   "judged": {
+    "mean": 4.8,
+    "scores": {
+     "originality": 5,
+     "constraint_adherence": 5,
+     "concreteness": 5,
+     "feasibility": 4,
+     "clarity": 5
+    },
+    "judge": "deepseek-official"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "creativity",
+   "task": "creativity/k2_story",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 4,
+   "input_tokens": 87,
+   "cache_read_tokens": 0,
+   "output_tokens": 277,
+   "reasoning_tokens": 0,
+   "cost_usd": 9e-05,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_creativity-k2_story_t1.json",
+   "detail": {
+    "content": "The booth stank of old smoke and wet copper. Rain would come soon; the air was thick with it, a raw, green smell off the street. I pressed a coin in, heard the hollow click. The line buzzed twice, then a voice, low and flat.\n\n\u201cYou got it?\u201d\n\n\u201cYeah.\u201d I fingered the cold steel in my coat. Small, sharp, with a chipped red head. \u201cBut the price just went up.\u201d\n\nA pause. A sigh like gravel. \u201cDon\u2019t get cute. You\u2019re three blocks from a dead man.\u201d\n\nI glanced out the smeared glass. A lone car passed, its wipers slow. The smell of rain grew, heavy and sweet. My palm was slick.\n\n\u201cI want the full take,\u201d I said. \u201cNot half.\u201d\n\n\u201cYou\u2019ll take what\u2019s left. You\u2019re not that fast.\u201d\n\nThe dial tone hummed. They\u2019d hung up. I slammed the receiver, watched the booth\u2019s light flicker. The first drops hit the roof, a soft, steady tap. I stepped out, cold air biting my neck.\n\nTwo shadows moved at the corner. I turned, walked the other way, past a trash can and a dead sign. The key dug into my palm.\n\nThe rain came down, hard and clean.\n\nWORD COUNT: 200",
+    "tool_calls": []
+   },
+   "judged": {
+    "mean": 4.25,
+    "scores": {
+     "craft": 4,
+     "constraint_adherence": 5,
+     "atmosphere": 4,
+     "originality": 4
+    },
+    "judge": "deepseek-official"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "writing",
+   "task": "writing/w1_explain",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 3,
+   "input_tokens": 50,
+   "cache_read_tokens": 0,
+   "output_tokens": 209,
+   "reasoning_tokens": 0,
+   "cost_usd": 6.6e-05,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_writing-w1_explain_t1.json",
+   "detail": {
+    "content": "Imagine you\u2019re building a LEGO castle with a friend. A **transaction** is a rule that says: \u201cWe finish the whole castle, or we don\u2019t build anything at all.\u201d If you run out of LEGOs halfway, you don\u2019t leave a half-finished castle\u2014you take it all apart and start fresh. In a computer database, a transaction is a group of steps (like adding money to one piggy bank and taking it from another). Either ALL steps happen completely, or NONE happen\u2014so the money never gets lost or duplicated. And if two people try to change the same data at once, the transaction makes them take turns, so nobody messes up the other\u2019s work.\n\n**For parents:** Technically, transactions guarantee ACID (Atomicity, Consistency, Isolation, Durability). Simplified here: atomicity (all-or-nothing) and isolation (taking turns) are stressed, while durability (saving permanently) and consistency (rules stay true) are implied but not named.",
+    "tool_calls": []
+   },
+   "judged": {
+    "mean": 4.75,
+    "scores": {
+     "accuracy": 4,
+     "clarity_for_audience": 5,
+     "concision": 5,
+     "analogy_quality": 5
+    },
+    "judge": "deepseek-official"
+   }
+  },
+  {
+   "arm": "deepseek-flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "category": "writing",
+   "task": "writing/w2_rewrite",
+   "trial": "1",
+   "effort": "off",
+   "mode": "singleshot",
+   "seconds": 1,
+   "input_tokens": 296,
+   "cache_read_tokens": 0,
+   "output_tokens": 105,
+   "reasoning_tokens": 0,
+   "cost_usd": 7.1e-05,
+   "passed": 1,
+   "tests_failed": "0",
+   "grade_seconds": "0",
+   "notes": "",
+   "session_path": "",
+   "log_path": "/Users/eranshir/Documents/Projects/deepseek/bench3/runs/deepseek-flash_writing-w2_rewrite_t1.json",
+   "detail": {
+    "content": "Onboarding a new team member involves many steps, each important for getting them up to speed quickly. First, set up the development environment: install dependencies and configure tools. Next, give a tour of the repository structure so they understand how parts fit together. Then, assign a small, well-defined task suited to their experience, enabling a meaningful, low-risk first contribution. Throughout, an experienced colleague must remain available for questions and guidance, as the learning curve for a new codebase can be steep.\n\nWORDS: 76",
+    "tool_calls": []
+   },
+   "judged": {
+    "mean": 4.75,
+    "scores": {
+     "fidelity": 5,
+     "concision": 4,
+     "clarity": 5,
+     "polish": 5
+    },
+    "judge": "deepseek-official"
+   }
+  }
+ ],
  "counts": {
-  "runs": 0,
-  "passed": 0,
-  "cost": 0
+  "runs": 4,
+  "passed": 4,
+  "cost": 0.000517
  }
 }
