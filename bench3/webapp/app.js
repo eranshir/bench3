@@ -86,6 +86,7 @@ function renderOverview() {
   var html2 = "<div class='grid'>";
   html2 += "<div class='panel full'><h3>Pass rate by category</h3><div id='radar' class='chart'></div></div>";
   html2 += "<div class='panel full'><h3>Cost per run vs pass rate (per task)</h3><div id='scatter' class='chart'></div></div>";
+  html2 += "<div class='panel full'><h3>Cost per passing task</h3><div id='cpp' class='chart'></div></div>";
   html2 += '</div>';
 
   $('#view').innerHTML = cards + html2;
@@ -138,6 +139,28 @@ function renderOverview() {
     yAxis: { type: 'value', name: 'pass rate %', max: 105, nameTextStyle: { color: '#7d8aa3' }, axisLabel: { color: '#7d8aa3' }, splitLine: { lineStyle: { color: '#1a2233' } } },
     series: scatterData,
   });
+
+  // cost per passing task
+  var cppData = ARMS.filter(function(a) {
+    var g = runsForAll(a);
+    return g.some(function(r) { return r.passed; });
+  }).map(function(a) {
+    var g = runsForAll(a);
+    var npass = g.filter(function(r) { return r.passed; }).length;
+    var cost = sum(g.map(function(r) { return r.cost_usd; }));
+    return { name: DATA.arms[a] ? DATA.arms[a].display : a, value: +(cost / npass).toFixed(4) };
+  });
+  chart($('#cpp'), {
+    tooltip: { trigger: 'item', formatter: function(p) { return p.name + '<br/>' + fmtMoney(p.value) + ' per passing task'; } },
+    grid: { left: 90, right: 30, top: 20, bottom: 40 },
+    xAxis: { type: 'category', data: cppData.map(function(d) { return d.name; }), axisLabel: { color: '#7d8aa3', interval: 0, rotate: 20 } },
+    yAxis: { type: 'value', name: 'USD / passing task', nameTextStyle: { color: '#7d8aa3' }, axisLabel: { color: '#7d8aa3', formatter: function(v) { return fmtMoney(v); } }, splitLine: { lineStyle: { color: '#1a2233' } } },
+    series: [{ type: 'bar', data: cppData.map(function(d) { return { value: d.value, itemStyle: { color: ARM_COLORS[d.name] } }; }), barMaxWidth: 60 }],
+  });
+}
+
+function runsForAll(a) {
+  return DATA.runs.filter(function(r) { return r.arm === a; });
 }
 
 // ---------- categories ----------
