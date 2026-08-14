@@ -74,6 +74,23 @@ function renderOverview() {
   var totalSecs = sum(runs.map(function(r) { return r.seconds; }));
   var totalToks = sum(runs.map(function(r) { return r.input_tokens + r.output_tokens; }));
 
+  // key findings: discriminating tasks from the ladder
+  var findings = '';
+  var ladder = DATA.ladder || {};
+  var disc = Object.keys(ladder).filter(function(t) { return ladder[t].discrimination >= 0.5; }).sort(function(a, b) { return ladder[b].discrimination - ladder[a].discrimination; });
+  if (disc.length) {
+    findings += "<div class='panel full' style='margin-bottom:14px'><h3>Key findings — where the arms separate</h3>";
+    disc.forEach(function(t) {
+      var L = ladder[t];
+      var per = ARMS.map(function(a) {
+        if (L.per_arm[a] === undefined) return null;
+        return '<span style="color:' + ARM_COLORS[a] + ';font-weight:600">' + (DATA.arms[a] ? DATA.arms[a].display : a) + ' ' + Math.round(100 * L.per_arm[a]) + '%</span>';
+      }).filter(Boolean).join(' · ');
+      findings += '<div style="margin:6px 0"><strong>' + esc(t) + '</strong> <span style="color:#7d8aa3;font-size:12px">(difficulty ' + L.difficulty + ', discrimination ' + L.discrimination + ')</span><br/>' + per + '</div>';
+    });
+    findings += '</div>';
+  }
+
   var cards = '';
   cards += "<div class='cards'>";
   cards += "<div class='card'><div class='label'>Runs</div><div class='value'>" + runs.length + "</div></div>";
@@ -89,7 +106,7 @@ function renderOverview() {
   html2 += "<div class='panel full'><h3>Cost per passing task</h3><div id='cpp' class='chart'></div></div>";
   html2 += '</div>';
 
-  $('#view').innerHTML = cards + html2;
+  $('#view').innerHTML = findings + cards + html2;
 
   var radarCats = CATEGORIES.filter(function(c) { return runs.some(function(r) { return r.category === c; }); });
   var radarData = ARMS.filter(function(a) { return runs.some(function(r) { return r.arm === a; }); }).map(function(a) {
