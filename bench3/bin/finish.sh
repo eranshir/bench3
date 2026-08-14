@@ -4,6 +4,9 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/bin"
+echo '=== fill any missing agentic cells (resume) ==='
+./run_agentic.sh all 1 2>/dev/null | tail -1
+./run_agentic.sh all 2 2>/dev/null | tail -1
 echo '=== judging subjective runs (deepseek-v4-pro, blind) ==='
 python3 judge.py
 echo '=== cross-check sample with gpt-5.6-sol ==='
