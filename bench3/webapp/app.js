@@ -277,7 +277,15 @@ function openTask(task) {
     if (d.content) h += '<h4 style="margin:8px 0 4px">Output</h4><pre>' + esc(d.content) + '</pre>';
     if (d.grade) h += '<h4 style="margin:8px 0 4px">Hidden-test grade</h4><pre>' + esc(d.grade) + '</pre>';
     if (d.check) h += '<h4 style="margin:8px 0 4px">Checker</h4><pre>' + esc(d.check) + '</pre>';
-    if (d.session_path) h += '<h4 style="margin:8px 0 4px">Trajectory (session)</h4><pre>' + esc(d.session_path) + '</pre>';
+    if (d.trajectory && d.trajectory.length) {
+      h += '<h4 style="margin:8px 0 4px">Agent trajectory</h4><div style="max-height:320px;overflow-y:auto;border:1px solid #232c3f;border-radius:8px;padding:8px">';
+      d.trajectory.forEach(function(ev) {
+        if (ev.type === 'user') h += '<div style="color:#7d8aa3;font-size:11px;margin-top:6px">USER</div><div>' + esc(ev.text) + '</div>';
+        else h += '<div style="color:#4f8cff;font-size:11px;margin-top:6px">ASSISTANT' + (ev.reasoning ? ' <span style="color:#7d8aa3">(reasoning ' + esc(ev.reasoning) + ')</span>' : '') + '</div><div>' + esc(ev.text) + '</div>';
+      });
+      h += '</div>';
+    }
+    if (d.session_path) h += '<h4 style="margin:8px 0 4px">Session file</h4><pre>' + esc(d.session_path) + '</pre>';
     h += '</div>';
   });
   $('#modal-card').innerHTML = h;
