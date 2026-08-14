@@ -1,1 +1,7 @@
 === agentic phase: Fri Aug 14 14:56:03 IDT 2026 ===
+results -> /Users/eranshir/Documents/Projects/deepseek/bench3/results/results.csv
+results -> /Users/eranshir/Documents/Projects/deepseek/bench3/results/results.csv
+results -> /Users/eranshir/Documents/Projects/deepseek/bench3/results/results.csv
+=== deepseek-pro / coding/c2_perf / trial 2 ===
+./bin/run_agentic_all.sh: line 8: 49786 Killed: 9               ./run_agentic.sh "$arm" "$trial" 2>&1
+     49787 Done                    | tail -1
