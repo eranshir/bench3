@@ -79,54 +79,67 @@ Pinned per task *type*, applied identically to all arms:
 _Narrative sections completed by bin/report.py from results/, judged.csv,_
 _and runs/._
 
-
-## Findings (draft — pilot in progress)
+## Findings (expanded — 200 runs, 16 tasks)
 
 ### Where the arms separate
 
-Two of twelve tasks discriminate; the rest saturate (every arm solves
-them, differing only in time and cost).
+Five of sixteen tasks discriminate; the rest saturate (every arm solves
+them, differing only in time and cost). The discriminating tasks cluster
+in two domains: hard counting-reasoning, and single-shot multi-call tool
+planning.
 
-**r1_tiling** (3x30 domino tilings = 299,303,201): the reasoning ladder.
-deepseek-v4-flash 0/3 — at `high` effort it burns its entire output
-budget (20K tokens) on reasoning and never converges. deepseek-v4-pro
-2/3 — converges in 137-216s. grok-4.6 3/3 (121-154s). gpt-5.6-sol 3/3 in
-37-42s, the fastest and cheapest correct solver on this task.
+**Reasoning (n=5 on the hard ones):**
 
-**t1_orchestrate** (emit a full multi-call tool sequence in one shot):
-deepseek-v4-pro 3/3, deepseek-v4-flash 2/3, gpt-5.6-sol 0/3, grok-4.6
-0/3. The two failures are qualitatively different: gpt-5.6-sol emits the
-first wave of calls and stops (expecting execution); grok-4.6 emits the
-whole plan as JSON *prose* instead of function calls.
+| task | flash | pro | grok | gpt-sol |
+|---|---|---|---|---|
+| r1_tiling (3x30 domino count) | 0/5 | 2/5 | 5/5 | 5/5 |
+| r4_catalan (Dyck paths to (10,10)) | 2/3 | 1/3 | 3/3 | 3/3 |
+| r3_die_expected (coupon collector) | 3/3 | 3/3 | 3/3 | 3/3 |
 
-**t2_toolselect** (choose from 12 tools, avoid decoys, full sequence):
-0/x on every arm — a universal ceiling for single-shot multi-call
-planning in this format. Multi-turn tool use is tested properly by the
-agentic tasks, which all arms solve.
+deepseek-v4-flash at high effort burns its whole output budget on
+reasoning without converging (5/5 failures on r1, ~200s each, 20K
+reasoning tokens). deepseek-v4-pro fails the same way 60% of the time on
+r1 and 2/3 on r4 — the mechanism is reproducible on both DeepSeek arms.
+grok and gpt-5.6-sol solve every reasoning task; gpt is 3-5x faster.
 
-### Agentic coding and workflows: saturated
+**Tool planning (single-shot, no execution):**
 
-c1_deadlock (3 planted concurrency bugs), c2_perf (O(n·w) to sub-
-quadratic), a1_chained (4 masked defects incl. stale-schema migration),
-a2_buildtestfix (fix + write your own tests): all arms pass everything
-run so far. The differences are cost and time: deepseek-v4-flash is the
-cheapest per run ($0.006-0.007 on c1/c2), gpt-sol the most expensive
-($0.19 on a1) but its agent loop is heavily cached-input (169K cached vs
-45 fresh tokens) so the marginal cost of long iterations is lower than
-the sticker price suggests. grok was the fastest on a1_chained (43s).
+| task | flash | pro | grok | gpt-sol |
+|---|---|---|---|---|
+| t1_orchestrate (finance chain, n=5) | 4/5 | 5/5 | 0/5 | 0/5 |
+| t3_inventory (order chain, n=3) | 3/3 | 3/3 | 2/3 | 0/3 |
+| t2_toolselect (12 tools + decoys, n=5) | 0/5 | 0/5 | 0/5 | 0/5 |
 
-### Cost per passing task
+The headline surprise, now measured across three task domains and ~13
+attempts per arm: **DeepSeek models emit complete multi-call tool
+sequences in one shot nearly every time (pro 13/13, flash 10/11), while
+gpt-5.6-sol fails every attempt** — it stops after the first tool wave,
+expecting results that never come. grok is inconsistent (2/13), sometimes
+writing the plan as JSON prose instead of calling the tools. t2, which
+adds decoys and a stricter sequence, is a universal ceiling (0/5 on every
+arm).
 
-| arm | cost / passing task |
-|---|---|
-| deepseek-v4-flash | $0.003 |
-| deepseek-v4-pro | $0.006 |
-| grok-4.6 | $0.015 |
-| gpt-5.6-sol | $0.049 |
+**Agentic coding (n=2-3):** c1 (concurrency), c2 (perf rewrite), c3
+(wrong-greedy fix), a1 (chained bugs) — all arms pass everything. The one
+agentic discriminator is **a2_buildtestfix (fix a CSV parser + write your
+own tests): gpt-5.6-sol 1/3** (reproducibly misses the trailing-blank-line
+edge case), DeepSeek arms and grok 3/3.
 
-gpt-5.6-sol is ~16x flash and ~3x grok per passing task at list prices.
+### Overall (200 runs)
 
-### Subjective quality (creativity + writing) and judge bias
+| arm | pass | pass % | cost | cost/pass |
+|---|---|---|---|---|
+| deepseek-v4-flash | 38/50 | 76% | $0.10 | $0.003 |
+| deepseek-v4-pro | 40/50 | 80% | $0.33 | $0.008 |
+| grok-4.6 | 39/50 | 78% | $0.86 | $0.022 |
+| gpt-5.6-sol | 35/50 | 70% | $3.60 | $0.103 |
+
+gpt-5.6-sol has the lowest pass rate on this benchmark's mix — its
+single-shot tool-planning failures (0/13) and a2 weakness outweigh its
+reasoning strength — and is ~38x flash per passing task. Total spend
+~$5 for 200 runs.
+
+### Subjective quality and judge bias
 
 | arm | v4-pro judge | gpt-5.6-sol judge |
 |---|---|---|
@@ -137,36 +150,33 @@ gpt-5.6-sol is ~16x flash and ~3x grok per passing task at list prices.
 
 The two judges disagree in level and rank: deepseek-v4-pro compresses all
 arms to ~4.0-4.4, while gpt-5.6-sol spreads them 3.4-4.2 with gpt-sol
-first. That pattern is consistent with each judge favouring its own
-vendor's prose (blind judging removes the *label*, not the style
-preference). The only arm both judges agree on is **grok: lowest on
-subjective quality by both** (3.93 / 3.39) — a robust finding.
-
-Per-criterion agreement between judges: 41% exact, 86% within 1 point.
+first — consistent with each judge favouring its own vendor's prose.
+The only arm both judges agree on: **grok lowest on subjective quality**
+(3.93 / 3.39). Per-criterion agreement: 41% exact, 86% within 1 point.
 
 ## Full results
 
 # DeepSeek / OpenAI / xAI — three-provider benchmark (bench3)
 
-**Status:** 128 runs, $3.8305 total spend (list prices).
+**Status:** 200 runs, $4.8983 total spend (list prices).
 
 ## Totals
 
 | arm | runs | pass | pass % | wall s | cost $ | in tok | out tok | reas tok |
 |---|---|---|---|---|---|---|---|---|
-| DeepSeek V4 Flash | 32 | 25 | 78 | 1727 | 0.0739 | 133100 | 176517 | 140063 |
-| DeepSeek V4 Pro | 32 | 28 | 88 | 2023 | 0.2157 | 115588 | 174249 | 136961 |
-| GPT-5.6 Sol | 32 | 25 | 78 | 1439 | 2.8702 | 5292 | 66284 | 17877 |
-| Grok 4.6 | 32 | 26 | 81 | 1993 | 0.6707 | 202623 | 21873 | 66794 |
+| DeepSeek V4 Flash | 50 | 38 | 76 | 2491 | 0.1034 | 174620 | 258646 | 213192 |
+| DeepSeek V4 Pro | 50 | 40 | 80 | 3326 | 0.3319 | 158415 | 281673 | 229981 |
+| GPT-5.6 Sol | 50 | 35 | 70 | 1827 | 3.6035 | 8942 | 85586 | 25327 |
+| Grok 4.6 | 50 | 39 | 78 | 2633 | 0.8595 | 261094 | 28737 | 98327 |
 
 ## Pass rate by category
 
 | category | DeepSeek V4 Flash | DeepSeek V4 Pro | GPT-5.6 Sol | Grok 4.6 |
 |---|---|---|---|---|
-| Coding | 4/4 | 4/4 | 4/4 | 4/4 |
-| Agentic workflow | 4/4 | 4/4 | 3/4 | 4/4 |
-| Tool use | 2/6 | 3/6 | 0/6 | 0/6 |
-| Reasoning | 3/6 | 5/6 | 6/6 | 6/6 |
+| Coding | 6/6 | 6/6 | 6/6 | 6/6 |
+| Agentic workflow | 5/5 | 5/5 | 3/5 | 5/5 |
+| Tool use | 7/13 | 8/13 | 0/13 | 2/13 |
+| Reasoning | 8/14 | 9/14 | 14/14 | 14/14 |
 | Creativity | 6/6 | 6/6 | 6/6 | 6/6 |
 | Writing quality | 6/6 | 6/6 | 6/6 | 6/6 |
 
@@ -175,14 +185,18 @@ Per-criterion agreement between judges: 41% exact, 86% within 1 point.
 | task | difficulty | discrim | DeepSeek V4 Flash | DeepSeek V4 Pro | GPT-5.6 Sol | Grok 4.6 |
 |---|---|---|---|---|---|---|
 | tool-use/t2_toolselect | 1.00 | 0.00 | 0% | 0% | 0% | 0% |
-| tool-use/t1_orchestrate | 0.58 | 1.00 | 67% | 100% | 0% | 0% |
-| reasoning/r1_tiling | 0.33 | 1.00 | 0% | 67% | 100% | 100% |
-| a2_buildtestfix | 0.12 | 0.50 | 100% | 100% | 50% | 100% |
+| tool-use/t1_orchestrate | 0.55 | 1.00 | 80% | 100% | 0% | 0% |
+| reasoning/r1_tiling | 0.40 | 1.00 | 0% | 40% | 100% | 100% |
+| tool-use/t3_inventory | 0.33 | 1.00 | 100% | 100% | 0% | 67% |
+| reasoning/r4_catalan | 0.25 | 0.67 | 67% | 33% | 100% | 100% |
+| a2_buildtestfix | 0.17 | 0.67 | 100% | 100% | 33% | 100% |
 | writing/w2_rewrite | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | writing/w1_explain | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
+| reasoning/r3_die_expected | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | reasoning/r2_expectedflips | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | creativity/k2_story | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | creativity/k1_product | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
+| c3_adversarial | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | c2_perf | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | c1_deadlock | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
 | a1_chained | 0.00 | 0.00 | 100% | 100% | 100% | 100% |
@@ -200,9 +214,9 @@ Per-criterion agreement between judges: 41% exact, 86% within 1 point.
 
 | arm | cost/pass $ |
 |---|---|
-| DeepSeek V4 Flash | 0.0030 |
-| DeepSeek V4 Pro | 0.0077 |
-| GPT-5.6 Sol | 0.1148 |
-| Grok 4.6 | 0.0258 |
+| DeepSeek V4 Flash | 0.0027 |
+| DeepSeek V4 Pro | 0.0083 |
+| GPT-5.6 Sol | 0.1030 |
+| Grok 4.6 | 0.0220 |
 
 _Generated by bin/report.py — raw data in results/, judged.csv, runs/._

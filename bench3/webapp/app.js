@@ -343,8 +343,8 @@ function renderAbout() {
   h += "<div class='panel full' style='margin-bottom:14px'><h3>What the data says so far</h3>";
   h += '<ul style="color:#b6c1d6;max-width:900px;padding-left:20px;line-height:1.8">';
   h += '<li>On everything hard-but-<em>specified</em> — concurrency bugs, performance rewrites, chained failure hunts, test-driven implementation — all four models solve essentially everything. The separation lives in two places: a hard counting-reasoning problem, and single-shot multi-call tool planning.</li>';
-  h += '<li><strong>Reasoning ladder:</strong> deepseek-v4-flash 0/3 on the domino-tiling count (it spends its whole output budget thinking and never answers), deepseek-v4-pro 2/3, grok 3/3, gpt-5.6-sol 3/3 — and gpt is 3-5x faster at it than the other solvers.</li>';
-  h += '<li><strong>Tool planning surprise:</strong> asked to emit a complete multi-call tool sequence in one shot, both DeepSeek models do it (pro 3/3, flash 2/3) while gpt stops after the first wave and grok writes the plan as prose instead of calling the tools. One task, one format — treat as a hypothesis.</li>';
+  h += '<li><strong>Reasoning:</strong> on the hardest counting problem (domino tilings), deepseek-v4-flash fails 5/5 (it spends its whole output budget thinking and never answers) and deepseek-v4-pro fails 3/5, while grok and gpt-5.6-sol solve all 5 — gpt 3-5x faster. A second hard problem shows the same shape (pro 1/3, flash 2/3, gpt/grok 3/3). Easy reasoning (coupon collector) is solved by everyone.</li>';
+  h += '<li><strong>Tool planning — the big surprise, now robust:</strong> asked to emit a complete multi-call tool sequence in one shot, DeepSeek models do it nearly every time across three different task domains (pro 13/13, flash 10/11), while gpt-5.6-sol fails every single attempt (0/13 — it stops after the first tool wave) and grok is inconsistent (2/13, sometimes writing the plan as prose instead of calling the tools). This is a real, repeated behavioral difference in this format.</li>';
   h += '<li><strong>Cost:</strong> per passing task, deepseek-v4-flash is roughly 38x cheaper than gpt-5.6-sol at list prices (and grok sits between). The entire benchmark so far cost ' + fmtMoney(cost) + ' across ' + n + ' runs.</li>';
   h += '<li><strong>Quality:</strong> both judges agree grok trails on creative and technical writing; whether gpt leads depends on who judges — each judge tends to prefer its own vendor prose.</li>';
   h += '</ul>';
@@ -352,9 +352,9 @@ function renderAbout() {
 
   h += "<div class='panel full' style='margin-bottom:14px'><h3>Honest caveats</h3>";
   h += '<ul style="color:#7d8aa3;max-width:900px;padding-left:20px;line-height:1.8;font-size:13px">';
-  h += '<li>Small sample: 3 trials per single-shot task, 2-3 per agentic task. A one-run gap is not a settled ranking.</li>';
+  h += '<li>Sample sizes: 3-5 trials per single-shot task (the discriminating ones got 5), 2-3 per agentic task. A one-run gap is not a settled ranking.</li>';
   h += '<li>Judges have taste and bias: blind judging removes the label, not the style preference. Scores carry roughly +/-1 point of judge noise.</li>';
-  h += '<li>The tool-planning tasks are single-shot by design (no tool execution), which is why every model fails the hardest one — multi-turn tool use is covered by the agentic tasks instead.</li>';
+  h += '<li>The tool-planning tasks are single-shot by design (no tool execution); the decoy-heavy one fails every model, while the two dependency-chain ones separate the models sharply. Multi-turn tool use is covered by the agentic tasks instead.</li>';
   h += '<li>deepseek-v4-flash reasoning failures are partly an effort artifact: at high effort it spends its whole output budget thinking. That is a real, reproducible behavior — and a configuration choice — not pure capability.</li>';
   h += '<li>Costs use current list prices; DeepSeek announced a price increase after this run. Timing is machine-relative.</li>';
   h += '<li>The task suites were authored by the same agent that analyses the results.</li>';
