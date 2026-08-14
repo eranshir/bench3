@@ -50,7 +50,17 @@ def call_api(provider, key, body, timeout=900):
 
 
 def wire_params(provider, effort, max_tokens):
-    """Per-provider wire spelling of the pinned effort + output cap."""
+    """Per-provider wire spelling of the pinned effort + output cap.
+
+    effort == "off" selects generation mode: no deep reasoning, because
+    creative/writing tasks measure output quality, and deepseek-v4-flash at
+    ANY enabled thinking effort burns the whole output budget on reasoning
+    (verified: 16K reasoning tokens, 0 content). gpt/grok get "low".
+    """
+    if effort == "off":
+        if provider == "deepseek-official":
+            return {"thinking": {"type": "disabled"}, "max_tokens": max_tokens}
+        effort = "low"  # gpt + xai generation mode
     if provider == "openai":
         return {"reasoning_effort": effort, "max_completion_tokens": max_tokens}
     if provider == "xai":
@@ -136,6 +146,8 @@ def main():
             prompt = (tdir / "prompt.txt").read_text()
             max_tokens = int((tdir / "max_tokens.txt").read_text().strip()) if (tdir / "max_tokens.txt").exists() else 8192
             tools = json.loads((tdir / "tools.json").read_text()) if (tdir / "tools.json").exists() else None
+            # per-task effort override (e.g. "off" for generation tasks)
+            effort = (tdir / "effort.txt").read_text().strip() if (tdir / "effort.txt").exists() else a["effort"]
 
             messages = []
             if system:
@@ -145,7 +157,7 @@ def main():
             body = {
                 "model": a["model"],
                 "messages": messages,
-                **wire_params(provider, a['effort'], max_tokens),
+                **wire_params(provider, effort, max_tokens),
             }
             if tools:
                 body["tools"] = tools
@@ -187,7 +199,7 @@ def main():
             text = (resp.get("choices") or [{}])[0].get("message", {}).get("content") or ""
             n_calls = len((resp.get("choices") or [{}])[0].get("message", {}).get("tool_calls") or [])
             append_row(results, {"arm": aid, "vendor": a["vendor"], "model": a["model"], "category": catname,
-                                 "task": task, "trial": trial, "effort": a["effort"], "mode": "singleshot",
+                                 "task": task, "trial": trial, "effort": effort, "mode": "singleshot",
                                  "seconds": int(secs), "input_tokens": usage["input"], "cache_read_tokens": usage["cached"],
                                  "output_tokens": usage["output"], "reasoning_tokens": usage["reasoning"],
                                  "cost_usd": round(cost, 6), "passed": passed, "tests_failed": tests_failed,

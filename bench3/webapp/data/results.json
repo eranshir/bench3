@@ -1,0 +1,142 @@
+{
+ "built_at": null,
+ "arms": {
+  "deepseek-flash": {
+   "display": "DeepSeek V4 Flash",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-flash",
+   "prices": {
+    "input": 0.14,
+    "cached_input": 0.0028,
+    "output": 0.28
+   }
+  },
+  "deepseek-pro": {
+   "display": "DeepSeek V4 Pro",
+   "vendor": "DeepSeek",
+   "model": "deepseek-v4-pro",
+   "prices": {
+    "input": 0.42,
+    "cached_input": 0.0084,
+    "output": 0.87
+   }
+  },
+  "gpt-sol": {
+   "display": "GPT-5.6 Sol",
+   "vendor": "OpenAI",
+   "model": "gpt-5.6-sol",
+   "prices": {
+    "input": 5.0,
+    "cached_input": 0.5,
+    "output": 30.0
+   }
+  },
+  "grok": {
+   "display": "Grok 4.6",
+   "vendor": "xAI",
+   "model": "grok-4.6",
+   "prices": {
+    "input": 2.0,
+    "cached_input": 0.2,
+    "output": 6.0
+   }
+  }
+ },
+ "tasks": {
+  "a1_chained": {
+   "category": "agentic-workflow",
+   "name": "a1_chained",
+   "prompt": "This is a small reporting service (`svc/`): config.py, db.py, seed.py,\nreports.py. It is broken \u2014 running `python3 seed.py` and then\n`python3 run_check.py` fails.\n\nThere are four chained defects, each masking the next: fix them in\nwhatever order the errors reveal them. Do not change run_check.py and do\nnot change the public API of the svc module (connect, report_totals\nsignatures). Fixing one link will expose the next.\n\nNote: `seed.py` intentionally creates the development database with the\ncurrent (old) schema, the way a dev box would already have a stale file.\nA correct service makes `python3 seed.py` then `python3 run_check.py`\nprint `all checks passed`.\n",
+   "has_hidden_test": true
+  },
+  "c1_deadlock": {
+   "category": "coding",
+   "name": "c1_deadlock",
+   "prompt": "Run `python3 stress.py`. It demonstrates three concurrency bugs in pool.py:\n\nBug 1: concurrent withdraws lose updates (the read-modify-write is not atomic).\nBug 2: transfer() and reconcile() can deadlock (they take two locks in opposite orders).\nBug 3: the worker pool can lose tasks (check-then-act race on the queue).\n\nFix all three in pool.py. Do not change the public API (Ledger.deposit/withdraw/\ntransfer/reconcile, WorkerPool.submit/stop, constructor signatures). Use\nthreading primitives only. Verify with `python3 stress.py` \u2014 all three checks\nmust print OK, and the process must exit promptly (no hang).\n\nNote: bug 1's race is subtle \u2014 a naive fix that adds a lock only around the\nwrite, or that removes the audit yield, does not count. The read-modify-write\nmust be atomic as a whole.\n",
+   "has_hidden_test": true
+  },
+  "c2_perf": {
+   "category": "coding",
+   "name": "c2_perf",
+   "prompt": "The file `analytics.py` implements two sliding-window functions that are\ncorrect but O(n*w): `rolling_median` and `window_distinct_counts`. On a\n150,000-point series with a window of 2,500 they take tens of seconds\n(verify with `python3 bench.py`).\n\nRewrite both functions to be fast \u2014 sub-quadratic in n \u2014 WITHOUT changing\ntheir observable behaviour: identical outputs on every input, identical\nexceptions for invalid input (window <= 0, window > len(values)).\n\n- `rolling_median(values, window)` -> list[float]: median per window, with\n  the same even-length averaging as now.\n- `window_distinct_counts(values, window)` -> list[int]: distinct count\n  per window.\n\nYou may import from the standard library and restructure internals, but\nkeep the module's public names and signatures. Verify correctness and\nspeed with `python3 bench.py` \u2014 after your change both functions should\nfinish in well under a second on the given sizes.\n",
+   "has_hidden_test": true
+  },
+  "k1_product": {
+   "category": "creativity",
+   "name": "k1_product",
+   "prompt": "Design a product concept for a low-cost assistive device for deaf-blind\npeople. Hard constraints:\n- bill-of-materials cost under $50\n- usable by someone with no sight and no hearing\n- must be operated without any screen, speaker, or keyboard\n- must run for 12+ hours on 2 AA batteries\n\nDeliver: (1) a one-paragraph concept, (2) the 5 most important design\ndecisions with one-line justifications, (3) the single biggest risk and how\nyou would de-risk it. Be concrete and original; do not restate generic\naccessibility talking points.",
+   "rubric": {
+    "originality": "How novel and non-generic the concept is",
+    "constraint_adherence": "How fully it satisfies all four hard constraints",
+    "concreteness": "Specificity of materials, mechanisms, and reasoning",
+    "feasibility": "Credibility of the engineering/economic claims",
+    "clarity": "Quality of the written presentation"
+   }
+  },
+  "k2_story": {
+   "category": "creativity",
+   "name": "k2_story",
+   "prompt": "Write a noir scene of exactly 200 words (count them). Rules:\n- every adjective must be at most 2 syllables\n- the scene must include: a payphone, a key, and the smell of rain\n- the final sentence must be: \"The key was still in her pocket.\"\n- no character may be named\n\nOutput the scene, then a line \"WORD COUNT: <n>\".",
+   "rubric": {
+    "craft": "Prose quality: voice, rhythm, imagery within the constraints",
+    "constraint_adherence": "200 words, syllable rule, required objects, exact final sentence, unnamed characters",
+    "atmosphere": "Strength of the noir mood",
+    "originality": "Non-clich\u00e9 choices"
+   }
+  },
+  "r1_tiling": {
+   "category": "reasoning",
+   "name": "r1_tiling",
+   "prompt": "How many ways are there to tile a 3 x 30 rectangle with 2 x 1 dominoes?\n\nWork it out step by step (derive the recurrence), then give the final\nanswer as the exact integer on a line starting with FINAL ANSWER:\n",
+   "has_check": true
+  },
+  "r2_expectedflips": {
+   "category": "reasoning",
+   "name": "r2_expectedflips",
+   "prompt": "You flip a fair coin repeatedly until you get two consecutive heads (HH).\n\nWhat is the expected number of flips? Derive it with a state-based argument\n(states: no streak, one H, done), then give the exact answer (as an integer\nor reduced fraction) on a line starting with FINAL ANSWER:.\n",
+   "has_check": true
+  },
+  "t1_orchestrate": {
+   "category": "tool-use",
+   "name": "t1_orchestrate",
+   "prompt": "You are an order-processing agent. Today's stock quotes (USD) are:\nAAPL = 150.00, MSFT = 200.00, GOOG = 250.00.\n\nA client (client_id \"acme-42\") places this order:\n- 10 shares of AAPL\n- 5 shares of MSFT\n- 2 shares of GOOG\n\nProcess it end to end using the available tools, in dependency order:\n1. Fetch a quote for each symbol.\n2. Compute the subtotal, then apply the 1.5% processing fee.\n3. Convert the net USD amount to EUR (rate 0.92 EUR per USD).\n4. Build the invoice with client_id and one line item per symbol.\n\nIMPORTANT: this is a planning-only session. NO tool results will be\nreturned to you \u2014 you will not get the quote values back. All numbers you\nneed are in this prompt: compute the subtotal, fee, and EUR total yourself\nfrom the stated prices, and emit the COMPLETE sequence of tool calls in one\nresponse, in dependency order, passing the computed values as arguments.\nDo not stop after the first wave expecting results. Do not describe the\nsteps in prose \u2014 make all the tool calls.\n",
+   "n_tools": 4,
+   "has_check": true
+  },
+  "t2_toolselect": {
+   "category": "tool-use",
+   "name": "t2_toolselect",
+   "prompt": "You are a support agent. A user emails support@corp.example from\n\"user@example.com\" saying their login is failing because the account is\nlocked after too many failed attempts.\n\nHandle this with the available tools, in order:\n1. Identify the account from the email address. (The account id for\n   user@example.com is 48291 \u2014 you may use it directly in later calls.)\n2. Check how many failed login attempts preceded the lock.\n3. Unlock the account.\n4. Notify the user that the account was unlocked.\n\nConstraints:\n- Do NOT call dump_audit_log (compliance officers only).\n- Do NOT reset the password or lock the account.\n- Pass the account id discovered in step 1 to the later calls.\n- Call only the tools you need \u2014 no billing, settings, or history dumps.\n",
+   "n_tools": 12,
+   "has_check": true
+  },
+  "w1_explain": {
+   "category": "writing",
+   "name": "w1_explain",
+   "prompt": "Explain what a database transaction is to a smart 10-year-old, in at most\n150 words. Use one concrete analogy. Then add a 2-sentence note for their\nparent on what is technically accurate vs simplified.",
+   "rubric": {
+    "accuracy": "Technical correctness (including the parent note)",
+    "clarity_for_audience": "Accessibility for a 10-year-old",
+    "concision": "Stays within the word budget and is tight",
+    "analogy_quality": "The analogy is apt and not misleading"
+   }
+  },
+  "w2_rewrite": {
+   "category": "writing",
+   "name": "w2_rewrite",
+   "prompt": "Rewrite the passage below. Requirements: preserve every factual claim\nexactly (no additions, no omissions), cut at least 40% of the words, and\nmake it clearer and more direct. Output the rewritten passage, then a line\n\"WORDS: <n>\" (original was 128 words).\n\n---\n\nThe process of onboarding a new team member to the codebase is one that\ninvolves a considerable number of different steps and stages, each of which\nis important in its own way and contributes to the overall goal of getting\nthe new person up to speed as quickly as is reasonably possible. First of\nall, one needs to set up the development environment, which includes things\nlike installing the necessary dependencies and configuring various tools\nand settings. Following that, the new team member should be given a tour of\nthe repository structure so that they can understand how the different\nparts of the system fit together and relate to one another. Then, they\nshould be assigned a small, well-defined task that is appropriate for their\nlevel of experience, which gives them the opportunity to make their first\ncontribution to the codebase in a way that is both meaningful and\nlow-risk. Throughout this entire process, it is of the utmost importance\nthat a more experienced colleague remains available to answer questions\nand provide guidance, because the learning curve involved in joining a new\ncodebase can be quite steep and challenging for newcomers.",
+   "rubric": {
+    "fidelity": "Every factual claim preserved; nothing added or dropped",
+    "concision": "At least 40% word cut and no padding left",
+    "clarity": "Directness, active voice, readability of the rewrite",
+    "polish": "Sentence-level craft"
+   }
+  }
+ },
+ "runs": [],
+ "counts": {
+  "runs": 0,
+  "passed": 0,
+  "cost": 0
+ }
+}

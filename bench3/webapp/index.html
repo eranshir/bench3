@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>bench3 · three-provider model explorer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">bench<span>3</span></div>
+    <div class="tabs">
+      <button class="tab active" data-view="overview">Overview</button>
+      <button class="tab" data-view="categories">Categories</button>
+      <button class="tab" data-view="tasks">Tasks</button>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+  <main id="view"></main>
+  <div id="modal" class="modal hidden"><div class="modal-card" id="modal-card"></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
