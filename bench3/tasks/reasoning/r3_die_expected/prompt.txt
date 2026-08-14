@@ -1,0 +1,6 @@
+You roll a fair 6-sided die repeatedly until you have seen every face at
+least once.
+
+What is the expected number of rolls? Derive it step by step (this is the
+classic coupon-collector expectation), then give the exact answer (a
+reduced fraction or exact decimal) on a line starting with FINAL ANSWER:.

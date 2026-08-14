@@ -1,0 +1,7 @@
+[
+{"type":"function","function":{"name":"get_item","description":"Get item details by SKU.","parameters":{"type":"object","properties":{"sku":{"type":"string"}},"required":["sku"]}}},
+{"type":"function","function":{"name":"check_stock","description":"Check available quantity for a SKU.","parameters":{"type":"object","properties":{"sku":{"type":"string"}},"required":["sku"]}}},
+{"type":"function","function":{"name":"reserve_item","description":"Reserve a quantity of a SKU for a customer.","parameters":{"type":"object","properties":{"sku":{"type":"string"},"qty":{"type":"integer"},"customer_id":{"type":"string"}},"required":["sku","qty","customer_id"]}}},
+{"type":"function","function":{"name":"apply_discount","description":"Apply a coupon to an order total; returns the discounted total.","parameters":{"type":"object","properties":{"order_total":{"type":"number"},"coupon":{"type":"string"}},"required":["order_total","coupon"]}}},
+{"type":"function","function":{"name":"create_order","description":"Create an order for a customer from line items.","parameters":{"type":"object","properties":{"customer_id":{"type":"string"},"items":{"type":"array","items":{"type":"string"}}},"required":["customer_id","items"]}}}
+]

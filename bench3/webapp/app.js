@@ -390,7 +390,8 @@ function closeModal() {
 // ---------- routing ----------
 function setView(name) {
   document.querySelectorAll('.tab').forEach(function(t) { t.classList.toggle('active', t.dataset.view === name); });
-  if (name === 'overview') renderOverview();
+  if (name === 'about') renderAbout();
+  else if (name === 'overview') renderOverview();
   else if (name === 'categories') renderCategories();
   else if (name === 'ladder') renderLadder();
   else renderTasks();
@@ -406,7 +407,7 @@ fetch('data/results.json').then(function(r) {
   var cost = sum((data.runs || []).map(function(r) { return r.cost_usd; }));
   $('#meta').textContent = n + ' runs · ' + fmtMoney(cost) + ' spent';
   document.querySelectorAll('.tab').forEach(function(t) { t.addEventListener('click', function() { setView(t.dataset.view); }); });
-  setView('overview');
+  setView('about');  // landing page for first-time visitors
 }).catch(function(err) {
   $('#view').innerHTML = "<div class='panel'><h3>No results yet</h3><p>Run <code>bin/build_webdata.py</code> after the benchmark produces results.</p><pre>" + esc(err.message) + '</pre></div>';
 });

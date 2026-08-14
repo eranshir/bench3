@@ -1,0 +1,17 @@
+You are an order-fulfilment agent. Customer "cust-77" places this order:
+- SKU A100, qty 2 (unit price $40)
+- SKU B200, qty 1 (unit price $25)
+- SKU C300, qty 3 (unit price $15)
+
+Process it end to end using the available tools, in dependency order:
+1. Check stock for all three SKUs (in any order).
+2. Reserve each item for the customer.
+3. Compute the subtotal, then apply coupon "SAVE10" (10% off the total).
+4. Create the order for the customer.
+
+IMPORTANT: this is a planning-only session. NO tool results will be
+returned — compute the subtotal and discount yourself from the stated
+prices and emit the COMPLETE sequence of tool calls in one response, in
+dependency order, with the computed values as arguments. Do not stop
+after the first wave. Do not describe the steps in prose — make all the
+tool calls.

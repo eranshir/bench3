@@ -1,0 +1,6 @@
+A path starts at (0,0) and ends at (10,10). Each step moves either right
+to (x+1,y) or up to (x,y+1). The path must never go ABOVE the diagonal
+y = x, but it may touch it.
+
+How many such paths are there? Derive the recurrence, then give the exact
+integer on a line starting with FINAL ANSWER:.

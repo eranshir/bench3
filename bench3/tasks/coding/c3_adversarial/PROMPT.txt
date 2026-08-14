@@ -1,0 +1,15 @@
+The file `scheduler.py` implements `schedule(intervals)`, which should
+return the maximum number of mutually non-overlapping intervals. Its
+current greedy strategy is wrong: it sorts by start time, which is not
+the optimal ordering, so it returns suboptimal counts on some inputs.
+Run `python3 stress.py` to see failing cases.
+
+Fix `schedule` so it returns the correct maximum on every input.
+Constraints:
+- Keep the signature `schedule(intervals)` and the return type (int).
+- Intervals are half-open (start, end): two intervals overlap if
+  start_a < end_b and start_b < end_a; touching at a point (end_a == 
+  start_b) does not count as overlap.
+- Do not change stress.py. Verify with `python3 stress.py` (both cases
+  must print OK) and make sure the algorithm is genuinely correct — the
+  hidden grader uses adversarial cases beyond these two.
