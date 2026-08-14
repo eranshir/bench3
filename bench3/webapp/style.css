@@ -58,7 +58,7 @@ tbody tr:hover { background: var(--panel2); cursor: pointer; }
 .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
 .pill.agentic { background: rgba(79,140,255,.15); color: var(--accent); }
 .pill.singleshot { background: rgba(160,107,255,.15); color: var(--purple); }
-.hidden { display: none; }
+.hidden { display: none !important; }  /* must beat .modal's display:flex */
 .modal {
   position: fixed; inset: 0; background: rgba(4,6,10,.7);
   display: flex; align-items: center; justify-content: center; z-index: 100;

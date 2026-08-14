@@ -61,6 +61,10 @@ function passClass(rate) {
 }
 
 function chart(el, option) {
+  if (typeof echarts === 'undefined') {
+    el.innerHTML = '<div style="color:#7d8aa3;padding:40px;text-align:center">Chart library blocked — check network access to cdn.jsdelivr.net</div>';
+    return null;
+  }
   var c = echarts.init(el);
   c.setOption(option);
   return c;
