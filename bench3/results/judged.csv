@@ -1,0 +1,101 @@
+judge,arm,task,trial,model,category,scores,mean,judge_seconds,cost_usd
+deepseek-official,deepseek-flash,creativity/k1_product,1,deepseek-v4-flash,creativity,"{""originality"": 5, ""constraint_adherence"": 5, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.8,1.5,0.00017
+deepseek-official,deepseek-flash,creativity/k2_story,1,deepseek-v4-flash,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 4, ""originality"": 4}",4.25,1.8,6.9e-05
+deepseek-official,deepseek-flash,writing/w1_explain,1,deepseek-v4-flash,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",4.75,1.5,6e-05
+deepseek-official,deepseek-flash,writing/w2_rewrite,1,deepseek-v4-flash,writing,"{""fidelity"": 5, ""concision"": 4, ""clarity"": 5, ""polish"": 5}",4.75,1.6,4.4e-05
+openai,deepseek-flash,creativity/k1_product,1,deepseek-v4-flash,creativity,"{""originality"": 3, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.6,5.1,0.011755
+openai,deepseek-flash,creativity/k2_story,1,deepseek-v4-flash,creativity,"{""craft"": 4, ""constraint_adherence"": 2, ""atmosphere"": 4, ""originality"": 2}",3.0,8.2,0.023145
+openai,deepseek-flash,writing/w1_explain,1,deepseek-v4-flash,writing,"{""accuracy"": 3, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.25,4.6,0.005195
+openai,deepseek-flash,writing/w2_rewrite,1,deepseek-v4-flash,writing,"{""fidelity"": 5, ""concision"": 4, ""clarity"": 5, ""polish"": 4}",4.5,2.2,0.00451
+openai,deepseek-flash,creativity/k1_product,2,deepseek-v4-flash,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.4,6.8,0.012165
+openai,deepseek-flash,creativity/k2_story,2,deepseek-v4-flash,creativity,"{""craft"": 3, ""constraint_adherence"": 2, ""atmosphere"": 4, ""originality"": 2}",2.75,11.6,0.028575
+openai,deepseek-flash,writing/w1_explain,2,deepseek-v4-flash,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 4}",4.25,3.8,0.00704
+openai,deepseek-flash,writing/w2_rewrite,2,deepseek-v4-flash,writing,"{""fidelity"": 3, ""concision"": 3, ""clarity"": 5, ""polish"": 4}",3.75,2.3,0.003965
+openai,deepseek-flash,creativity/k1_product,3,deepseek-v4-flash,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.6,6.3,0.012935
+openai,deepseek-flash,creativity/k2_story,3,deepseek-v4-flash,creativity,"{""craft"": 4, ""constraint_adherence"": 2, ""atmosphere"": 4, ""originality"": 3}",3.25,7.0,0.018105
+openai,deepseek-flash,writing/w1_explain,3,deepseek-v4-flash,writing,"{""accuracy"": 3, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 4}",4.0,7.8,0.008285
+openai,deepseek-flash,writing/w2_rewrite,3,deepseek-v4-flash,writing,"{""fidelity"": 3, ""concision"": 3, ""clarity"": 4, ""polish"": 4}",3.5,5.3,0.00492
+openai,deepseek-pro,creativity/k1_product,1,deepseek-v4-pro,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.4,7.1,0.01115
+openai,deepseek-pro,creativity/k2_story,1,deepseek-v4-pro,creativity,"{""craft"": 3, ""constraint_adherence"": 1, ""atmosphere"": 4, ""originality"": 2}",2.5,3.6,0.007355
+openai,deepseek-pro,writing/w1_explain,1,deepseek-v4-pro,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.5,3.2,0.005475
+openai,deepseek-pro,writing/w2_rewrite,1,deepseek-v4-pro,writing,"{""fidelity"": 4, ""concision"": 4, ""clarity"": 5, ""polish"": 4}",4.25,4.0,0.00764
+openai,deepseek-pro,creativity/k1_product,2,deepseek-v4-pro,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.6,6.7,0.014525
+openai,deepseek-pro,creativity/k2_story,2,deepseek-v4-pro,creativity,"{""craft"": 3, ""constraint_adherence"": 2, ""atmosphere"": 4, ""originality"": 2}",2.75,3.9,0.008635
+deepseek-official,deepseek-flash,creativity/k1_product,2,deepseek-v4-flash,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 5, ""feasibility"": 3, ""clarity"": 4}",4.0,2.3,0.000126
+deepseek-official,deepseek-flash,creativity/k2_story,2,deepseek-v4-flash,creativity,"{""craft"": 4, ""constraint_adherence"": 4, ""atmosphere"": 4, ""originality"": 4}",4.0,2.6,7.2e-05
+deepseek-official,deepseek-flash,writing/w1_explain,2,deepseek-v4-flash,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 4}",4.25,1.9,6.1e-05
+deepseek-official,deepseek-flash,writing/w2_rewrite,2,deepseek-v4-flash,writing,"{""fidelity"": 4, ""concision"": 4, ""clarity"": 5, ""polish"": 4}",4.25,1.1,4.3e-05
+deepseek-official,deepseek-flash,creativity/k1_product,3,deepseek-v4-flash,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 4}",4.0,2.0,0.00014
+deepseek-official,deepseek-flash,creativity/k2_story,3,deepseek-v4-flash,creativity,"{""craft"": 4, ""constraint_adherence"": 2, ""atmosphere"": 5, ""originality"": 4}",3.75,1.6,6.1e-05
+deepseek-official,deepseek-flash,writing/w1_explain,3,deepseek-v4-flash,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,2.4,6.2e-05
+deepseek-official,deepseek-flash,writing/w2_rewrite,3,deepseek-v4-flash,writing,"{""fidelity"": 4, ""concision"": 5, ""clarity"": 5, ""polish"": 4}",4.5,1.3,4.3e-05
+deepseek-official,deepseek-pro,creativity/k1_product,1,deepseek-v4-pro,creativity,"{""originality"": 3, ""constraint_adherence"": 2, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",3.8,2.0,0.000148
+deepseek-official,deepseek-pro,creativity/k2_story,1,deepseek-v4-pro,creativity,"{""craft"": 4, ""constraint_adherence"": 3, ""atmosphere"": 5, ""originality"": 4}",4.0,1.1,5.7e-05
+deepseek-official,deepseek-pro,writing/w1_explain,1,deepseek-v4-pro,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",4.75,1.8,5.2e-05
+deepseek-official,deepseek-pro,writing/w2_rewrite,1,deepseek-v4-pro,writing,"{""fidelity"": 5, ""concision"": 5, ""clarity"": 5, ""polish"": 5}",5.0,1.4,4.4e-05
+deepseek-official,deepseek-pro,creativity/k1_product,2,deepseek-v4-pro,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.4,2.0,0.000152
+deepseek-official,deepseek-pro,creativity/k2_story,2,deepseek-v4-pro,creativity,"{""craft"": 4, ""constraint_adherence"": 4, ""atmosphere"": 5, ""originality"": 4}",4.25,1.6,6.2e-05
+deepseek-official,deepseek-pro,writing/w1_explain,2,deepseek-v4-pro,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,1.7,5.4e-05
+deepseek-official,deepseek-pro,writing/w2_rewrite,2,deepseek-v4-pro,writing,"{""fidelity"": 4, ""concision"": 3, ""clarity"": 5, ""polish"": 5}",4.25,1.0,4.5e-05
+deepseek-official,deepseek-pro,creativity/k1_product,3,deepseek-v4-pro,creativity,"{""originality"": 4, ""constraint_adherence"": 3, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.2,1.7,0.000145
+deepseek-official,deepseek-pro,creativity/k2_story,3,deepseek-v4-pro,creativity,"{""craft"": 4, ""constraint_adherence"": 3, ""atmosphere"": 5, ""originality"": 5}",4.25,1.4,5.5e-05
+deepseek-official,deepseek-pro,writing/w1_explain,3,deepseek-v4-pro,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 5}",4.5,2.0,5.7e-05
+deepseek-official,deepseek-pro,writing/w2_rewrite,3,deepseek-v4-pro,writing,"{""fidelity"": 5, ""concision"": 4, ""clarity"": 4, ""polish"": 4}",4.25,1.5,4.5e-05
+deepseek-official,grok,creativity/k1_product,1,grok-4.6,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.4,2.0,9.9e-05
+deepseek-official,grok,creativity/k2_story,1,grok-4.6,creativity,"{""craft"": 3, ""constraint_adherence"": 3, ""atmosphere"": 4, ""originality"": 2}",3.0,1.6,6.4e-05
+deepseek-official,grok,writing/w1_explain,1,grok-4.6,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 4}",4.5,1.6,5.3e-05
+deepseek-official,grok,writing/w2_rewrite,1,grok-4.6,writing,"{""fidelity"": 4, ""concision"": 2, ""clarity"": 3, ""polish"": 4}",3.25,1.5,5e-05
+deepseek-official,grok,creativity/k1_product,2,grok-4.6,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 4, ""clarity"": 4}",4.2,2.1,8.7e-05
+deepseek-official,grok,creativity/k2_story,2,grok-4.6,creativity,"{""craft"": 3, ""constraint_adherence"": 4, ""atmosphere"": 4, ""originality"": 2}",3.25,1.4,6.6e-05
+deepseek-official,grok,writing/w1_explain,2,grok-4.6,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.5,2.0,5e-05
+deepseek-official,grok,writing/w2_rewrite,2,grok-4.6,writing,"{""fidelity"": 4, ""concision"": 5, ""clarity"": 5, ""polish"": 4}",4.5,1.4,4.2e-05
+deepseek-official,grok,creativity/k1_product,3,grok-4.6,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.6,1.8,8.9e-05
+deepseek-official,grok,creativity/k2_story,3,grok-4.6,creativity,"{""craft"": 4, ""constraint_adherence"": 3, ""atmosphere"": 4, ""originality"": 4}",3.75,1.7,6.5e-05
+deepseek-official,grok,writing/w1_explain,3,grok-4.6,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",4.75,2.0,6e-05
+deepseek-official,grok,writing/w2_rewrite,3,grok-4.6,writing,"{""fidelity"": 2, ""concision"": 3, ""clarity"": 3, ""polish"": 2}",2.5,1.3,4.6e-05
+deepseek-official,gpt-sol,creativity/k1_product,1,gpt-5.6-sol,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 4}",3.6,1.8,0.000107
+deepseek-official,gpt-sol,creativity/k2_story,1,gpt-5.6-sol,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 4}",4.5,1.9,6.6e-05
+deepseek-official,gpt-sol,writing/w1_explain,1,gpt-5.6-sol,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,1.8,4.9e-05
+deepseek-official,gpt-sol,writing/w2_rewrite,1,gpt-5.6-sol,writing,"{""fidelity"": 4, ""concision"": 4, ""clarity"": 4, ""polish"": 4}",4.0,1.3,4.4e-05
+deepseek-official,gpt-sol,creativity/k1_product,2,gpt-5.6-sol,creativity,"{""originality"": 3, ""constraint_adherence"": 5, ""concreteness"": 5, ""feasibility"": 3, ""clarity"": 4}",4.0,1.7,0.000106
+deepseek-official,gpt-sol,creativity/k2_story,2,gpt-5.6-sol,creativity,"{""craft"": 5, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 4}",4.75,1.7,6.4e-05
+deepseek-official,gpt-sol,writing/w1_explain,2,gpt-5.6-sol,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 5}",4.5,1.8,5.3e-05
+deepseek-official,gpt-sol,writing/w2_rewrite,2,gpt-5.6-sol,writing,"{""fidelity"": 4, ""concision"": 5, ""clarity"": 5, ""polish"": 5}",4.75,1.4,4.4e-05
+deepseek-official,gpt-sol,creativity/k1_product,3,gpt-5.6-sol,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 4}",3.6,1.7,9.4e-05
+deepseek-official,gpt-sol,creativity/k2_story,3,gpt-5.6-sol,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 4}",4.5,1.7,6.7e-05
+deepseek-official,gpt-sol,writing/w1_explain,3,gpt-5.6-sol,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.5,3.1,5.2e-05
+deepseek-official,gpt-sol,writing/w2_rewrite,3,gpt-5.6-sol,writing,"{""fidelity"": 5, ""concision"": 4, ""clarity"": 5, ""polish"": 5}",4.75,1.6,4.4e-05
+openai,deepseek-pro,writing/w1_explain,2,deepseek-v4-pro,writing,"{""accuracy"": 3, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.25,4.2,0.00698
+openai,deepseek-pro,writing/w2_rewrite,2,deepseek-v4-pro,writing,"{""fidelity"": 3, ""concision"": 2, ""clarity"": 4, ""polish"": 4}",3.25,3.7,0.005565
+openai,deepseek-pro,creativity/k1_product,3,deepseek-v4-pro,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 5}",3.8,4.8,0.009855
+openai,deepseek-pro,creativity/k2_story,3,deepseek-v4-pro,creativity,"{""craft"": 3, ""constraint_adherence"": 1, ""atmosphere"": 4, ""originality"": 2}",2.5,3.5,0.005995
+openai,deepseek-pro,writing/w1_explain,3,deepseek-v4-pro,writing,"{""accuracy"": 3, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 4}",4.0,3.2,0.006065
+openai,deepseek-pro,writing/w2_rewrite,3,deepseek-v4-pro,writing,"{""fidelity"": 3, ""concision"": 3, ""clarity"": 5, ""polish"": 4}",3.75,2.6,0.004465
+openai,grok,creativity/k1_product,1,grok-4.6,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 5, ""feasibility"": 2, ""clarity"": 5}",3.8,4.6,0.008995
+openai,grok,creativity/k2_story,1,grok-4.6,creativity,"{""craft"": 2, ""constraint_adherence"": 3, ""atmosphere"": 3, ""originality"": 1}",2.25,6.7,0.013635
+openai,grok,writing/w1_explain,1,grok-4.6,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.5,4.7,0.006695
+openai,grok,writing/w2_rewrite,1,grok-4.6,writing,"{""fidelity"": 3, ""concision"": 1, ""clarity"": 3, ""polish"": 3}",2.5,3.6,0.00612
+openai,grok,creativity/k1_product,2,grok-4.6,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 5}",4.0,5.0,0.00819
+openai,grok,creativity/k2_story,2,grok-4.6,creativity,"{""craft"": 2, ""constraint_adherence"": 5, ""atmosphere"": 3, ""originality"": 2}",3.0,13.4,0.02841
+openai,grok,writing/w1_explain,2,grok-4.6,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 4}",4.5,4.1,0.00694
+openai,grok,writing/w2_rewrite,2,grok-4.6,writing,"{""fidelity"": 3, ""concision"": 3, ""clarity"": 4, ""polish"": 3}",3.25,2.9,0.00457
+openai,grok,creativity/k1_product,3,grok-4.6,creativity,"{""originality"": 3, ""constraint_adherence"": 4, ""concreteness"": 4, ""feasibility"": 2, ""clarity"": 4}",3.4,6.2,0.010905
+openai,grok,creativity/k2_story,3,grok-4.6,creativity,"{""craft"": 2, ""constraint_adherence"": 3, ""atmosphere"": 3, ""originality"": 1}",2.25,4.5,0.00914
+openai,grok,writing/w1_explain,3,grok-4.6,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",4.75,2.9,0.00571
+openai,grok,writing/w2_rewrite,3,grok-4.6,writing,"{""fidelity"": 3, ""concision"": 2, ""clarity"": 3, ""polish"": 2}",2.5,3.8,0.007145
+openai,gpt-sol,creativity/k1_product,1,gpt-5.6-sol,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 4, ""clarity"": 5}",4.4,2.9,0.006935
+openai,gpt-sol,creativity/k2_story,1,gpt-5.6-sol,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 3}",4.25,13.6,0.030095
+openai,gpt-sol,writing/w1_explain,1,gpt-5.6-sol,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,3.2,0.00602
+openai,gpt-sol,writing/w2_rewrite,1,gpt-5.6-sol,writing,"{""fidelity"": 4, ""concision"": 3, ""clarity"": 4, ""polish"": 4}",3.75,3.6,0.00597
+openai,gpt-sol,creativity/k1_product,2,gpt-5.6-sol,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 5}",4.2,6.0,0.01298
+openai,gpt-sol,creativity/k2_story,2,gpt-5.6-sol,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 3}",4.25,12.9,0.030515
+openai,gpt-sol,writing/w1_explain,2,gpt-5.6-sol,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,4.4,0.006215
+openai,gpt-sol,writing/w2_rewrite,2,gpt-5.6-sol,writing,"{""fidelity"": 3, ""concision"": 3, ""clarity"": 4, ""polish"": 4}",3.5,3.3,0.004885
+openai,gpt-sol,creativity/k1_product,3,gpt-5.6-sol,creativity,"{""originality"": 4, ""constraint_adherence"": 5, ""concreteness"": 4, ""feasibility"": 3, ""clarity"": 5}",4.2,4.7,0.007125
+openai,gpt-sol,creativity/k2_story,3,gpt-5.6-sol,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 5, ""originality"": 3}",4.25,7.4,0.01153
+openai,gpt-sol,writing/w1_explain,3,gpt-5.6-sol,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",5.0,2.6,0.004835
+openai,gpt-sol,writing/w2_rewrite,3,gpt-5.6-sol,writing,"{""fidelity"": 3, ""concision"": 2, ""clarity"": 4, ""polish"": 3}",3.0,3.3,0.006205
+deepseek-official,mtplx,creativity/k1_product,1,mtplx,creativity,"{""originality"": 4, ""constraint_adherence"": 3, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.2,1.6,0.000197
+deepseek-official,mtplx,creativity/k2_story,1,mtplx,creativity,"{""craft"": 4, ""constraint_adherence"": 3, ""atmosphere"": 4, ""originality"": 3}",3.5,1.7,6.5e-05
+deepseek-official,mtplx,writing/w1_explain,1,mtplx,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 5}",4.75,1.9,5.7e-05
+deepseek-official,mtplx,writing/w2_rewrite,1,mtplx,writing,"{""fidelity"": 4, ""concision"": 4, ""clarity"": 5, ""polish"": 5}",4.5,1.6,4.3e-05
