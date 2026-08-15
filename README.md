@@ -1,8 +1,13 @@
-# deepseek — DeepSeek V4-Flash vs GPT-5.6-Sol coding benchmark
+# bench3 — model benchmark harness & results
 
-Original benchmark (2026-08-01): controlled Codex-CLI comparison of
-deepseek-v4-flash vs gpt-5.6-sol — see [`TECHNICAL_REPORT.md`](TECHNICAL_REPORT.md)
-and the running narrative in [`REPORT.md`](REPORT.md).
+Runs identical tasks across cloud frontier models (DeepSeek V4 Flash/Pro,
+GPT-5.6 Sol, Grok 4.6) and local runtimes (MTPLX · Qwen 3.8 27B) and publishes
+the results — see [`docs/`](docs/) for the live site and infographic, and
+[`bench3/`](bench3/) for the harness.
+
+Historical: the original 2026-08-01 Codex-CLI comparison of deepseek-v4-flash
+vs gpt-5.6-sol lives in [`TECHNICAL_REPORT.md`](TECHNICAL_REPORT.md) and the
+running narrative in [`REPORT.md`](REPORT.md).
 
 ## bench3 — three-provider benchmark (DeepSeek · OpenAI · xAI)
 
