@@ -148,10 +148,14 @@
 
   /* ---------- reveal on scroll ---------- */
   function reveal(){
+    const els = document.querySelectorAll(".reveal");
+    if(!("IntersectionObserver" in window)){ els.forEach(n => n.classList.add("in")); return; }
     const io = new IntersectionObserver(entries => {
       entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
     }, {threshold:.12});
-    document.querySelectorAll(".reveal").forEach(n => io.observe(n));
+    els.forEach(n => io.observe(n));
+    // safety net: never leave content invisible (fonts/IO hiccups, webviews)
+    setTimeout(() => els.forEach(n => n.classList.add("in")), 2500);
   }
 
   renderCards(); renderCats(); renderTasks(); renderTps(); renderThermal(); renderCost(); reveal();
