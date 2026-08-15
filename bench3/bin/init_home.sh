@@ -30,6 +30,17 @@ llm-pi-ai:
             low: low
             medium: medium
             high: high
+    mtplx:
+      api: openai-completions
+      baseURL: http://127.0.0.1:8000/v1
+      models:
+        - id: mtplx
+          reasoningEfforts:
+            off: low
+            low: low
+            medium: medium
+            high: xhigh
+            xhigh: xhigh
 YAML
 fi
 

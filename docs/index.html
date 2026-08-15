@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bench3 · Local vs Cloud — MTPLX Qwen 3.8 27B benchmark</title>
+<meta name="description" content="Five models — DeepSeek V4 Flash/Pro, GPT-5.6 Sol, Grok 4.6, and local MTPLX Qwen 3.8 27B on Apple Silicon — measured on 16 tasks across 6 categories. Pass rates, tokens/sec, cost, and quality.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0f'/%3E%3Cpath d='M8 22V10h3l5 7 5-7h3v12h-3v-7l-5 7-5-7v7z' fill='%234ade80'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-inner wrap">
+    <a class="brand" href="#top"><span class="logo">B3</span><span>bench3</span></a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#results">Results</a>
+      <a href="#tps">Tokens/s</a>
+      <a href="#cost">Cost</a>
+      <a href="#setup">Setup</a>
+      <a href="#method">Method</a>
+    </div>
+    <a class="btn btn-primary btn-sm" href="infographic.html" target="_blank">Infographic ↗</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow"><span class="dot"></span>bench3 · August 2026 · 16 tasks · 6 categories</div>
+      <h1>Local LLMs step<br>into the <span class="grad">arena</span>.</h1>
+      <p class="sub">Four cloud frontier models — DeepSeek V4 Flash &amp; Pro, GPT-5.6 Sol, Grok 4.6 — versus
+      <strong>MTPLX</strong>, a free, open-source Mac app running <strong>Qwen 3.8 27B</strong> on a single laptop.
+      Same harness, same tasks, same hidden graders. The local model holds its own.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#results">See the results</a>
+        <a class="btn btn-ghost" href="infographic.html" target="_blank">Infographic ↗</a>
+        <a class="btn btn-ghost" href="infographic.png" download>PNG</a>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-card reveal">
+        <div class="stat-num grad">75%</div>
+        <div class="stat-label">task pass rate<br><small>trial 1 · 12 / 16 tasks</small></div>
+      </div>
+      <div class="stat-card reveal d1">
+        <div class="stat-num">$0.00</div>
+        <div class="stat-label">marginal cost<br><small>100% local &amp; offline</small></div>
+      </div>
+      <div class="stat-card reveal d2">
+        <div class="stat-num">4.24<span class="unit">/5</span></div>
+        <div class="stat-label">judged output quality<br><small>blind rubric · creative + writing</small></div>
+      </div>
+      <div class="stat-card reveal d3">
+        <div class="stat-num">1.7<span class="unit">×</span></div>
+        <div class="stat-label">MTP decode speedup<br><small>vs plain autoregressive · up to 2.6×</small></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="overview" class="sec">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Overview</div>
+      <h2>Five models, one gauntlet</h2>
+      <p class="sub">Every arm faced the identical bench3 harness: hidden-test grading for coding and agentic
+      tasks, objective checkers for reasoning and tool use, and a blind rubric judge for creative and
+      writing output. MTPLX ran the whole set on a laptop — the cloud arms on their vendors' GPUs.</p>
+    </div>
+    <div id="arm-cards" class="arm-grid"></div>
+  </div>
+</section>
+
+<section id="results" class="sec alt">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Results</div>
+      <h2>Where each model lands</h2>
+      <p class="sub">Pass rate by category. Reasoning is where MTPLX shines — it solved the two hardest
+      puzzles (r1_tiling, r4_catalan) that both DeepSeek arms missed. Tool use is its blind spot.</p>
+    </div>
+    <div id="category-charts" class="chart-stack"></div>
+    <div class="section-head sub-head">
+      <h3>Per-task detail</h3>
+      <p class="sub">Cloud arms: up to 5 trials. MTPLX: trial 1 (n=16). ⏱ = watchdog timeout, not a capability verdict.</p>
+    </div>
+    <div class="table-wrap">
+      <table id="task-table">
+        <thead><tr id="task-head"></tr></thead>
+        <tbody id="task-body"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="tps" class="sec">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Tokens / second</div>
+      <h2>Speed, honestly measured</h2>
+      <p class="sub">The harness records wall-clock time and token counts, so every run yields an effective
+      tokens/sec. Cloud GPUs are fast; MTPLX is a laptop. But decode speed tells a different — and
+      surprising — story.</p>
+    </div>
+    <div id="tps-chart" class="chart-stack"></div>
+    <div class="split">
+      <div class="panel">
+        <h3>MTP vs plain decoding</h3>
+        <p>MTPLX accelerates generation with <strong>native MTP speculative decoding</strong> — the model's own
+        multi-token-prediction heads draft ahead, and a batched verify pass checks them. Measured on this M5 Max
+        (temp 0, 1,000 tokens):</p>
+        <div class="tps-duel">
+          <div class="duel-row"><span>MTP</span><div class="bar"><i style="width:86%"></i></div><b>22–30 tok/s</b></div>
+          <div class="duel-row"><span>AR</span><div class="bar"><i class="dim" style="width:52%"></i></div><b>13–18 tok/s</b></div>
+        </div>
+        <p class="small">≈1.6–1.7× faster, up to 2.6× in a cool burst — identical output distribution.</p>
+      </div>
+      <div class="panel">
+        <h3>Thermals beat samplers</h3>
+        <p>The same 9,000-token prompt, same sampler, measured across a 2-hour session on the M5 Max:</p>
+        <div id="thermal-bars" class="tps-duel"></div>
+        <p class="small">A cool Mac decodes at 36–46 tok/s; after hours of sustained load it throttles to ~26.
+        The app dashboard's 46.4 tok/s was a fresh, cool run.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cost" class="sec alt">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Cost</div>
+      <h2>Total spend: <span class="grad">$4.90</span> — and MTPLX was $0</h2>
+      <p class="sub">Cloud arms burned real money across 250 runs. The local model produced its entire
+      results column for free, on a laptop the user already owns.</p>
+    </div>
+    <div id="cost-chart" class="chart-stack"></div>
+    <div class="callout">
+      <div class="callout-icon">⚡</div>
+      <div><strong>Cost per passing task:</strong> MTPLX <b>$0.0000</b> · DeepSeek Flash $0.0027 · DeepSeek Pro $0.0083 ·
+      Grok $0.0220 · GPT-5.6 Sol $0.1030. At scale, "free" compounds fast.</div>
+    </div>
+  </div>
+</section>
+
+<section id="setup" class="sec">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Setup</div>
+      <h2>What MTPLX is, and what it ran on</h2>
+    </div>
+    <div class="setup-grid">
+      <div class="panel">
+        <h3>MTPLX — native MTP on Apple Silicon</h3>
+        <ul class="feat-list">
+          <li><b>Native MTP speculative decoding.</b> Qwen 3.8 ships MTP heads; MTPLX is one of the few runtimes that uses them — the model drafts several tokens ahead and verifies them in one batched forward pass.</li>
+          <li><b>Exact at any temperature.</b> Leviathan–Chen probability-ratio acceptance with residual correction — output distribution provably unchanged, no second drafter model.</li>
+          <li><b>MLX + custom Metal kernels.</b> Built for Apple Silicon; OpenAI &amp; Anthropic-compatible local server (this benchmark used the <code>/v1/chat/completions</code> API).</li>
+          <li><b>Free &amp; open source.</b> Apache-2.0, built solo by @youssofal. Version 2.7.1, turbo profile, depth 3.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Hardware &amp; model</h3>
+        <div class="spec-table">
+          <div class="spec-row"><span>Laptop</span><b>MacBook Pro · Apple M5 Max</b></div>
+          <div class="spec-row"><span>Memory</span><b>64 GB unified</b></div>
+          <div class="spec-row"><span>OS</span><b>macOS 26.5.2</b></div>
+          <div class="spec-row"><span>Runtime</span><b>MTPLX 2.7.1 · MLX 0.32 · turbo MTP · depth 3</b></div>
+          <div class="spec-row"><span>Model</span><b>Qwen 3.8 27B Optimized Speed</b></div>
+          <div class="spec-row"><span>Weights</span><b>20.4 GB · 4-bit dynamic quant · MLX safetensors</b></div>
+          <div class="spec-row"><span>Peak memory</span><b>~22.4 GB of 64 GB</b></div>
+          <div class="spec-row"><span>Context</span><b>262,144 tokens</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="method" class="sec alt">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Method</div>
+      <h2>How it was measured</h2>
+    </div>
+    <div class="method-grid">
+      <div class="panel">
+        <h3>Harness</h3>
+        <ul class="feat-list">
+          <li><b>16 tasks · 6 categories:</b> coding, agentic workflow, reasoning, tool use, creativity, writing — hardest-but-smallest probes, laddered to find where arms separate.</li>
+          <li><b>Objective, blind grading:</b> hidden tests the model never sees; check.py validators; a separate judge model scores creative/writing on rubrics with no arm labels.</li>
+          <li><b>Identical tool surface:</b> coding/agentic runs through the same agent harness; single-shot runs through one client with only wire params differing.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Caveats</h3>
+        <ul class="feat-list">
+          <li><b>MTPLX is trial 1 (n=16)</b> vs 3–5 trials (n=50) for cloud arms — its 75% has wider error bars.</li>
+          <li><b>c2_perf = watchdog timeout</b> (30 min), not a proven miss — it was mid-work, 29k tokens in, when killed.</li>
+          <li><b>Speed differs by temperature &amp; thermals:</b> a hot laptop is 40% slower than a cool one; the site shows both.</li>
+          <li><b>Costs use list prices</b> at run time; MTPLX is $0 because it runs on your own hardware.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <div class="foot-mark">bench3 · 2026-08-15</div>
+      <div>Results from <a href="https://github.com/eranshir/deepseek" target="_blank">github.com/eranshir/deepseek</a> · MTPLX: <a href="https://mtplx.com" target="_blank">mtplx.com</a></div>
+    </div>
+    <div class="links">
+      <a href="#top">Top</a>
+      <a href="infographic.html" target="_blank">Infographic</a>
+      <a href="data.js">Data</a>
+    </div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

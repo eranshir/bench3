@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bench3 infographic — MTPLX Qwen 3.8 27B vs cloud</title>
+<style>
+  :root{
+    --bg:#0a0a0f; --panel:#14141d; --line:#262636; --text:#f2f2f8; --muted:#9b9baf; --faint:#6a6a80;
+    --accent:#4ade80; --accent2:#22d3ee;
+    --c-flash:#7b61ff; --c-pro:#4f7cff; --c-gpt:#10a37f; --c-grok:#ff6b6b; --c-mtplx:#4ade80;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:1600px;overflow:hidden}
+  body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;position:relative}
+  .glow{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none}
+  .g1{width:500px;height:500px;background:rgba(74,222,128,.13);top:-160px;left:-120px}
+  .g2{width:460px;height:460px;background:rgba(34,211,238,.10);top:-120px;right:-140px}
+  .g3{width:420px;height:420px;background:rgba(74,222,128,.07);bottom:-180px;left:30%}
+  .wrap{padding:34px 52px;position:relative;z-index:2}
+  .mono{font-family:'JetBrains Mono',monospace}
+
+  /* header */
+  .topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .logo{display:inline-flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.04em;font-size:15px}
+  .logo i{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:linear-gradient(90deg,#4ade80,#22d3ee);color:#0a0a0f;font-style:normal;font-weight:800}
+  .date{color:var(--faint);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase}
+  h1{font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.08;margin:14px 0 8px}
+  h1 .grad{background:linear-gradient(90deg,#4ade80,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);font-size:15px;max-width:900px}
+  .sub b{color:var(--text)}
+
+  /* stat chips */
+  .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 4px}
+  .chip{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .chip .n{font-family:'Space Grotesk',sans-serif;font-size:29px;font-weight:700;line-height:1}
+  .chip .n.grad{background:linear-gradient(90deg,#4ade80,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .chip .l{color:var(--muted);font-size:12px;margin-top:6px}
+  .chip .l small{color:var(--faint)}
+
+  /* section titles */
+  h2{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.01em;margin:20px 0 10px;display:flex;align-items:center;gap:10px}
+  h2::before{content:"";width:5px;height:20px;border-radius:3px;background:linear-gradient(180deg,#4ade80,#22d3ee)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+  /* panels */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 18px}
+  .panel h3{font-family:'Space Grotesk',sans-serif;font-size:14.5px;margin-bottom:12px;color:var(--text)}
+  .bar-row{display:grid;grid-template-columns:170px 1fr 64px;gap:10px;align-items:center;margin-bottom:6px}
+  .bar-row .lbl{font-size:12.5px;color:var(--muted);text-align:right}
+  .bar-row .lbl.local{color:var(--accent);font-weight:600}
+  .bar-track{background:#0e0e16;border:1px solid #1d1d2b;border-radius:8px;height:14px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:8px}
+  .bar-row .val{font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right}
+
+  /* duel */
+  .duel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  .duel-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-align:center}
+  .duel-card .big{font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700}
+  .duel-card .cap{color:var(--muted);font-size:12px;margin-top:4px}
+  .arrow{text-align:center;font-size:26px;color:var(--accent);align-self:center}
+
+  /* hardware */
+  .hw{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .hw-item{background:#0e0e16;border:1px solid #1d1d2b;border-radius:10px;padding:12px 14px}
+  .hw-item .k{color:var(--faint);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em}
+  .hw-item .v{font-size:13.5px;font-weight:600;margin-top:3px}
+  .hw-item .v.small{font-size:12px;font-weight:500}
+
+  /* verdict strip */
+  .verdict{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:2px}
+  .v-item{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .v-item .t{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+  .v-item .s{font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;line-height:1.35}
+  .v-item .d{font-size:12px;color:var(--faint);margin-top:6px}
+  .good{color:var(--accent)} .bad{color:#f87171} .mid{color:#fbbf24}
+
+  /* footer */
+  .foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);display:flex;justify-content:space-between;color:var(--faint);font-size:11px}
+  .foot b{color:var(--muted)}
+</style>
+<script>document.title='H'+document.body.scrollHeight+' W'+document.body.scrollWidth;</script></head>
+<body>
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+  <div class="wrap">
+
+    <div class="topline">
+      <div class="logo"><i>B3</i>BENCH3 · LOCAL VS CLOUD</div>
+      <div class="date">August 2026 · 16 tasks · 6 categories</div>
+    </div>
+
+    <h1>Local LLMs step into the arena —<br><span class="grad">and hold their own.</span></h1>
+    <p class="sub"><b>MTPLX</b> — a free, open-source Mac app running <b>Qwen 3.8 27B</b> on a single laptop —
+    vs four cloud frontier models, measured on the identical <b>bench3</b> harness with blind hidden-test
+    grading.</p>
+
+    <div class="chips">
+      <div class="chip"><div class="n grad">75%</div><div class="l">Task pass rate <small>· 12/16 · trial 1</small></div></div>
+      <div class="chip"><div class="n">$0.00</div><div class="l">Marginal cost <small>· 100% local</small></div></div>
+      <div class="chip"><div class="n">4.24<span style="font-size:16px">/5</span></div><div class="l">Judged output quality <small>· blind rubric</small></div></div>
+      <div class="chip"><div class="n">1.7<span style="font-size:16px">×</span></div><div class="l">MTP decode speedup <small>· up to 2.6×</small></div></div>
+    </div>
+
+    <h2>Task pass rate</h2>
+    <div class="panel">
+      <div class="bar-row"><span class="lbl">DeepSeek V4 Flash</span><div class="bar-track"><div class="bar-fill" style="width:76%;background:var(--c-flash)"></div></div><span class="val">76% · 38/50</span></div>
+      <div class="bar-row"><span class="lbl">DeepSeek V4 Pro</span><div class="bar-track"><div class="bar-fill" style="width:80%;background:var(--c-pro)"></div></div><span class="val">80% · 40/50</span></div>
+      <div class="bar-row"><span class="lbl">GPT-5.6 Sol</span><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--c-gpt)"></div></div><span class="val">70% · 35/50</span></div>
+      <div class="bar-row"><span class="lbl">Grok 4.6</span><div class="bar-track"><div class="bar-fill" style="width:78%;background:var(--c-grok)"></div></div><span class="val">78% · 39/50</span></div>
+      <div class="bar-row"><span class="lbl local">MTPLX · Qwen 3.8 27B</span><div class="bar-track"><div class="bar-fill" style="width:75%;background:var(--c-mtplx)"></div></div><span class="val" style="color:var(--accent)">75% · 12/16</span></div>
+      <div style="color:var(--faint);font-size:11px;margin-top:6px">Cloud arms: 3–5 trials (n=50) · MTPLX: trial 1 (n=16)</div>
+    </div>
+
+    <h2>Cost · speed · quality</h2>
+    <div class="grid2">
+      <div class="panel">
+        <h3>API spend per passing task</h3>
+        <div class="bar-row"><span class="lbl">MTPLX</span><div class="bar-track"><div class="bar-fill" style="width:0%;background:var(--c-mtplx)"></div></div><span class="val" style="color:var(--accent)">$0.000</span></div>
+        <div class="bar-row"><span class="lbl">DS Flash</span><div class="bar-track"><div class="bar-fill" style="width:3%;background:var(--c-flash)"></div></div><span class="val">$0.0027</span></div>
+        <div class="bar-row"><span class="lbl">DS Pro</span><div class="bar-track"><div class="bar-fill" style="width:8%;background:var(--c-pro)"></div></div><span class="val">$0.0083</span></div>
+        <div class="bar-row"><span class="lbl">Grok 4.6</span><div class="bar-track"><div class="bar-fill" style="width:21%;background:var(--c-grok)"></div></div><span class="val">$0.022</span></div>
+        <div class="bar-row"><span class="lbl">GPT-5.6</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--c-gpt)"></div></div><span class="val">$0.103</span></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:8px">MTPLX runs on your own hardware — the marginal cost is zero, forever.</div>
+      </div>
+      <div class="panel">
+        <h3>Effective tokens/sec (single-shot)</h3>
+        <div class="bar-row"><span class="lbl">DS Flash</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--c-flash)"></div></div><span class="val">112</span></div>
+        <div class="bar-row"><span class="lbl">DS Pro</span><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--c-pro)"></div></div><span class="val">78</span></div>
+        <div class="bar-row"><span class="lbl">GPT-5.6</span><div class="bar-track"><div class="bar-fill" style="width:51%;background:var(--c-gpt)"></div></div><span class="val">58</span></div>
+        <div class="bar-row"><span class="lbl">MTPLX</span><div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--c-mtplx)"></div></div><span class="val" style="color:var(--accent)">33</span></div>
+        <div class="bar-row"><span class="lbl">Grok</span><div class="bar-track"><div class="bar-fill" style="width:9%;background:var(--c-grok)"></div></div><span class="val">10</span></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:8px">Cloud = vendor GPUs · MTPLX = laptop decode, MTP on</div>
+      </div>
+    </div>
+
+    <h2>MTP speculative decoding — why the laptop is fast</h2>
+    <div class="duel">
+      <div class="duel-card">
+        <div class="big" style="color:var(--accent)">22–30</div>
+        <div class="cap">tok/s · MTP on (depth 3)</div>
+        <div style="font-size:11px;color:var(--faint);margin-top:6px">drafts with its own MTP heads, verifies in one batched pass</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="duel-card">
+        <div class="big">13–18</div>
+        <div class="cap">tok/s · plain decoding</div>
+        <div style="font-size:11px;color:var(--faint);margin-top:6px">identical output distribution — exact at any temperature</div>
+      </div>
+    </div>
+    <div style="color:var(--faint);font-size:11.5px;margin-top:12px">
+      <b style="color:var(--muted)">Thermals beat samplers:</b> the same 9,000-token prompt decodes at 36–46 tok/s on a cool Mac
+      (46.4 in the MTPLX app dashboard), but throttles to ~26 after hours of sustained load.
+    </div>
+
+    <h2>Hardware &amp; setup</h2>
+    <div class="hw">
+      <div class="hw-item"><div class="k">Machine</div><div class="v">MacBook Pro · M5 Max</div></div>
+      <div class="hw-item"><div class="k">Memory</div><div class="v">64 GB unified</div></div>
+      <div class="hw-item"><div class="k">OS</div><div class="v small">macOS 26.5.2</div></div>
+      <div class="hw-item"><div class="k">Runtime</div><div class="v small">MTPLX 2.7.1 · MLX · turbo · depth 3</div></div>
+      <div class="hw-item"><div class="k">Model</div><div class="v small">Qwen 3.8 27B Optimized Speed</div></div>
+      <div class="hw-item"><div class="k">Weights</div><div class="v small">20.4 GB · 4-bit dynamic quant</div></div>
+      <div class="hw-item"><div class="k">Peak memory</div><div class="v small">~22.4 GB of 64 GB</div></div>
+      <div class="hw-item"><div class="k">Context</div><div class="v small">262,144 tokens</div></div>
+      <div class="hw-item"><div class="k">License</div><div class="v small">Apache-2.0 · open source</div></div>
+    </div>
+
+    <h2>Where it lands</h2>
+    <div class="verdict">
+      <div class="v-item"><div class="t">Reasoning</div><div class="s good">4/4 tasks ✓</div><div class="d">Solved the two hardest puzzles (r1_tiling, r4_catalan) that both DeepSeek arms missed — GPT/Grok territory.</div></div>
+      <div class="v-item"><div class="t">Tool use</div><div class="s bad">0/3 tasks ✗</div><div class="d">Refused on t3 ("I can't make tool calls") — a real interaction gap vs DeepSeek/Grok.</div></div>
+      <div class="v-item"><div class="t">Agentic speed</div><div class="s mid">4/5 ✓ · 10–23× slower</div><div class="d">Passed coding/workflow tasks, but agent loops took 2–23 min vs 0.5–4 min on cloud GPUs.</div></div>
+    </div>
+
+    <div class="foot">
+      <div><b>bench3</b> · same harness, hidden tests, and blind rubric for every arm · full results: github.com/eranshir/deepseek</div>
+      <div><a href="infographic.png" style="color:var(--accent2)">Download PNG</a> · MTPLX: mtplx.com</div>
+    </div>
+  </div>
+</body>
+</html>

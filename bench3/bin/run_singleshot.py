@@ -25,13 +25,17 @@ ENDPOINTS = {
     "deepseek-official": ("https://api.deepseek.com", "chat/completions"),
     "openai": ("https://api.openai.com/v1", "chat/completions"),
     "xai": ("https://api.x.ai/v1", "chat/completions"),
+    "mtplx": ("http://127.0.0.1:8000/v1", "chat/completions"),
 }
 
 CRED_KEYS = {
     "deepseek-official": "DEEPSEEK_API_KEY",
     "openai": "OPENAI_API_KEY",
     "xai": "XAI_API_KEY",
+    "mtplx": "",  # local endpoint: no credential required
 }
+
+LOCAL_PROVIDERS = {"mtplx"}
 
 
 def call_api(provider, key, body, timeout=900, retries=2):
@@ -39,7 +43,8 @@ def call_api(provider, key, body, timeout=900, retries=2):
     Only the successful response is returned, so cost accounting is exact."""
     base, path = ENDPOINTS[provider]
     req = urllib.request.Request(base + "/" + path, method="POST")
-    req.add_header("Authorization", "Bearer " + key)
+    if key:
+        req.add_header("Authorization", "Bearer " + key)
     req.add_header("Content-Type", "application/json")
     t0 = time.time()
     attempt = 0
@@ -74,6 +79,11 @@ def wire_params(provider, effort, max_tokens):
         return {"reasoning_effort": effort, "max_completion_tokens": max_tokens}
     if provider == "xai":
         return {"reasoning_effort": effort, "max_tokens": max_tokens}
+    if provider == "mtplx":
+        # Qwen 3.8 native levels are xhigh/medium/low; map the harness's
+        # "high" to xhigh (its deepest) and "off" to low (generation mode).
+        mapped = {"off": "low", "low": "low", "medium": "medium", "high": "xhigh", "xhigh": "xhigh"}
+        return {"reasoning_effort": mapped.get(effort, effort), "max_tokens": max_tokens}
     # deepseek: thinking enabled + effort
     return {"thinking": {"type": "enabled", "effort": effort}, "max_tokens": max_tokens}
 
@@ -196,7 +206,7 @@ def main():
         a = arms[aid]
         provider = a["provider"]
         key = creds.get(CRED_KEYS.get(provider, ""))
-        if not key:
+        if not key and provider not in LOCAL_PROVIDERS:
             print("!! no credential for %s (%s)" % (aid, provider)); continue
         for task in tasks:
             catname, tname = task.split("/")

@@ -73,6 +73,10 @@ print(a['provider'], a['model'], a['effort'])
 ")"
   # pin this arm in the isolated home settings (effort included)
   $PY "$ROOT/bin/lib/write_settings.py" "$APROV" "$AMODEL" "$AEFFORT"
+  # local arm: pi-ai needs a (non-empty) key env; the local server ignores auth
+  if [ "$arm" = "mtplx" ]; then
+    export MTPLX_API_KEY="${MTPLX_API_KEY:-local}"
+  fi
 
   for task in $TASKS; do
     catname="${task%%/*}"; tname="${task##*/}"
@@ -106,7 +110,7 @@ print(a['provider'], a['model'], a['effort'])
 
     notes=""
     [ $rc -ne 0 ] && notes="cli_exit_$rc"
-    [ $secs -ge "${LIMIT:-900}" ] && notes="timeout_${LIMIT}s"
+    [ $secs -ge "${LIMIT:-900}" ] && notes="timeout_${LIMIT:-900}s"
 
     # usage from the newest session under this workspace key. dsh flushes
     # the session asynchronously (worker teardown), so poll for it.
