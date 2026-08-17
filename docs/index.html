@@ -20,6 +20,7 @@
       <a href="#overview">Overview</a>
       <a href="#results">Results</a>
       <a href="#tps">Tokens/s</a>
+      <a href="#mlxfast">MLXFast</a>
       <a href="#cost">Cost</a>
       <a href="#setup">Setup</a>
       <a href="#method">Method</a>
@@ -128,6 +129,28 @@
         <p class="small">A cool Mac decodes at 36–46 tok/s; after hours of sustained load it throttles to ~26.
         The app dashboard's 46.4 tok/s was a fresh, cool run.</p>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="mlxfast" class="sec">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow"><span class="dot"></span>Follow-up · 17 Aug 2026</div>
+      <h2>The Qwen MLX challenge: a community <span class="grad">2.94×</span></h2>
+      <p class="sub">After our benchmark, an open leaderboard (<a href="https://www.yukon.org/mlxfast" target="_blank">yukon.org/mlxfast</a>) claimed Qwen 3.8 27B runs
+      <strong>193.4% faster</strong> on Apple Silicon via community-tuned native MTP kernels. We fetched the record submission
+      (<a href="https://github.com/Layr-Labs/qwen-3.8-mtp-challenge" target="_blank">Layr-Labs/qwen-3.8-mtp-challenge</a>), built it, and
+      reproduced the measurement on this same M5 Max — <strong>2.07× decode speedup with exact output parity</strong>
+      (all tokens bit-identical to serial). The leaderboard's 2.94× is measured on a thermally gated, idle box with 8 hidden
+      prompts; our machine was hot and GPU-contended during the run.</p>
+    </div>
+    <div id="mlxfast-grid"></div>
+    <div class="callout">
+      <div class="callout-icon">✅</div>
+      <div><strong>Verdict: confirmed.</strong> Native MTP decoding on Qwen 3.8 27B delivers a ~2× decode speedup on our hardware
+      (11.2 → 23.3 tok/s, parity exact) — and the mechanism scales to ~2.9× under the leaderboard's gated conditions.
+      Full methodology: <a href="https://github.com/eranshir/bench3/blob/main/bench3/MLXFAST_CONFIRMATION.md" target="_blank">MLXFAST_CONFIRMATION.md</a>.</div>
     </div>
   </div>
 </section>

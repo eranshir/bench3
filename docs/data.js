@@ -1165,5 +1165,21 @@ const BENCH = {
    28.5,
    34.0
   ]
- }
+ },
+  "mlxfast": {
+    "claim_speedup": 2.94,
+    "claim_url": "https://www.yukon.org/mlxfast",
+    "repo_url": "https://github.com/Layr-Labs/qwen-3.8-mtp-challenge",
+    "our_machine": "MacBook Pro M5 Max · 64 GB · hot + GPU in use by host",
+    "legs": [
+      { "depth": 0, "label": "True serial (MTP off)", "tps": 11.2, "speedup": 1.0, "accept": null },
+      { "depth": 2, "label": "MTP depth 2", "tps": 19.1, "speedup": 1.70, "accept": 1.0 },
+      { "depth": 4, "label": "MTP depth 4", "tps": 21.1, "speedup": 1.88, "accept": 0.97 },
+      { "depth": 8, "label": "MTP depth 8 · record submission", "tps": 23.3, "speedup": 2.07, "accept": 0.97 }
+    ],
+    "parity": true,
+    "stock_speedup": 2.53,
+    "reference": { "serial_tps": 26.3, "mtp_tps": 77.7, "speedup": 2.95, "note": "thermally gated (≤40°C) · idle 128 GB M5 Max · 8 hidden prompts × 512 tok" },
+    "mtplx_ref": "MTPLX on the same chip measured 1.6–2.6× decode speedup"
+  }
 };

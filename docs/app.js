@@ -146,6 +146,45 @@
     $("#cost-chart").appendChild(wrap);
   }
 
+  /* ---------- mlxfast challenge ---------- */
+  function renderMlxfast(){
+    const m = BENCH.mlxfast;
+    const wrap = el("div", "cat-chart reveal");
+    const rows = el("div", "cat-rows");
+    const max = 2.95;
+    m.legs.forEach(leg => {
+      const row = el("div", "cat-row");
+      const bar = el("div", "bar"); const fill = el("i");
+      fill.style.background = leg.depth === 8 ? "var(--gradient, var(--accent))" : "var(--accent)";
+      fill.style.background = leg.depth === 8 ? "linear-gradient(90deg,#4ade80,#22d3ee)" : "var(--accent)";
+      fill.style.opacity = leg.depth === 0 ? 0.35 : 0.85;
+      bar.appendChild(fill);
+      row.appendChild(el("span", "lbl", esc(leg.label)));
+      row.appendChild(bar);
+      row.appendChild(el("span", "pct", leg.speedup.toFixed(2)+"× · "+leg.tps+" tok/s"));
+      rows.appendChild(row);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ fill.style.width = (100*leg.speedup/max)+"%"; }));
+    });
+    // reference + stock + mtplx mini-rows
+    [
+      ["Stock main (baseline harness)", m.stock_speedup],
+      ["Leaderboard record · gated M5 Max", m.reference.speedup],
+    ].forEach(([label, v]) => {
+      const row = el("div", "cat-row");
+      const bar = el("div", "bar"); const fill = el("i"); fill.style.background = "var(--accent2)"; fill.style.opacity = 0.7;
+      bar.appendChild(fill);
+      row.appendChild(el("span", "lbl", esc(label)));
+      row.appendChild(bar);
+      row.appendChild(el("span", "pct", v.toFixed(2)+"×"));
+      rows.appendChild(row);
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ fill.style.width = (100*v/max)+"%"; }));
+    });
+    wrap.appendChild(el("div", "cat-title", '<h4>Decode speedup vs true serial (MTP off)</h4><span>our M5 Max · '+esc(m.our_machine)+'</span>'));
+    wrap.appendChild(rows);
+    const grid = document.querySelector("#mlxfast-grid");
+    if (grid) grid.appendChild(wrap);
+  }
+
   /* ---------- reveal on scroll ---------- */
   function reveal(){
     const els = document.querySelectorAll(".reveal");
@@ -158,5 +197,5 @@
     setTimeout(() => els.forEach(n => n.classList.add("in")), 2500);
   }
 
-  renderCards(); renderCats(); renderTasks(); renderTps(); renderThermal(); renderCost(); reveal();
+  renderCards(); renderCats(); renderTasks(); renderTps(); renderThermal(); renderMlxfast(); renderCost(); reveal();
 })();

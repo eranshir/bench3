@@ -10,7 +10,7 @@
     --c-flash:#7b61ff; --c-pro:#4f7cff; --c-gpt:#10a37f; --c-grok:#ff6b6b; --c-mtplx:#4ade80;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:1200px;min-height:1600px;overflow-x:auto;overflow-y:auto}
+  html,body{width:1200px;min-height:1800px;overflow-x:auto;overflow-y:auto}
   body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;position:relative}
   .glow{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none}
   .g1{width:500px;height:500px;background:rgba(74,222,128,.13);top:-160px;left:-120px}
@@ -149,6 +149,28 @@
     <div style="color:var(--faint);font-size:11.5px;margin-top:12px">
       <b style="color:var(--muted)">Thermals beat samplers:</b> the same 9,000-token prompt decodes at 36–46 tok/s on a cool Mac
       (46.4 in the MTPLX app dashboard), but throttles to ~26 after hours of sustained load.
+    </div>
+
+    <h2>Community follow-up: the Qwen MLX challenge (2.94×)</h2>
+    <div class="grid2">
+      <div class="panel">
+        <h3>We reproduced it on this M5 Max</h3>
+        <div class="bar-row"><span class="lbl">True serial (MTP off)</span><div class="bar-track"><div class="bar-fill" style="width:11%;background:var(--c-mtplx);opacity:.4"></div></div><span class="val">11.2 tok/s</span></div>
+        <div class="bar-row"><span class="lbl">MTP depth 8 · record submission</span><div class="bar-track"><div class="bar-fill" style="width:23%;background:var(--c-mtplx)"></div></div><span class="val" style="color:var(--accent)">23.3 tok/s</span></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:6px">2.07× · exact output parity (all tokens bit-identical)</div>
+      </div>
+      <div class="panel">
+        <h3>The ladder</h3>
+        <div class="bar-row"><span class="lbl">Our box · record submission</span><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--c-mtplx)"></div></div><span class="val" style="color:var(--accent)">2.07×</span></div>
+        <div class="bar-row"><span class="lbl">Stock main harness</span><div class="bar-track"><div class="bar-fill" style="width:86%;background:var(--accent2);opacity:.8"></div></div><span class="val">2.53×</span></div>
+        <div class="bar-row"><span class="lbl">Leaderboard record · gated M5 Max</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--accent2)"></div></div><span class="val">2.94×</span></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:6px">gated = ≤40°C, idle, 8 hidden prompts × 512 tok · yukon.org/mlxfast</div>
+      </div>
+    </div>
+    <div style="color:var(--faint);font-size:11.5px;margin-top:8px">
+      <b style="color:var(--muted)">Verdict: confirmed.</b> Same chip as our bench (M5 Max, 64 GB): native MTP decode
+      11.2 → 23.3 tok/s with exact parity; the 2.94× record reflects the leaderboard's thermally gated conditions.
+      MTPLX on the same hardware: 1.6–2.6×.
     </div>
 
     <h2>Hardware &amp; setup</h2>
