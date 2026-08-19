@@ -1,0 +1,26 @@
+{
+ "schema_version": "aegis.bench3.cohort.v1",
+ "date": "2026-08-19",
+ "tasks": {
+  "coding/c1_deadlock": {
+   "prompt_sha256": "870a2998beacf4bf8e94ec0d243c0736ec96d674f68dbebb59a61e840a5de07e",
+   "hidden_test_present": true
+  },
+  "coding/c2_perf": {
+   "prompt_sha256": "225075be937ed9482e7c48d8614eee9423745c0e968e770e42cdb6448a503f96",
+   "hidden_test_present": true
+  },
+  "coding/c3_adversarial": {
+   "prompt_sha256": "3fe11c75ffa5d63a7648dbd4be9d469aa59a40739e4c792ff47e74bb5d4d10e8",
+   "hidden_test_present": true
+  },
+  "agentic-workflow/a1_chained": {
+   "prompt_sha256": "a78864a48c238f1bd5455de865a5c78bfebb2215d1539c3dff804de20f95ff07",
+   "hidden_test_present": true
+  },
+  "agentic-workflow/a2_buildtestfix": {
+   "prompt_sha256": "0ea3b43e7ef519fcb3dda8ce73b94ab60a79ce6653dd7eb974613a4379de3727",
+   "hidden_test_present": true
+  }
+ }
+}

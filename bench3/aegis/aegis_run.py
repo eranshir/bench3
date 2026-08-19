@@ -86,6 +86,32 @@ def build_prompt(task: str, arm: str) -> str:
     return prompt
 
 
+def session_tokens(work: pathlib.Path, dsh_home: pathlib.Path, start: float) -> dict:
+    """Parse the newest DSH session under the workspace key (same as run_agentic.sh)."""
+    import sys as _sys
+    _sys.path.insert(0, str(BENCH / "bin"))
+    try:
+        from lib.session import wait_session, parse_session
+        workkey = "--" + str(work.resolve()).lstrip("/").replace("/", "-") + "--"
+        sess = wait_session(workkey, pathlib.Path(dsh_home), start, timeout=120)
+        if not sess:
+            return {"observed": False}
+        usage = parse_session(sess)["usage"]
+        return {"observed": True, "input": usage["input"], "cached": usage["cached"],
+                "output": usage["output"], "reasoning": usage["reasoning"], "calls": usage["calls"]}
+    except Exception as exc:
+        return {"observed": False, "error": str(exc)[:200]}
+
+
+def isolation_proof(work: pathlib.Path, task: str) -> dict:
+    """Rule 1: fail-closed clean git status + HEAD at fixture baseline before the agent starts."""
+    status = subprocess.run(["git", "status", "--porcelain"], cwd=str(work),
+                            capture_output=True, text=True).stdout.strip()
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(work),
+                          capture_output=True, text=True).stdout.strip()
+    return {"clean_before": status == "", "head": head}
+
+
 def hidden_test(work: pathlib.Path, task: str) -> dict:
     hidden = BENCH / "tasks" / task / "hidden_test.py"
     if not hidden.exists():
@@ -188,6 +214,10 @@ def main() -> int:
     grade = hidden_test(work, args.task)
     comp = compliance_vector(work)
     trans = transcript_summary(work)
+    toks = session_tokens(work, DSH_HOME, start)
+    iso = isolation_proof(work, args.task)
+    import subprocess as _sp
+    dsh_ver = _sp.run(["dsh", "--version"], capture_output=True, text=True).stdout.strip() or "unknown"
 
     record = {
         "schema_version": "aegis.bench3.agentic.v1",
@@ -214,6 +244,10 @@ def main() -> int:
             "gate_transcript": trans,
             "control_absent_by_config": args.arm == "vanilla",
         },
+        "parity": {"dsh_version": dsh_ver, "model": model, "provider": provider,
+                   "gate_validator_digest": sha256(VALIDATOR.read_text())},
+        "tokens": toks,
+        "isolation": iso,
         "resolution": grade,
         "compliance": comp,
         "workspace": str(work),
