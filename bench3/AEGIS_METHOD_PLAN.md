@@ -1,6 +1,11 @@
 # Plan: Aegis guided-vs-enforced run in bench3
 
-**Status:** Plan (pre-implementation) · **Date:** 2026-08-19
+**Status:** IMPLEMENTATION IN PROGRESS · **Date:** 2026-08-19
+**Progress:** P0 preregistration ✅ · P1 method payload ✅ (digest 5dc6a290…) · P2 gate ✅ (validator +
+daemon + canary-verified; enforced agentic run proven end-to-end on deepseek-flash/c3 — falsifier fired,
+approach retracted, closure recorded; singleshot pilot ratifies guided-only scope) · **Next:** P3 validity
+plumbing (contamination, parity manifest, stats), P4 metrics engine, P5 full run + report. See
+bench3/aegis/PREREGISTRATION.md, VALIDATION_NOTE.md, gate_validator.py, gate_daemon.py, aegis_run.py.
 **Goal:** Run the complete bench3 matrix twice — once **guided** by the Aegis method (method prose in the
 agent's context, no enforcement) and once **enforced** by the Aegis method (same instructions + a live gate
 that blocks non-method-compliant mutations) — across all bench3 problems and models, under ADR 0043 validity.
