@@ -211,7 +211,6 @@ def main() -> int:
     # export provider keys into the env so the isolated home's routes resolve
     # (mirrors run_agentic.sh's credential export)
     sys.path.insert(0, str(BENCH / "bin"))
-    from lib.common import load_credentials  # noqa: E402
     from lib.common import load_credentials, cost_usd  # noqa: E402
     env.update(load_credentials())
     if args.model == "mtplx":
