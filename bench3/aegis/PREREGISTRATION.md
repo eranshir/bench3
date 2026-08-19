@@ -37,12 +37,14 @@ PreToolUse gate:
 4. Gate modes: strict (default). Soft is a pilot-only calibration, never reported as the enforced arm.
 5. Canary (before data): a pre-plan Write must be reverted and logged — proves the gate is live, not decorative.
 
-## Singleshot treatment
+## Singleshot treatment (decision ratified at pilot, pre-full-run)
 
 - aegis-guided: method instructions injected into the request system prompt.
-- aegis-enforced: same instructions + harness-side response gate — the run FAILS (unresolved) if the
-  response does not carry the method artifacts (plan, falsifiers, closure). Documented as the weakest rung;
-  if it proves brittle, singleshot is reported guided-only and enforcement claims are restricted to agentic.
+- aegis-enforced: NOT RUN for singleshot. Pilot (deepseek-flash, r2) showed guided models answer
+  single-prompt tasks correctly WITHOUT emitting .bruno/ artifacts in visible output (checker passed,
+  response-gate found nothing → enforced fails closed on every model). The response-gate is brittle;
+  per the fallback rule, singleshot is reported guided-only (method instructions injected; compliance
+  artifacts SCORED when present, never gated) and enforcement claims are restricted to the 5 agentic tasks.
 
 ## Metrics (mirrors K10 + smoke5)
 
