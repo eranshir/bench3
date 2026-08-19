@@ -159,3 +159,15 @@ agentic tasks, or accept a longer wall). Report mirrors the smoke5 format with t
    staged run (cloud arms first, MTPLX last) keeps the measurement resumable.
 7. **Open decisions for pre-registration:** include the vanilla control arm? singleshot enforced
    interpretation (response-gate vs guided-only)? k=3 vs k=5 on the discriminating tasks? MTPLX k=3?
+
+
+---
+
+## 6. Live status (checkpoint 2026-08-19)
+
+- [x] **P0 Pre-registration** - PREREGISTRATION.md frozen (arms, k=3, gate contract, D1-D3, ADR checklist). Singleshot scope ratified: guided-only (response-gate proven brittle; models answer without .bruno artifacts).
+- [x] **P1 Method payload** - method_payload.md (Five Moves + .bruno IR contract), digest pinned.
+- [x] **P2 Gate** - gate_validator.py (exit 0 valid), gate_daemon.py (baseline commit, pre-commit hook, revert non-.bruno mutations, gate-events.jsonl), modes strict/soft.
+- [x] **P3/P4 Plumbing & metrics** - aegis_run.py, aegis_singleshot.py, contamination.py, aegis_metrics.py (agentic-scoped), aegis_report.py; ADR field audit on 20 agentic records: payload digest 20/20, gate transcript 8/8 enforced (1 revert captured), isolation pre-clean 20/20, plan_valid 20/20, parity pinned (dsh 0.1.0-rc.6, single validator digest).
+- [ ] **P5 Matrix run - IN PROGRESS** - 246 records (180 agentic + 66 singleshot) across 6 models / 5 agentic tasks / 11 singleshot; 67/246 at checkpoint; 4 parallel workers + singleshot worker; est. ~4h remaining.
+- [ ] **Final report** - regenerate REPORT.md + FINAL_REPORT_DRAFT.md on full records; ADR 0043 7-rule checklist; honesty-framed verdict.
