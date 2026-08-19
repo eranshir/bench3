@@ -89,49 +89,58 @@ def main() -> int:
             "elapsed": [r.get("elapsed_seconds", 0) for r in rs],
         }
 
-    # enforcement lift per (task, model): guided vs enforced
+    # enforcement lift per (task, model): guided vs enforced (once per pair)
     lifts = []
+    seen = set()
     for (task, arm, model), rs in list(cells.items()):
-        other = "enforced" if arm == "guided" else ("guided" if arm == "enforced" else None)
-        if other is None:
+        if arm != "guided":
             continue
-        key_other = (task, other, model)
-        if key_other not in cells:
+        key_other = (task, "enforced", model)
+        if key_other not in cells or (task, model) in seen:
             continue
-        a = [bool(r.get("resolution", {}).get("passed")) for r in cells[(task, arm, model)]]
-        b = [bool(r.get("resolution", {}).get("passed")) for r in cells[key_other]]
-        d = [bool(r.get("compliance", {}).get("plan_valid")) for r in cells[(task, arm, model)]]
-        d2 = [bool(r.get("compliance", {}).get("plan_valid")) for r in cells[key_other]]
-        lift_res = (sum(b) - sum(a)) / len(a) if a else 0
-        lift_comp = (sum(d2) - sum(d)) / len(d) if d else 0
-        mcn = mcnemar(a, b)
+        seen.add((task, model))
+        g = cells[(task, arm, model)]
+        e = cells[key_other]
+        g_res = [bool(r.get("resolution", {}).get("passed")) for r in g]
+        e_res = [bool(r.get("resolution", {}).get("passed")) for r in e]
+        g_comp = [bool(r.get("compliance", {}).get("plan_valid")) for r in g]
+        e_comp = [bool(r.get("compliance", {}).get("plan_valid")) for r in e]
+        lift_res = (sum(e_res) / len(e_res) - sum(g_res) / len(g_res)) if e_res and g_res else None
+        lift_comp = (sum(e_comp) / len(e_comp) - sum(g_comp) / len(g_comp)) if e_comp and g_comp else None
+        mcn = mcnemar(g_res, e_res) if len(g_res) == len(e_res) else {"statistic": "n/a (unequal k)", "p": None}
         lifts.append({"task": task, "model": model,
-                      "enforced_minus_guided_resolution": round(lift_res, 3),
-                      "enforced_minus_guided_compliance": round(lift_comp, 3),
-                      "mcnemar": mcn})
+                      "enforced_minus_guided_resolution": round(lift_res, 3) if lift_res is not None else None,
+                      "enforced_minus_guided_compliance": round(lift_comp, 3) if lift_comp is not None else None,
+                      "guided_n": len(g_res), "enforced_n": len(e_res), "mcnemar": mcn})
 
     report["enforcement_lifts"] = lifts
 
-    # aggregate paired CI on tokens (guided vs enforced)
+    # aggregate paired CI on tokens (guided vs enforced, equal-k pairs only)
     token_pairs = []
     for (task, arm, model), rs in list(cells.items()):
-        other = "enforced" if arm == "guided" else ("guided" if arm == "enforced" else None)
-        if other is None or (task, other, model) not in cells:
+        if arm != "guided":
+            continue
+        key_other = (task, "enforced", model)
+        if key_other not in cells:
             continue
         g = [r.get("tokens", {}).get("output", 0) for r in rs]
-        e = [r.get("tokens", {}).get("output", 0) for r in cells[(task, other, model)]]
-        for x, y in zip(g, e):
-            token_pairs.append(y - x)
+        e = [r.get("tokens", {}).get("output", 0) for r in cells[key_other]]
+        if len(g) == len(e):
+            for x, y in zip(g, e):
+                token_pairs.append(y - x)
     report["tokens_enforced_minus_guided_ci"] = bootstrap_ci(token_pairs)
 
-    # validity summary
-    recs_with_iso = [r for r in recs if r.get("isolation", {}).get("clean_before")]
+    # validity summary (agentic records only; singleshot has its own schema)
+    agentic = [r for r in recs if r.get("schema_version") == "aegis.bench3.agentic.v1"]
+    recs_with_iso = [r for r in agentic if r.get("isolation", {}).get("pre", {}).get("clean_before")]
     report["validity"] = {
-        "records": len(recs),
-        "clean_before_asserted": len(recs_with_iso) == len(recs),
-        "all_records_have_parity": all("parity" in r for r in recs),
+        "records_total": len(recs),
+        "agentic_records": len(agentic),
+        "singleshot_records": len(recs) - len(agentic),
+        "clean_before_asserted": len(recs_with_iso) == len(agentic) if agentic else None,
+        "all_records_have_parity": all("parity" in r for r in agentic) if agentic else None,
         "all_records_have_tokens": all(r.get("tokens", {}).get("observed") or
-                                       r.get("tokens", {}).get("error") for r in recs),
+                                       r.get("tokens", {}).get("error") for r in agentic) if agentic else None,
     }
     print(json.dumps(report, indent=1, default=str))
     return 0
