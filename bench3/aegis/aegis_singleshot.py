@@ -96,7 +96,11 @@ def main() -> int:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
-    body = {"model": a["model"], "messages": messages, "max_tokens": max_tokens}
+    body = {"model": a["model"], "messages": messages}
+    if provider == "openai":
+        body["max_completion_tokens"] = max_tokens  # gpt-5.6-sol rejects max_tokens
+    else:
+        body["max_tokens"] = max_tokens
     if provider in ("deepseek-official",):
         body["thinking"] = {"type": "disabled"}
     elif provider == "mtplx":
