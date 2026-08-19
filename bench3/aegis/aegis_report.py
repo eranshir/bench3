@@ -85,6 +85,43 @@ def main() -> int:
     L.append(json.dumps(cont, indent=1)[:2000])
     L.append("```")
     L.append("")
+    # singleshot summary (guided-only arm)
+    ss = [r for r in json.loads(met.stdout)["tasks_by_arm_model"]]
+    ss_recs = [json.loads(p.read_text()) for p in rec_dir.glob("*.json")
+               if json.loads(p.read_text()).get("schema_version") == "aegis.bench3.singleshot.v1"]
+    if ss_recs:
+        L.append("## Singleshot (guided-only arm, per ratified scope)")
+        L.append("")
+        L.append("| Model | cells | resolved | checker-pass |")
+        L.append("|---|---|---|---|")
+        from collections import defaultdict as _dd
+        per_model = _dd(lambda: [0, 0, 0])
+        for rec in ss_recs:
+            per_model[rec["model"]][0] += 1
+            if rec.get("resolved"): per_model[rec["model"]][1] += 1
+            if rec.get("checker_passed"): per_model[rec["model"]][2] += 1
+        for model in sorted(per_model):
+            c = per_model[model]
+            L.append("| %s | %d | %d | %d |" % (model, c[0], c[1], c[2]))
+        L.append("")
+        L.append("Note: tool-use tasks (t1-t3) score checker=False in this arm (text-only path, no tools array).")
+        L.append("")
+
+    # enforcement time tax
+    agentic = [json.loads(p.read_text()) for p in rec_dir.glob("*.json")
+               if json.loads(p.read_text()).get("schema_version") == "aegis.bench3.agentic.v1"]
+    if agentic:
+        import statistics as _st
+        g_t = [d["elapsed_seconds"] for d in agentic if d["arm"] == "guided"]
+        e_t = [d["elapsed_seconds"] for d in agentic if d["arm"] == "enforced"]
+        if g_t and e_t:
+            tax = 100 * (_st.median(e_t) - _st.median(g_t)) / _st.median(g_t)
+            L.append("## Enforcement time tax")
+            L.append("")
+            L.append("Guided median %.0fs (n=%d) | enforced median %.0fs (n=%d) | +%.0f%%"
+                     % (_st.median(g_t), len(g_t), _st.median(e_t), len(e_t), tax))
+            L.append("")
+
     L.append("## Validity checklist")
     L.append("")
     v = m.get("validity", {})
