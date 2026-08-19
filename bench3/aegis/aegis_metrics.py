@@ -60,6 +60,12 @@ def main() -> int:
         recs.append(json.loads(p.read_text()))
     if not recs:
         print("no records"); return 1
+    # main analysis is agentic-only; singleshot records are a separate schema
+    # (resolved/checker_passed, no resolution/compliance) and are summarized
+    # separately by the report generator.
+    singleshot_recs = [r for r in recs if r.get("schema_version") == "aegis.bench3.singleshot.v1"]
+    recs = [r for r in recs if r.get("schema_version") == "aegis.bench3.agentic.v1"]
+    report["singleshot_records"] = len(singleshot_recs)
 
     # group by (task, arm, model)
     cells = defaultdict(list)
