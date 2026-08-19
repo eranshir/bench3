@@ -89,6 +89,7 @@ def main() -> int:
 
     means = [v for v in overall_pairs.values() if v is not None]
     overall = sum(means) / len(means) if means else 0.0
+    valid = overall <= args.threshold
     # asymmetry: directional leakage signal (guided->enforced vs enforced->guided)
     g2e = [v for k, v in overall_pairs.items()
            if v is not None and k.split("->")[0].startswith("guided") and k.split("->")[1].startswith("enforced")]
