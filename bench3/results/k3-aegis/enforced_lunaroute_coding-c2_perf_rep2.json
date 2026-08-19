@@ -1,0 +1,71 @@
+{
+ "schema_version": "aegis.bench3.agentic.v1",
+ "arm": "enforced",
+ "model": "lunaroute",
+ "task": "coding/c2_perf",
+ "repetition": 2,
+ "elapsed_seconds": 811,
+ "cli_rc": 0,
+ "arm_config": {
+  "name": "aegis-enforced",
+  "config_digest": "4dcd70aafbcb08add88019cd9dc3b05cbe66d08391d0d978738f8476ad1b4af0",
+  "method_gates_mode": "strict",
+  "method_evidence_profile": "gate-transcript",
+  "env": {},
+  "expected_token_buckets": [
+   "codex_llm"
+  ]
+ },
+ "materialization": {
+  "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+  "gate_transcript": {
+   "present": true,
+   "denies": 0,
+   "reverts": 1,
+   "allows": 724
+  },
+  "control_absent_by_config": false
+ },
+ "parity": {
+  "dsh_version": "0.1.0-rc.6",
+  "model": "glm-5.2-vision",
+  "provider": "lunaroute",
+  "gate_validator_digest": "1033b5211ddbca6726c2dcced5bd89ddbf07b066cce1792a360c4e5b6858258b"
+ },
+ "tokens": {
+  "observed": true,
+  "input": 30551,
+  "cached": 2519808,
+  "output": 72467,
+  "reasoning": 52354,
+  "calls": 48
+ },
+ "isolation": {
+  "pre": {
+   "clean_before": true,
+   "head": "0a15feeed7b0f2114addf04a256a51c9dfe9fb3b"
+  },
+  "post": {
+   "clean_before": false,
+   "head": "43a0bb49ebef7bed948884fd41c8c8025a941eb1"
+  }
+ },
+ "resolution": {
+  "evaluated": true,
+  "passed": true,
+  "failed": 0,
+  "output_tail": ""
+ },
+ "compliance": {
+  "plan_present": true,
+  "plan_valid": true,
+  "children_count": 2,
+  "falsifier_counts": [
+   2,
+   2
+  ],
+  "all_children_have_falsifiers": true,
+  "reasons": []
+ },
+ "workspace": "/Users/eranshir/Documents/Projects/deepseek/bench3/work/aegis-enforced_lunaroute_coding-c2_perf_rep2"
+}

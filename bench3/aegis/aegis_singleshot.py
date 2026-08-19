@@ -28,6 +28,7 @@ PAYLOAD = AEGIS / "method_payload.md"
 
 sys.path.insert(0, str(BENCH / "bin"))
 from lib.common import load_arms, load_credentials, append_row  # noqa: E402
+from lib.common import cost_usd as _cost_usd  # noqa: E402
 
 ENDPOINTS = {
     "deepseek-official": ("https://api.deepseek.com", "chat/completions"),
@@ -104,7 +105,7 @@ def main() -> int:
     if provider in ("deepseek-official",):
         body["thinking"] = {"type": "disabled"}
     elif provider == "mtplx":
-        body["reasoning_effort"] = "low" if args.arm == "vanilla" else "xhigh"
+        body["reasoning_effort"] = "low" if args.arm == "vanilla" else "high"
     elif provider == "lunaroute":
         body["reasoning_effort"] = "none" if args.arm == "vanilla" else "high"
 
@@ -141,6 +142,14 @@ def main() -> int:
     else:
         passed = 1
 
+    usage = d.get("usage", {})
+    in_tok = usage.get("prompt_tokens", 0)
+    out_tok = usage.get("completion_tokens", 0)
+    try:
+        cost = round(_cost_usd(a, in_tok, 0, out_tok), 6)
+    except Exception:
+        cost = float("nan")
+
     record = {
         "schema_version": "aegis.bench3.singleshot.v1",
         "arm": args.arm, "model": args.model, "task": args.task, "repetition": args.rep,
@@ -150,6 +159,8 @@ def main() -> int:
         "resolved": resolved,
         "checker_passed": bool(passed),
         "output_chars": len(text),
+        "tokens": {"input": in_tok, "output": out_tok, "observed": True},
+        "cost_usd": cost,
     }
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

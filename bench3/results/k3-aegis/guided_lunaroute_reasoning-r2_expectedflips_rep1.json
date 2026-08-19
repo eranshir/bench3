@@ -1,0 +1,18 @@
+{
+ "schema_version": "aegis.bench3.singleshot.v1",
+ "arm": "guided",
+ "model": "lunaroute",
+ "task": "reasoning/r2_expectedflips",
+ "repetition": 1,
+ "elapsed_seconds": 88,
+ "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+ "response_gate": {
+  "passed": true,
+  "has_plan": true,
+  "has_falsifier": true,
+  "has_closure": true
+ },
+ "resolved": true,
+ "checker_passed": true,
+ "output_chars": 3847
+}

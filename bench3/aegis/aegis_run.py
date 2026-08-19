@@ -161,6 +161,18 @@ def transcript_summary(work: pathlib.Path) -> dict:
     return {"present": True, "denies": denies, "reverts": reverts, "allows": allows}
 
 
+
+def _compute_cost(model: str, toks: dict) -> float:
+    """USD cost from arms.yaml prices and observed token buckets (nan if TBD)."""
+    try:
+        from lib.common import load_arms, cost_usd as _cu
+        arms = load_arms()
+        a = arms[model]
+        return round(_cu(a, toks.get("input", 0), toks.get("cached", 0), toks.get("output", 0)), 6)
+    except Exception:
+        return float("nan")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--arm", choices=("guided", "enforced", "vanilla"), required=True)
@@ -200,6 +212,7 @@ def main() -> int:
     # (mirrors run_agentic.sh's credential export)
     sys.path.insert(0, str(BENCH / "bin"))
     from lib.common import load_credentials  # noqa: E402
+    from lib.common import load_credentials, cost_usd  # noqa: E402
     env.update(load_credentials())
     if args.model == "mtplx":
         env.setdefault("MTPLX_API_KEY", "local")
@@ -259,7 +272,8 @@ def main() -> int:
         },
         "parity": {"dsh_version": dsh_ver, "model": model, "provider": provider,
                    "gate_validator_digest": sha256(VALIDATOR.read_text())},
-        "tokens": toks,
+                "tokens": toks,
+        "cost_usd": _compute_cost(args.model, toks),
         "isolation": {"pre": iso_pre, "post": iso_post},
         "resolution": grade,
         "compliance": comp,

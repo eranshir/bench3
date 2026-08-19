@@ -1,0 +1,71 @@
+{
+ "schema_version": "aegis.bench3.agentic.v1",
+ "arm": "enforced",
+ "model": "mtplx",
+ "task": "coding/c2_perf",
+ "repetition": 1,
+ "elapsed_seconds": 900,
+ "cli_rc": -1,
+ "arm_config": {
+  "name": "aegis-enforced",
+  "config_digest": "4dcd70aafbcb08add88019cd9dc3b05cbe66d08391d0d978738f8476ad1b4af0",
+  "method_gates_mode": "strict",
+  "method_evidence_profile": "gate-transcript",
+  "env": {},
+  "expected_token_buckets": [
+   "codex_llm"
+  ]
+ },
+ "materialization": {
+  "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+  "gate_transcript": {
+   "present": true,
+   "denies": 0,
+   "reverts": 1,
+   "allows": 655
+  },
+  "control_absent_by_config": false
+ },
+ "parity": {
+  "dsh_version": "0.1.0-rc.6",
+  "model": "mtplx",
+  "provider": "mtplx",
+  "gate_validator_digest": "1033b5211ddbca6726c2dcced5bd89ddbf07b066cce1792a360c4e5b6858258b"
+ },
+ "tokens": {
+  "observed": true,
+  "input": 18749,
+  "cached": 1132416,
+  "output": 72238,
+  "reasoning": 59557,
+  "calls": 24
+ },
+ "isolation": {
+  "pre": {
+   "clean_before": true,
+   "head": "21678f030d8da72614ff7856ace3f033cd53792c"
+  },
+  "post": {
+   "clean_before": false,
+   "head": "59ee6676213bf81e72beca56b2630277cb1a80b6"
+  }
+ },
+ "resolution": {
+  "evaluated": true,
+  "passed": false,
+  "failed": 0,
+  "output_tail": ""
+ },
+ "compliance": {
+  "plan_present": true,
+  "plan_valid": true,
+  "children_count": 2,
+  "falsifier_counts": [
+   3,
+   3
+  ],
+  "all_children_have_falsifiers": true,
+  "reasons": []
+ },
+ "workspace": "/Users/eranshir/Documents/Projects/deepseek/bench3/work/aegis-enforced_mtplx_coding-c2_perf_rep1"
+}

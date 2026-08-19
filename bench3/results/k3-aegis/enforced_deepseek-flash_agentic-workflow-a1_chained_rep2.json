@@ -1,0 +1,73 @@
+{
+ "schema_version": "aegis.bench3.agentic.v1",
+ "arm": "enforced",
+ "model": "deepseek-flash",
+ "task": "agentic-workflow/a1_chained",
+ "repetition": 2,
+ "elapsed_seconds": 389,
+ "cli_rc": 0,
+ "arm_config": {
+  "name": "aegis-enforced",
+  "config_digest": "4dcd70aafbcb08add88019cd9dc3b05cbe66d08391d0d978738f8476ad1b4af0",
+  "method_gates_mode": "strict",
+  "method_evidence_profile": "gate-transcript",
+  "env": {},
+  "expected_token_buckets": [
+   "codex_llm"
+  ]
+ },
+ "materialization": {
+  "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+  "gate_transcript": {
+   "present": true,
+   "denies": 0,
+   "reverts": 1,
+   "allows": 144
+  },
+  "control_absent_by_config": false
+ },
+ "parity": {
+  "dsh_version": "0.1.0-rc.6",
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek-official",
+  "gate_validator_digest": "1033b5211ddbca6726c2dcced5bd89ddbf07b066cce1792a360c4e5b6858258b"
+ },
+ "tokens": {
+  "observed": true,
+  "input": 38186,
+  "cached": 2069888,
+  "output": 45809,
+  "reasoning": 33329,
+  "calls": 37
+ },
+ "isolation": {
+  "pre": {
+   "clean_before": true,
+   "head": "7730754875e53dee530c5fbe61637d0125502cf9"
+  },
+  "post": {
+   "clean_before": false,
+   "head": "126c07c08d7203b722c158faeee50c9d0d79db75"
+  }
+ },
+ "resolution": {
+  "evaluated": true,
+  "passed": true,
+  "failed": 0,
+  "output_tail": ""
+ },
+ "compliance": {
+  "plan_present": true,
+  "plan_valid": true,
+  "children_count": 4,
+  "falsifier_counts": [
+   2,
+   1,
+   1,
+   1
+  ],
+  "all_children_have_falsifiers": true,
+  "reasons": []
+ },
+ "workspace": "/Users/eranshir/Documents/Projects/deepseek/bench3/work/aegis-enforced_deepseek-flash_agentic-workflow-a1_chained_rep2"
+}

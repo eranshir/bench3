@@ -1,0 +1,73 @@
+{
+ "schema_version": "aegis.bench3.agentic.v1",
+ "arm": "enforced",
+ "model": "gpt-sol",
+ "task": "agentic-workflow/a2_buildtestfix",
+ "repetition": 2,
+ "elapsed_seconds": 215,
+ "cli_rc": 0,
+ "arm_config": {
+  "name": "aegis-enforced",
+  "config_digest": "4dcd70aafbcb08add88019cd9dc3b05cbe66d08391d0d978738f8476ad1b4af0",
+  "method_gates_mode": "strict",
+  "method_evidence_profile": "gate-transcript",
+  "env": {},
+  "expected_token_buckets": [
+   "codex_llm"
+  ]
+ },
+ "materialization": {
+  "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+  "gate_transcript": {
+   "present": true,
+   "denies": 0,
+   "reverts": 0,
+   "allows": 129
+  },
+  "control_absent_by_config": false
+ },
+ "parity": {
+  "dsh_version": "0.1.0-rc.6",
+  "model": "gpt-5.6-sol",
+  "provider": "openai",
+  "gate_validator_digest": "1033b5211ddbca6726c2dcced5bd89ddbf07b066cce1792a360c4e5b6858258b"
+ },
+ "tokens": {
+  "observed": true,
+  "input": 38841,
+  "cached": 1309568,
+  "output": 24556,
+  "reasoning": 14032,
+  "calls": 36
+ },
+ "isolation": {
+  "pre": {
+   "clean_before": true,
+   "head": "81a7c4c463f31cca7a8e6ad298b9f7ce5b0d54bd"
+  },
+  "post": {
+   "clean_before": false,
+   "head": "07d4911c1036d940a4519f23778b5d6c6a4ab26f"
+  }
+ },
+ "resolution": {
+  "evaluated": true,
+  "passed": true,
+  "failed": 0,
+  "output_tail": ""
+ },
+ "compliance": {
+  "plan_present": true,
+  "plan_valid": true,
+  "children_count": 4,
+  "falsifier_counts": [
+   2,
+   2,
+   2,
+   2
+  ],
+  "all_children_have_falsifiers": true,
+  "reasons": []
+ },
+ "workspace": "/Users/eranshir/Documents/Projects/deepseek/bench3/work/aegis-enforced_gpt-sol_agentic-workflow-a2_buildtestfix_rep2"
+}

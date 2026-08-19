@@ -1,0 +1,71 @@
+{
+ "schema_version": "aegis.bench3.agentic.v1",
+ "arm": "enforced",
+ "model": "deepseek-flash",
+ "task": "coding/c2_perf",
+ "repetition": 2,
+ "elapsed_seconds": 713,
+ "cli_rc": 0,
+ "arm_config": {
+  "name": "aegis-enforced",
+  "config_digest": "4dcd70aafbcb08add88019cd9dc3b05cbe66d08391d0d978738f8476ad1b4af0",
+  "method_gates_mode": "strict",
+  "method_evidence_profile": "gate-transcript",
+  "env": {},
+  "expected_token_buckets": [
+   "codex_llm"
+  ]
+ },
+ "materialization": {
+  "payload_digest": "5dc6a290ae50d9a81d52807f841f65b6baf536eae976db3421578ae195d578b2",
+  "gate_transcript": {
+   "present": true,
+   "denies": 0,
+   "reverts": 0,
+   "allows": 463
+  },
+  "control_absent_by_config": false
+ },
+ "parity": {
+  "dsh_version": "0.1.0-rc.6",
+  "model": "deepseek-v4-flash",
+  "provider": "deepseek-official",
+  "gate_validator_digest": "1033b5211ddbca6726c2dcced5bd89ddbf07b066cce1792a360c4e5b6858258b"
+ },
+ "tokens": {
+  "observed": true,
+  "input": 45132,
+  "cached": 1742208,
+  "output": 55826,
+  "reasoning": 42738,
+  "calls": 33
+ },
+ "isolation": {
+  "pre": {
+   "clean_before": true,
+   "head": "ddb15701364a25eb8ce1eefea45b3c232b2b0a4b"
+  },
+  "post": {
+   "clean_before": false,
+   "head": "24727686de1e5f3e8b30858364c9f8e425878ea7"
+  }
+ },
+ "resolution": {
+  "evaluated": true,
+  "passed": true,
+  "failed": 0,
+  "output_tail": ""
+ },
+ "compliance": {
+  "plan_present": true,
+  "plan_valid": true,
+  "children_count": 2,
+  "falsifier_counts": [
+   2,
+   2
+  ],
+  "all_children_have_falsifiers": true,
+  "reasons": []
+ },
+ "workspace": "/Users/eranshir/Documents/Projects/deepseek/bench3/work/aegis-enforced_deepseek-flash_coding-c2_perf_rep2"
+}
