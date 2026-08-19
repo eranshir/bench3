@@ -5,6 +5,9 @@ import argparse, json, pathlib, subprocess, sys
 from datetime import datetime, timezone
 
 AEGIS = pathlib.Path(__file__).resolve().parent
+import sys as _sys
+_sys.path.insert(0, str(AEGIS))
+from vanilla_baseline import vanilla_table
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -85,6 +88,11 @@ def main() -> int:
     L.append(json.dumps(cont, indent=1)[:2000])
     L.append("```")
     L.append("")
+    # vanilla baseline comparison (sub-100% cells of interest)
+    L.append("## Vanilla baseline comparison (sub-100% cells)")
+    L += vanilla_table(records)
+    L.append("")
+
     # singleshot summary (guided-only arm)
     ss = [r for r in json.loads(met.stdout)["tasks_by_arm_model"]]
     ss_recs = [json.loads(p.read_text()) for p in rec_dir.glob("*.json")
@@ -141,3 +149,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+# test
+# PYWRITE-TEST
