@@ -30,8 +30,17 @@ whether A1..An hold"). Only am plans pass.
 Move 5 — Closure Against Reality. Before declaring done, reconcile acceptance against the landed state:
 run the falsifier checks, link evidence, and record the closure. "Done" without reconciliation is a lie.
 
-Delivery contract: author a committed .bruno/ train —
-.bruno/plan.json  (the plan with assumption ledger)
-.bruno/children/*.json  (one per child: id, scope, acceptance, falsifiers, status)
-one commit per child, and closure records.
-The harness validates this IR before implementation work is accepted.
+Delivery contract: author a committed .bruno/ train. The harness validates this IR
+before implementation work is accepted. Use EXACTLY these fields:
+
+.bruno/plan.json:
+  { "id": "<stable id>", "goal": "<what should be true>", "scope": "<what changes>",
+    "status": "in_progress", "assumptions": [ { "statement": "<what must be true / fail>" } ] }
+
+.bruno/children/<child-id>.json (one per child):
+  { "id": "<stable id>", "scope": "<what this child changes>", "acceptance": "<what proves it done>",
+    "status": "pending | in_progress | done | rejected",
+    "falsifiers": [ { "id": "<stable id>", "description": "<what would prove it wrong>",
+                      "check": { "command": "<shell command>", "expected_outcome": "<exit code / text>" } } ] }
+
+One commit per child, and closure records.
