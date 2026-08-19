@@ -35,12 +35,12 @@ for model in "$@"; do
         fi
         echo "=== RUN: $model / $task / $arm / rep$rep (timeout $TIMEOUT s) ==="
         START=$(date +%s)
-        python3 "aegis/$RUNNER" --arm "$arm" --model "$model" --task "$task" --rep "$rep" --out "$RECORDS" > "$RECORDS/.cell.out" 2>&1
+        python3 "aegis/$RUNNER" --arm "$arm" --model "$model" --task "$task" --rep "$rep" --out "$RECORDS" > "$RECORDS/.cell_$$.out" 2>&1
         RC=$?
         END=$(date +%s)
         SECS=$((END - START))
-        OUT=$(cat "$RECORDS/.cell.out")
-        rm -f "$RECORDS/.cell.out"
+        OUT=$(cat "$RECORDS/.cell_$$.out")
+        rm -f "$RECORDS/.cell_$$.out"
         if echo "$OUT" | grep -qiE "402|insufficient|quota|balance|payment|billing|exhausted"; then
           touch "$DEPLETED"
           echo "  DEPLETED: $model token budget exhausted (rc=$RC) -> stopping model"
