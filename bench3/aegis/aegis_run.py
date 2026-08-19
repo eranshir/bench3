@@ -63,8 +63,8 @@ def git(cwd: pathlib.Path, *args: str) -> None:
                    capture_output=True, text=True)
 
 
-def setup_workspace(arm: str, task: str, rep: int) -> pathlib.Path:
-    name = "aegis-%s_%s_rep%d" % (arm, task.replace("/", "-"), rep)
+def setup_workspace(arm: str, model: str, task: str, rep: int) -> pathlib.Path:
+    name = "aegis-%s_%s_%s_rep%d" % (arm, model, task.replace("/", "-"), rep)
     work = WORK / name
     shutil.rmtree(work, ignore_errors=True)
     src = BENCH / "tasks" / task
@@ -173,11 +173,13 @@ def main() -> int:
     payload_text = PAYLOAD_PATH.read_text()
     config_digest = sha256(payload_text + "|" + args.arm + "|" + "strict")
 
-    work = setup_workspace(args.arm, args.task, args.rep)
+    work = setup_workspace(args.arm, args.model, args.task, args.rep)
     prompt = build_prompt(args.task, args.arm)
 
     provider, model = MODELS[args.model]
-    write_settings(provider, model)
+    # per-model static patch: no shared-settings race (parallel-safe)
+    patch_path = AEGIS / "patches" / ("%s.yml" % args.model)
+    assert patch_path.exists(), "missing patch %s" % patch_path
 
     # Rule 1: fail-closed clean-before assert, captured BEFORE the agent starts
     iso_pre = isolation_proof(work, args.task)
@@ -208,7 +210,7 @@ def main() -> int:
     start = time.time()
     try:
         r = subprocess.run(
-            ["dsh", "--profile", "headless", prompt],
+            ["dsh", "--profile", "headless", "--patch", str(patch_path), prompt],
             cwd=str(work), env=env, capture_output=True, text=True, timeout=LIMIT)
         cli_rc = r.returncode
     except subprocess.TimeoutExpired:

@@ -1,0 +1,5 @@
+- id: agent-default-model
+  config:
+    provider: xai
+    model: grok-4.6
+    reasoningEffort: high

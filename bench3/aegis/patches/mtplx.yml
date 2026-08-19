@@ -1,0 +1,5 @@
+- id: agent-default-model
+  config:
+    provider: mtplx
+    model: mtplx
+    reasoningEffort: high
