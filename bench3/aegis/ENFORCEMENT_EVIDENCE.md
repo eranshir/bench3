@@ -22,3 +22,14 @@ Tool-use tasks (t1-t3) score checker=False in the guided singleshot arm: the aeg
 singleshot path does not pass a tools array (the method-comparison prompt is text-only),
 so the model cannot emit tool calls. Reported as such; the singleshot guided arm measures
 method-compliance artifacts, not the full tool-use benchmark.
+
+## Payload side-effect on singleshot reasoning (2026-08-19)
+
+grok / reasoning/r3_die_expected / guided rep1: the method payload produced a
+37,505-char structured response that failed the objective checker (the original
+vanilla run passed 3/3). The prose instructions changed the answer FORMAT on a
+single-shot reasoning task — a payload-side effect, and the strongest argument
+for keeping enforcement claims agentic-only (the method's natural domain).
+
+Other singleshot checker failures are the documented tool-use caveat (t1-t3:
+text-only path, no tools array).
