@@ -179,6 +179,11 @@ def main() -> int:
     provider, model = MODELS[args.model]
     write_settings(provider, model)
 
+    # Rule 1: fail-closed clean-before assert, captured BEFORE the agent starts
+    iso_pre = isolation_proof(work, args.task)
+    if not iso_pre["clean_before"]:
+        raise SystemExit("isolation failure: workspace not clean at start")
+
     # start the gate daemon (enforced only)
     daemon_proc = None
     if args.arm == "enforced":
@@ -188,6 +193,12 @@ def main() -> int:
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     env = dict(os.environ)
+    env["DSH_HOME"] = str(DSH_HOME)  # isolated bench3 home (was missing -> wrong model!)
+    # export provider keys into the env so the isolated home's routes resolve
+    # (mirrors run_agentic.sh's credential export)
+    sys.path.insert(0, str(BENCH / "bin"))
+    from lib.common import load_credentials  # noqa: E402
+    env.update(load_credentials())
     if args.model == "mtplx":
         env.setdefault("MTPLX_API_KEY", "local")
     if args.arm in ("guided", "vanilla"):
@@ -215,7 +226,7 @@ def main() -> int:
     comp = compliance_vector(work)
     trans = transcript_summary(work)
     toks = session_tokens(work, DSH_HOME, start)
-    iso = isolation_proof(work, args.task)
+    iso_post = isolation_proof(work, args.task)
     import subprocess as _sp
     dsh_ver = _sp.run(["dsh", "--version"], capture_output=True, text=True).stdout.strip() or "unknown"
 
@@ -247,7 +258,7 @@ def main() -> int:
         "parity": {"dsh_version": dsh_ver, "model": model, "provider": provider,
                    "gate_validator_digest": sha256(VALIDATOR.read_text())},
         "tokens": toks,
-        "isolation": iso,
+        "isolation": {"pre": iso_pre, "post": iso_post},
         "resolution": grade,
         "compliance": comp,
         "workspace": str(work),
