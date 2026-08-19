@@ -57,7 +57,10 @@ def main() -> int:
 
     recs = []
     for p in sorted(pathlib.Path(args.records).glob("*.json")):
-        recs.append(json.loads(p.read_text()))
+        try:
+            recs.append(json.loads(p.read_text()))
+        except json.JSONDecodeError:
+            print(f"warn: skipping partial record {p.name}", file=sys.stderr)
     if not recs:
         print("no records"); return 1
     # main analysis is agentic-only; singleshot records are a separate schema
@@ -65,7 +68,7 @@ def main() -> int:
     # separately by the report generator.
     singleshot_recs = [r for r in recs if r.get("schema_version") == "aegis.bench3.singleshot.v1"]
     recs = [r for r in recs if r.get("schema_version") == "aegis.bench3.agentic.v1"]
-    report["singleshot_records"] = len(singleshot_recs)
+    report = {"singleshot_records": len(singleshot_recs)}
 
     # group by (task, arm, model)
     cells = defaultdict(list)

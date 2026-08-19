@@ -1,6 +1,6 @@
 # bench3 Aegis guided-vs-enforced - scored report
 
-**Date:** 2026-08-19T19:05+00:00  **Status:** per ADR 0043
+**Date:** 2026-08-19T19:06+00:00  **Status:** per ADR 0043
 
 ## Honesty boundary (issue #1623)
 
@@ -13,7 +13,7 @@ makes an agent reliable, correct, or complete. Supported conclusion is procedura
 | Arm | pass@1 | cells | pass^k cells |
 |---|---|---|---|
 | enforced | 1.0 | 4 | 0/4 |
-| guided | 0.193 | 49 | 3/49 |
+| guided | 0.917 | 4 | 3/4 |
 
 ## Enforcement lift (per task x model)
 
@@ -38,51 +38,6 @@ Enforced minus guided output-token delta (bootstrap 95% CI): {"mean": null, "ci9
 - coding/c1_deadlock|guided|gpt-sol: plan_valid 1.00 | falsifiers 1.00 | n=3
 - coding/c1_deadlock|guided|lunaroute: plan_valid 1.00 | falsifiers 1.00 | n=3
 - coding/c1_deadlock|guided|mtplx: plan_valid 1.00 | falsifiers 1.00 | n=3
-- creativity/k1_product|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k1_product|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k1_product|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k1_product|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k2_story|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k2_story|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k2_story|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- creativity/k2_story|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r1_tiling|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r1_tiling|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r1_tiling|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r1_tiling|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r1_tiling|guided|lunaroute: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r2_expectedflips|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r2_expectedflips|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r2_expectedflips|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r2_expectedflips|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r3_die_expected|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r3_die_expected|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r3_die_expected|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r3_die_expected|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r4_catalan|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r4_catalan|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r4_catalan|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- reasoning/r4_catalan|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t1_orchestrate|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t1_orchestrate|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t1_orchestrate|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t1_orchestrate|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t2_toolselect|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t2_toolselect|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t2_toolselect|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t2_toolselect|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t3_inventory|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t3_inventory|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t3_inventory|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- tool-use/t3_inventory|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w1_explain|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w1_explain|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w1_explain|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w1_explain|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w2_rewrite|guided|deepseek-flash: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w2_rewrite|guided|deepseek-pro: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w2_rewrite|guided|gpt-sol: plan_valid 0.00 | falsifiers 0.00 | n=1
-- writing/w2_rewrite|guided|grok: plan_valid 0.00 | falsifiers 0.00 | n=1
 
 ## Contamination (ADR 0043 Rule 1)
 
@@ -118,7 +73,7 @@ Enforced minus guided output-token delta (bootstrap 95% CI): {"mean": null, "ci9
 | deepseek-pro | 11 | 11 | 7 |
 | gpt-sol | 11 | 11 | 8 |
 | grok | 11 | 11 | 7 |
-| lunaroute | 1 | 1 | 1 |
+| lunaroute | 3 | 3 | 3 |
 
 Note: tool-use tasks (t1-t3) score checker=False in this arm (text-only path, no tools array).
 
