@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from lib.common import BENCH, load_arms
 
-ARM_ORDER = ['deepseek-flash', 'deepseek-pro', 'gpt-sol', 'grok', 'mtplx']
+ARM_ORDER = ['deepseek-flash', 'deepseek-pro', 'gpt-sol', 'grok', 'mtplx', 'lunaroute']
 
 
 def main():

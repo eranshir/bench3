@@ -166,3 +166,14 @@ mtplx,MTPLX (local),mtplx,tool-use,tool-use/t2_toolselect,1,high,singleshot,18,1
 mtplx,MTPLX (local),mtplx,tool-use,tool-use/t3_inventory,1,high,singleshot,24,357,0,782,768,0.0,0,1,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/mtplx_tool-use-t3_inventory_t1.json
 mtplx,MTPLX (local),mtplx,writing,writing/w1_explain,1,off,singleshot,28,90,0,1204,1002,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/mtplx_writing-w1_explain_t1.json
 mtplx,MTPLX (local),mtplx,writing,writing/w2_rewrite,1,off,singleshot,257,339,0,9165,9061,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/mtplx_writing-w2_rewrite_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,reasoning,reasoning/r2_expectedflips,1,high,singleshot,25,78,0,882,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_reasoning-r2_expectedflips_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,creativity,creativity/k1_product,1,off,singleshot,286,142,0,8392,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_creativity-k1_product_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,creativity,creativity/k2_story,1,off,singleshot,372,95,0,12865,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_creativity-k2_story_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,reasoning,reasoning/r1_tiling,1,high,singleshot,392,66,0,13890,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_reasoning-r1_tiling_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,reasoning,reasoning/r3_die_expected,1,high,singleshot,53,82,0,2160,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_reasoning-r3_die_expected_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,reasoning,reasoning/r4_catalan,1,high,singleshot,74,98,0,2593,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_reasoning-r4_catalan_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,tool-use,tool-use/t1_orchestrate,1,high,singleshot,19,682,0,703,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_tool-use-t1_orchestrate_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,tool-use,tool-use/t2_toolselect,1,high,singleshot,7,881,0,222,0,0.0,0,1,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_tool-use-t2_toolselect_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,tool-use,tool-use/t3_inventory,1,high,singleshot,16,617,0,517,0,0.0,0,1,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_tool-use-t3_inventory_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,writing,writing/w1_explain,1,off,singleshot,57,59,0,2215,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_writing-w1_explain_t1.json
+lunaroute,LunaRoute,glm-5.2-vision,writing,writing/w2_rewrite,1,off,singleshot,464,306,0,16384,0,0.0,1,0,0,,,/Users/eranshir/Documents/Projects/deepseek/bench3/runs/lunaroute_writing-w2_rewrite_t1.json

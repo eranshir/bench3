@@ -35,6 +35,13 @@ const BENCH = {
    "vendor": "Local (MTPLX)",
    "cloud": false,
    "color": "#4ade80"
+  },
+  {
+   "id": "lunaroute",
+   "name": "GLM 5.2 Vision",
+   "vendor": "LunaRoute",
+   "cloud": true,
+   "color": "#f59e0b"
   }
  ],
  "categories": {
@@ -60,6 +67,11 @@ const BENCH = {
     "pct": 100.0
    },
    "mtplx": {
+    "n": 3,
+    "passed": 2,
+    "pct": 66.7
+   },
+   "lunaroute": {
     "n": 3,
     "passed": 2,
     "pct": 66.7
@@ -90,6 +102,11 @@ const BENCH = {
     "n": 2,
     "passed": 2,
     "pct": 100.0
+   },
+   "lunaroute": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
    }
   },
   "reasoning": {
@@ -114,6 +131,11 @@ const BENCH = {
     "pct": 100.0
    },
    "mtplx": {
+    "n": 4,
+    "passed": 4,
+    "pct": 100.0
+   },
+   "lunaroute": {
     "n": 4,
     "passed": 4,
     "pct": 100.0
@@ -144,6 +166,11 @@ const BENCH = {
     "n": 3,
     "passed": 0,
     "pct": 0.0
+   },
+   "lunaroute": {
+    "n": 3,
+    "passed": 1,
+    "pct": 33.3
    }
   },
   "creativity": {
@@ -171,6 +198,11 @@ const BENCH = {
     "n": 2,
     "passed": 2,
     "pct": 100.0
+   },
+   "lunaroute": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
    }
   },
   "writing": {
@@ -195,6 +227,11 @@ const BENCH = {
     "pct": 100.0
    },
    "mtplx": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
+   },
+   "lunaroute": {
     "n": 2,
     "passed": 2,
     "pct": 100.0
@@ -243,6 +280,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       1283
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      57
      ]
     }
    }
@@ -293,6 +337,13 @@ const BENCH = {
      "secs": [
       278
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      298
+     ]
     }
    }
   },
@@ -337,6 +388,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       1391
+     ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      598
      ]
     }
    }
@@ -383,6 +441,13 @@ const BENCH = {
      "secs": [
       1800
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      328
+     ]
     }
    }
   },
@@ -427,6 +492,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       120
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      18
      ]
     }
    }
@@ -477,6 +549,13 @@ const BENCH = {
      "secs": [
       113
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      286
+     ]
     }
    }
   },
@@ -525,6 +604,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       295
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      372
      ]
     }
    }
@@ -583,6 +669,13 @@ const BENCH = {
      "secs": [
       545
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      392
+     ]
     }
    }
   },
@@ -631,6 +724,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       39
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      25
      ]
     }
    }
@@ -681,6 +781,13 @@ const BENCH = {
      "secs": [
       25
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      53
+     ]
     }
    }
   },
@@ -729,6 +836,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       96
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      74
      ]
     }
    }
@@ -787,6 +901,13 @@ const BENCH = {
      "secs": [
       38
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      19
+     ]
     }
    }
   },
@@ -844,6 +965,13 @@ const BENCH = {
      "secs": [
       18
      ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      7
+     ]
     }
    }
   },
@@ -892,6 +1020,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       24
+     ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      16
      ]
     }
    }
@@ -942,6 +1077,13 @@ const BENCH = {
      "secs": [
       28
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      57
+     ]
     }
    }
   },
@@ -990,6 +1132,13 @@ const BENCH = {
      "n": 1,
      "secs": [
       257
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      464
      ]
     }
    }
@@ -1050,6 +1199,17 @@ const BENCH = {
     "n": 5
    },
    "all": 29.0
+  },
+  "lunaroute": {
+   "singleshot": {
+    "mean": 35.1,
+    "n": 11
+   },
+   "agentic": {
+    "mean": 33.1,
+    "n": 5
+   },
+   "all": 34.5
   }
  },
  "judged": {
@@ -1072,6 +1232,10 @@ const BENCH = {
   "mtplx": {
    "mean": 4.24,
    "n": 4
+  },
+  "lunaroute": {
+   "mean": 4.38,
+   "n": 3
   }
  },
  "overall": {
@@ -1145,6 +1309,17 @@ const BENCH = {
    "trials": [
     "1"
    ]
+  },
+  "lunaroute": {
+   "n": 16,
+   "passed": 13,
+   "pass_pct": 81.2,
+   "cost_usd": 0.0,
+   "wall_s": 3064,
+   "med_s": 65.5,
+   "trials": [
+    "1"
+   ]
   }
  },
  "decode": {
@@ -1166,20 +1341,49 @@ const BENCH = {
    34.0
   ]
  },
-  "mlxfast": {
-    "claim_speedup": 2.94,
-    "claim_url": "https://www.yukon.org/mlxfast",
-    "repo_url": "https://github.com/Layr-Labs/qwen-3.8-mtp-challenge",
-    "our_machine": "MacBook Pro M5 Max · 64 GB · hot + GPU in use by host",
-    "legs": [
-      { "depth": 0, "label": "True serial (MTP off)", "tps": 11.2, "speedup": 1.0, "accept": null },
-      { "depth": 2, "label": "MTP depth 2", "tps": 19.1, "speedup": 1.70, "accept": 1.0 },
-      { "depth": 4, "label": "MTP depth 4", "tps": 21.1, "speedup": 1.88, "accept": 0.97 },
-      { "depth": 8, "label": "MTP depth 8 · record submission", "tps": 23.3, "speedup": 2.07, "accept": 0.97 }
-    ],
-    "parity": true,
-    "stock_speedup": 2.53,
-    "reference": { "serial_tps": 26.3, "mtp_tps": 77.7, "speedup": 2.95, "note": "thermally gated (≤40°C) · idle 128 GB M5 Max · 8 hidden prompts × 512 tok" },
-    "mtplx_ref": "MTPLX on the same chip measured 1.6–2.6× decode speedup"
-  }
+ "mlxfast": {
+  "claim_speedup": 2.94,
+  "claim_url": "https://www.yukon.org/mlxfast",
+  "repo_url": "https://github.com/Layr-Labs/qwen-3.8-mtp-challenge",
+  "our_machine": "MacBook Pro M5 Max \u00b7 64 GB \u00b7 hot + GPU in use by host",
+  "legs": [
+   {
+    "depth": 0,
+    "label": "True serial (MTP off)",
+    "tps": 11.2,
+    "speedup": 1.0,
+    "accept": null
+   },
+   {
+    "depth": 2,
+    "label": "MTP depth 2",
+    "tps": 19.1,
+    "speedup": 1.7,
+    "accept": 1.0
+   },
+   {
+    "depth": 4,
+    "label": "MTP depth 4",
+    "tps": 21.1,
+    "speedup": 1.88,
+    "accept": 0.97
+   },
+   {
+    "depth": 8,
+    "label": "MTP depth 8 \u00b7 record submission",
+    "tps": 23.3,
+    "speedup": 2.07,
+    "accept": 0.97
+   }
+  ],
+  "parity": true,
+  "stock_speedup": 2.53,
+  "reference": {
+   "serial_tps": 26.3,
+   "mtp_tps": 77.7,
+   "speedup": 2.95,
+   "note": "thermally gated (\u226440\u00b0C) \u00b7 idle 128 GB M5 Max \u00b7 8 hidden prompts \u00d7 512 tok"
+  },
+  "mtplx_ref": "MTPLX on the same chip measured 1.6\u20132.6\u00d7 decode speedup"
+ }
 };

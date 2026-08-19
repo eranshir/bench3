@@ -26,6 +26,7 @@ ENDPOINTS = {
     "openai": ("https://api.openai.com/v1", "chat/completions"),
     "xai": ("https://api.x.ai/v1", "chat/completions"),
     "mtplx": ("http://127.0.0.1:8000/v1", "chat/completions"),
+    "lunaroute": ("https://gw.lunaroute.com/v1", "chat/completions"),
 }
 
 CRED_KEYS = {
@@ -33,6 +34,7 @@ CRED_KEYS = {
     "openai": "OPENAI_API_KEY",
     "xai": "XAI_API_KEY",
     "mtplx": "",  # local endpoint: no credential required
+    "lunaroute": "LUNAROUTE_API_KEY",
 }
 
 LOCAL_PROVIDERS = {"mtplx"}
@@ -84,6 +86,11 @@ def wire_params(provider, effort, max_tokens):
         # "high" to xhigh (its deepest) and "off" to low (generation mode).
         mapped = {"off": "low", "low": "low", "medium": "medium", "high": "xhigh", "xhigh": "xhigh"}
         return {"reasoning_effort": mapped.get(effort, effort), "max_tokens": max_tokens}
+    if provider == "lunaroute":
+        # GLM 5.2: any enabled effort burns the output budget on reasoning
+        # (verified: 500 tokens of reasoning, 0 content at low). "off" must be
+        # "none" to disable thinking; "high" is the pinned harness effort.
+        return {"reasoning_effort": "none" if effort == "off" else effort, "max_tokens": max_tokens}
     # deepseek: thinking enabled + effort
     return {"thinking": {"type": "enabled", "effort": effort}, "max_tokens": max_tokens}
 

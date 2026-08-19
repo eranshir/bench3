@@ -99,3 +99,6 @@ deepseek-official,mtplx,creativity/k1_product,1,mtplx,creativity,"{""originality
 deepseek-official,mtplx,creativity/k2_story,1,mtplx,creativity,"{""craft"": 4, ""constraint_adherence"": 3, ""atmosphere"": 4, ""originality"": 3}",3.5,1.7,6.5e-05
 deepseek-official,mtplx,writing/w1_explain,1,mtplx,writing,"{""accuracy"": 5, ""clarity_for_audience"": 5, ""concision"": 4, ""analogy_quality"": 5}",4.75,1.9,5.7e-05
 deepseek-official,mtplx,writing/w2_rewrite,1,mtplx,writing,"{""fidelity"": 4, ""concision"": 4, ""clarity"": 5, ""polish"": 5}",4.5,1.6,4.3e-05
+deepseek-official,lunaroute,creativity/k1_product,1,glm-5.2-vision,creativity,"{""originality"": 4, ""constraint_adherence"": 4, ""concreteness"": 5, ""feasibility"": 4, ""clarity"": 5}",4.4,1.5,0.000128
+deepseek-official,lunaroute,creativity/k2_story,1,glm-5.2-vision,creativity,"{""craft"": 4, ""constraint_adherence"": 5, ""atmosphere"": 4, ""originality"": 3}",4.0,1.7,6.4e-05
+deepseek-official,lunaroute,writing/w1_explain,1,glm-5.2-vision,writing,"{""accuracy"": 4, ""clarity_for_audience"": 5, ""concision"": 5, ""analogy_quality"": 5}",4.75,1.6,5.3e-05

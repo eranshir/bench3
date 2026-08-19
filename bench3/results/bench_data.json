@@ -34,6 +34,13 @@
    "vendor": "Local (MTPLX)",
    "cloud": false,
    "color": "#4ade80"
+  },
+  {
+   "id": "lunaroute",
+   "name": "GLM 5.2 Vision",
+   "vendor": "LunaRoute",
+   "cloud": true,
+   "color": "#f59e0b"
   }
  ],
  "categories": {
@@ -59,6 +66,11 @@
     "pct": 100.0
    },
    "mtplx": {
+    "n": 3,
+    "passed": 2,
+    "pct": 66.7
+   },
+   "lunaroute": {
     "n": 3,
     "passed": 2,
     "pct": 66.7
@@ -89,6 +101,11 @@
     "n": 2,
     "passed": 2,
     "pct": 100.0
+   },
+   "lunaroute": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
    }
   },
   "reasoning": {
@@ -113,6 +130,11 @@
     "pct": 100.0
    },
    "mtplx": {
+    "n": 4,
+    "passed": 4,
+    "pct": 100.0
+   },
+   "lunaroute": {
     "n": 4,
     "passed": 4,
     "pct": 100.0
@@ -143,6 +165,11 @@
     "n": 3,
     "passed": 0,
     "pct": 0.0
+   },
+   "lunaroute": {
+    "n": 3,
+    "passed": 1,
+    "pct": 33.3
    }
   },
   "creativity": {
@@ -170,6 +197,11 @@
     "n": 2,
     "passed": 2,
     "pct": 100.0
+   },
+   "lunaroute": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
    }
   },
   "writing": {
@@ -194,6 +226,11 @@
     "pct": 100.0
    },
    "mtplx": {
+    "n": 2,
+    "passed": 2,
+    "pct": 100.0
+   },
+   "lunaroute": {
     "n": 2,
     "passed": 2,
     "pct": 100.0
@@ -242,6 +279,13 @@
      "n": 1,
      "secs": [
       1283
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      57
      ]
     }
    }
@@ -292,6 +336,13 @@
      "secs": [
       278
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      298
+     ]
     }
    }
   },
@@ -336,6 +387,13 @@
      "n": 1,
      "secs": [
       1391
+     ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      598
      ]
     }
    }
@@ -382,6 +440,13 @@
      "secs": [
       1800
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      328
+     ]
     }
    }
   },
@@ -426,6 +491,13 @@
      "n": 1,
      "secs": [
       120
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      18
      ]
     }
    }
@@ -476,6 +548,13 @@
      "secs": [
       113
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      286
+     ]
     }
    }
   },
@@ -524,6 +603,13 @@
      "n": 1,
      "secs": [
       295
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      372
      ]
     }
    }
@@ -582,6 +668,13 @@
      "secs": [
       545
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      392
+     ]
     }
    }
   },
@@ -630,6 +723,13 @@
      "n": 1,
      "secs": [
       39
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      25
      ]
     }
    }
@@ -680,6 +780,13 @@
      "secs": [
       25
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      53
+     ]
     }
    }
   },
@@ -728,6 +835,13 @@
      "n": 1,
      "secs": [
       96
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      74
      ]
     }
    }
@@ -786,6 +900,13 @@
      "secs": [
       38
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      19
+     ]
     }
    }
   },
@@ -843,6 +964,13 @@
      "secs": [
       18
      ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      7
+     ]
     }
    }
   },
@@ -891,6 +1019,13 @@
      "n": 1,
      "secs": [
       24
+     ]
+    },
+    "lunaroute": {
+     "passed": 0,
+     "n": 1,
+     "secs": [
+      16
      ]
     }
    }
@@ -941,6 +1076,13 @@
      "secs": [
       28
      ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      57
+     ]
     }
    }
   },
@@ -989,6 +1131,13 @@
      "n": 1,
      "secs": [
       257
+     ]
+    },
+    "lunaroute": {
+     "passed": 1,
+     "n": 1,
+     "secs": [
+      464
      ]
     }
    }
@@ -1049,6 +1198,17 @@
     "n": 5
    },
    "all": 29.0
+  },
+  "lunaroute": {
+   "singleshot": {
+    "mean": 35.1,
+    "n": 11
+   },
+   "agentic": {
+    "mean": 33.1,
+    "n": 5
+   },
+   "all": 34.5
   }
  },
  "judged": {
@@ -1071,6 +1231,10 @@
   "mtplx": {
    "mean": 4.24,
    "n": 4
+  },
+  "lunaroute": {
+   "mean": 4.38,
+   "n": 3
   }
  },
  "overall": {
@@ -1141,6 +1305,17 @@
    "cost_usd": 0.0,
    "wall_s": 6350,
    "med_s": 116.5,
+   "trials": [
+    "1"
+   ]
+  },
+  "lunaroute": {
+   "n": 16,
+   "passed": 13,
+   "pass_pct": 81.2,
+   "cost_usd": 0.0,
+   "wall_s": 3064,
+   "med_s": 65.5,
    "trials": [
     "1"
    ]

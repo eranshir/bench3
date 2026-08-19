@@ -4,7 +4,7 @@
   const $ = s => document.querySelector(s);
   const el = (tag, cls, html) => { const e = document.createElement(tag); if(cls) e.className = cls; if(html!=null) e.innerHTML = html; return e; };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  const ORDER = ["deepseek-flash","deepseek-pro","gpt-sol","grok","mtplx"];
+  const ORDER = ["deepseek-flash","deepseek-pro","gpt-sol","grok","mtplx","lunaroute"];
   const arm = id => BENCH.arms.find(a => a.id === id);
 
   /* ---------- arm cards ---------- */

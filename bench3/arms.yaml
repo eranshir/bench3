@@ -60,3 +60,13 @@ arms:
       input: 0
       cached_input: 0
       output: 0
+  lunaroute:
+    provider: lunaroute
+    model: glm-5.2-vision
+    display: GLM 5.2 Vision (LunaRoute)
+    vendor: LunaRoute
+    effort: high
+    prices:
+      input: 0
+      cached_input: 0
+      output: 0
