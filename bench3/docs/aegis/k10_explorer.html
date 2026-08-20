@@ -318,9 +318,7 @@ function exportCSV() {
   const recs = filtered();
   const header = 'model,task,arm,rep,kind,passed,time_s,out_tokens,cost_usd,plan_valid,falsifiers';
   const lines = recs.map(r => [r.m, r.t, r.a, r.r, r.k, r.p, r.s, r.ot, r.c, r.pv === null ? '' : r.pv, r.ff === null ? '' : r.ff].join(','));
-  const csv = header + '
-' + lines.join('
-');
+  const csv = header + String.fromCharCode(10) + lines.join(String.fromCharCode(10));
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
