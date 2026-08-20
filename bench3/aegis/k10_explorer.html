@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>bench3 Aegis k10 Explorer — interactive results</title>
+<style>
+:root {
+  --bg: #0f1117; --panel: #171a23; --panel2: #1e2230; --border: #2a2f42;
+  --text: #e8eaf2; --muted: #9aa0b5; --accent: #5b8cff; --good: #3ddc84; --bad: #ff5d5d;
+  --warn: #ffc857; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px; }
+h1 { font-size: 22px; margin-bottom: 4px; }
+h2 { font-size: 16px; margin: 22px 0 10px; color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+.filters { display: flex; flex-wrap: wrap; gap: 14px 22px; }
+.filter-group label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; }
+select, input[type=checkbox] { accent-color: var(--accent); }
+select { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 13px; }
+.multi { display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: var(--panel2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 12px; cursor: pointer; user-select: none; }
+.chip.on { background: #25314f; border-color: var(--accent); color: #cfe0ff; }
+.chip input { display: none; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0; }
+.metric { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.metric .value { font-size: 20px; font-weight: 600; margin-top: 2px; font-family: var(--mono); }
+.metric .sub { font-size: 11px; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 6px 10px; border: 1px solid var(--border); text-align: right; white-space: nowrap; }
+th { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+td:first-child, th:first-child { text-align: left; }
+tr:hover td { background: rgba(91,140,255,.06); }
+.pass { color: var(--good); font-weight: 600; }
+.fail { color: var(--bad); font-weight: 600; }
+.pct { font-family: var(--mono); }
+.bar { display: inline-block; height: 8px; border-radius: 4px; vertical-align: middle; margin-left: 6px; background: var(--panel2); }
+.bar > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.bar.g > i { background: var(--good); } .bar.r > i { background: var(--bad); }
+.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 12px; }
+.btn:hover { border-color: var(--accent); }
+.tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.tab { background: var(--panel2); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 7px 14px; cursor: pointer; font-size: 13px; }
+.tab.active { background: #25314f; color: #cfe0ff; border-color: var(--accent); }
+.view { display: none; }
+.view.active { display: block; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin: 8px 0; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+.hint { font-size: 12px; color: var(--muted); margin: 6px 0; }
+code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>⚡ bench3 · Aegis k10 Explorer</h1>
+<div class="sub">3 arms (vanilla / guided / enforced) × k=10 × 5 models × 16 tasks · generated 2026-08-20 · <span id="recCount"></span> records loaded</div>
+
+<div class="panel">
+  <div class="filters">
+    <div class="filter-group">
+      <label>Model</label>
+      <div class="multi" id="modelChips"></div>
+    </div>
+    <div class="filter-group">
+      <label>Arm</label>
+      <div class="multi" id="armChips"></div>
+    </div>
+    <div class="filter-group">
+      <label>Kind</label>
+      <div class="multi" id="kindChips"></div>
+    </div>
+    <div class="filter-group">
+      <label>Task</label>
+      <div class="multi" id="taskChips"></div>
+    </div>
+    <div class="filter-group">
+      <label>Min reps per cell</label>
+      <select id="minReps">
+        <option value="1">≥1</option>
+        <option value="5">≥5</option>
+        <option value="10" selected>=10 (full)</option>
+      </select>
+    </div>
+  </div>
+  <div class="hint" style="margin-top:12px">Click chips to toggle slices. All views recompute on every change.</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-view="matrix">Matrix</div>
+  <div class="tab" data-view="cells">Cell detail</div>
+  <div class="tab" data-view="paired">Paired deltas</div>
+  <div class="tab" data-view="resources">Resources</div>
+  <div class="tab" data-view="records">Raw records</div>
+</div>
+
+<div id="metricsBar" class="metrics"></div>
+
+<div class="view active" id="view-matrix">
+  <div class="legend"><span><i class="dot" style="background:var(--good)"></i>pass</span><span><i class="dot" style="background:var(--bad)"></i>fail</span><span>cell shows pass/total (rate)</span></div>
+  <div id="matrixWrap"></div>
+</div>
+
+<div class="view" id="view-cells">
+  <div id="cellsWrap"></div>
+</div>
+
+<div class="view" id="view-paired">
+  <div class="hint">Paired comparisons per (model × task) cell: delta = later arm − earlier arm pass rate on the SAME reps (n = min common reps). McNemar p on discordant pairs.</div>
+  <div id="pairedWrap"></div>
+</div>
+
+<div class="view" id="view-resources">
+  <div class="hint">Token / time / cost aggregates for the current slice.</div>
+  <div id="resourcesWrap"></div>
+</div>
+
+<div class="view" id="view-records">
+  <div class="hint">Every record in the current slice (latest 500 shown). <button class="btn" onclick="exportCSV()">Export CSV</button></div>
+  <div style="max-height:600px;overflow:auto"><table id="recordsTable"></table></div>
+</div>
+
+<script src="k10_data.js"></script>
+<script>
+const DATA = window.K10_DATA.records;
+document.getElementById('recCount').textContent = DATA.length;
+
+// ---------- state ----------
+const state = {
+  models: new Set(), arms: new Set(), kinds: new Set(), tasks: new Set(),
+  minReps: 10
+};
+
+function allOf(key) { return [...new Set(DATA.map(r => r[key]))].sort(); }
+
+function initChips(containerId, key, stateSet) {
+  const vals = allOf(key);
+  vals.forEach(v => stateSet.add(v));
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  vals.forEach(v => {
+    const chip = document.createElement('span');
+    chip.className = 'chip on';
+    chip.innerHTML = '<input type="checkbox" checked>' + v;
+    chip.onclick = () => {
+      const on = !stateSet.has(v);
+      if (on) stateSet.add(v); else stateSet.delete(v);
+      chip.classList.toggle('on', on);
+      refresh();
+    };
+    el.appendChild(chip);
+  });
+}
+
+function filtered() {
+  return DATA.filter(r =>
+    state.models.has(r.m) && state.arms.has(r.a) &&
+    state.kinds.has(r.k) && state.tasks.has(r.t));
+}
+
+function cellKey(r) { return r.m + '|' + r.t + '|' + r.a; }
+
+function cellStats(recs) {
+  // group by (model, task, arm), keep reps >= minReps
+  const cells = {};
+  for (const r of recs) {
+    const k = cellKey(r);
+    if (!cells[k]) cells[k] = { m: r.m, t: r.t, a: r.a, reps: [] };
+    cells[k].reps.push(r);
+  }
+  const out = [];
+  for (const k in cells) {
+    const c = cells[k];
+    if (c.reps.length < state.minReps) continue;
+    const n = c.reps.length;
+    const pass = c.reps.filter(x => x.p).length;
+    const time = c.reps.reduce((s, x) => s + x.s, 0) / n;
+    const toks = c.reps.reduce((s, x) => s + x.ot, 0) / n;
+    const cost = c.reps.reduce((s, x) => s + x.c, 0) / n;
+    out.push({ m: c.m, t: c.t, a: c.a, n, pass, rate: pass / n, time, toks, cost });
+  }
+  return out;
+}
+
+// ---------- metrics ----------
+function renderMetrics(recs, cells) {
+  const el = document.getElementById('metricsBar');
+  el.innerHTML = '';
+  const add = (label, value, sub) => {
+    const d = document.createElement('div');
+    d.className = 'metric';
+    d.innerHTML = '<div class="label">' + label + '</div><div class="value">' + value + '</div><div class="sub">' + (sub||'') + '</div>';
+    el.appendChild(d);
+  };
+  add('Records', recs.length, 'in slice');
+  add('Cells', cells.length, '≥' + state.minReps + ' reps');
+  const pass = cells.reduce((s, c) => s + c.pass, 0);
+  const n = cells.reduce((s, c) => s + c.n, 0);
+  add('Pass rate', n ? (100 * pass / n).toFixed(1) + '%' : '—', pass + '/' + n);
+  const totCost = recs.reduce((s, r) => s + r.c, 0);
+  add('Cost', '$' + totCost.toFixed(2), 'slice total');
+  const avgTime = recs.length ? recs.reduce((s, r) => s + r.s, 0) / recs.length : 0;
+  add('Avg time', Math.round(avgTime) + 's', 'per record');
+  const avgTok = recs.length ? recs.reduce((s, r) => s + r.ot, 0) / recs.length : 0;
+  add('Avg output tok', Math.round(avgTok).toLocaleString(), 'per record');
+}
+
+// ---------- matrix ----------
+function renderMatrix(cells) {
+  const el = document.getElementById('matrixWrap');
+  const models = [...new Set(cells.map(c => c.m))].sort();
+  const tasks = [...new Set(cells.map(c => c.t))].sort();
+  const arms = [...new Set(cells.map(c => c.a))].sort();
+  if (!models.length || !tasks.length) { el.innerHTML = '<div class="hint">No cells match the current filters.</div>'; return; }
+  let h = '<table><thead><tr><th>Model / Task</th>';
+  arms.forEach(a => h += '<th>' + a + '</th>');
+  h += '<th>Pooled</th></tr></thead><tbody>';
+  for (const m of models) {
+    let first = true;
+    for (const t of tasks) {
+      const rowCells = arms.map(a => cells.find(c => c.m === m && c.t === t && c.a === a)).filter(Boolean);
+      const pooled = rowCells.reduce((s, c) => s + c.pass, 0);
+      const pooledN = rowCells.reduce((s, c) => s + c.n, 0);
+      h += '<tr>';
+      if (first) {
+        h += '<td rowspan="' + tasks.length + '"><strong>' + m + '</strong></td>';
+        first = false;
+      }
+      h += '<td>' + t + '</td>';
+      for (const a of arms) {
+        const c = cells.find(x => x.m === m && x.t === t && x.a === a);
+        if (!c) { h += '<td>—</td>'; continue; }
+        const cls = c.rate === 1 ? 'pass' : c.rate === 0 ? 'fail' : '';
+        h += '<td class="pct ' + cls + '">' + (100 * c.rate).toFixed(0) + '%<span style="font-size:10px;color:var(--muted)"> (' + c.pass + '/' + c.n + ')</span></td>';
+      }
+      h += '<td class="pct">' + (pooledN ? (100 * pooled / pooledN).toFixed(0) + '%' : '—') + '</td>';
+      h += '</tr>';
+    }
+    h += '<tr><td colspan="' + (arms.length + 2) + '" style="background:var(--panel2)"></td></tr>';
+  }
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// ---------- cell detail ----------
+function renderCells(cells) {
+  const el = document.getElementById('cellsWrap');
+  const sorted = [...cells].sort((a, b) => a.m.localeCompare(b.m) || a.t.localeCompare(b.t) || a.a.localeCompare(b.a));
+  let h = '<table><thead><tr><th>Model</th><th>Task</th><th>Arm</th><th>n</th><th>Pass</th><th>Rate</th><th>Avg time s</th><th>Avg out tok</th><th>Avg cost $</th></tr></thead><tbody>';
+  for (const c of sorted) {
+    const cls = c.rate === 1 ? 'pass' : c.rate === 0 ? 'fail' : '';
+    h += '<tr><td>' + c.m + '</td><td>' + c.t + '</td><td>' + c.a + '</td><td>' + c.n + '</td><td>' + c.pass + '</td><td class="pct ' + cls + '">' + (100 * c.rate).toFixed(1) + '%</td><td>' + Math.round(c.time) + '</td><td>' + Math.round(c.toks).toLocaleString() + '</td><td>$' + c.cost.toFixed(3) + '</td></tr>';
+  }
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// ---------- paired ----------
+function renderPaired(cells) {
+  const el = document.getElementById('pairedWrap');
+  const byCell = {};
+  cells.forEach(c => { byCell[c.m + '|' + c.t] = byCell[c.m + '|' + c.t] || {}; byCell[c.m + '|' + c.t][c.a] = c; });
+  const pairs = [['vanilla', 'guided'], ['guided', 'enforced'], ['vanilla', 'enforced']];
+  let h = '<table><thead><tr><th>Model</th><th>Task</th>';
+  pairs.forEach(([a, b]) => h += '<th>' + a + ' → ' + b + '</th>');
+  h += '</tr></thead><tbody>';
+  const keys = Object.keys(byCell).sort();
+  for (const k of keys) {
+    const [m, t] = k.split('|');
+    const arms = byCell[k];
+    h += '<tr><td>' + m + '</td><td>' + t + '</td>';
+    for (const [a, b] of pairs) {
+      if (!arms[a] || !arms[b]) { h += '<td>—</td>'; continue; }
+      const delta = arms[b].rate - arms[a].rate;
+      const cls = delta > 0 ? 'pass' : delta < 0 ? 'fail' : '';
+      h += '<td class="pct ' + cls + '">' + (delta >= 0 ? '+' : '') + (100 * delta).toFixed(1) + '%</td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// ---------- resources ----------
+function renderResources(recs) {
+  const el = document.getElementById('resourcesWrap');
+  const arms = [...new Set(recs.map(r => r.a))].sort();
+  let h = '<table><thead><tr><th>Arm</th><th>n</th><th>Pass rate</th><th>Avg time s</th><th>Avg out tok</th><th>Total cost $</th></tr></thead><tbody>';
+  for (const a of arms) {
+    const rs = recs.filter(r => r.a === a);
+    const pass = rs.filter(r => r.p).length;
+    const time = rs.reduce((s, r) => s + r.s, 0) / rs.length;
+    const toks = rs.reduce((s, r) => s + r.ot, 0) / rs.length;
+    const cost = rs.reduce((s, r) => s + r.c, 0);
+    h += '<tr><td>' + a + '</td><td>' + rs.length + '</td><td class="pct">' + (100 * pass / rs.length).toFixed(1) + '%</td><td>' + Math.round(time) + '</td><td>' + Math.round(toks).toLocaleString() + '</td><td>$' + cost.toFixed(2) + '</td></tr>';
+  }
+  h += '</tbody></table>';
+  el.innerHTML = h;
+}
+
+// ---------- raw records ----------
+function renderRecords(recs) {
+  const el = document.getElementById('recordsTable');
+  const rows = [...recs].reverse().slice(0, 500);
+  let h = '<thead><tr><th>Model</th><th>Task</th><th>Arm</th><th>Rep</th><th>Kind</th><th>Passed</th><th>Time s</th><th>Out tok</th><th>Cost $</th><th>plan_valid</th><th>falsifiers</th></tr></thead><tbody>';
+  for (const r of rows) {
+    h += '<tr><td>' + r.m + '</td><td>' + r.t + '</td><td>' + r.a + '</td><td>' + r.r + '</td><td>' + r.k + '</td>' +
+         '<td class="' + (r.p ? 'pass' : 'fail') + '">' + (r.p ? '✓' : '✗') + '</td><td>' + r.s + '</td><td>' + r.ot.toLocaleString() + '</td><td>$' + r.c.toFixed(4) + '</td>' +
+         '<td>' + (r.pv === null || r.pv === undefined ? '—' : (r.pv ? '✓' : '✗')) + '</td><td>' + (r.ff === null || r.ff === undefined ? '—' : (r.ff ? '✓' : '✗')) + '</td></tr>';
+  }
+  h += '</tbody>';
+  el.innerHTML = h;
+}
+
+// ---------- export ----------
+function exportCSV() {
+  const recs = filtered();
+  const header = 'model,task,arm,rep,kind,passed,time_s,out_tokens,cost_usd,plan_valid,falsifiers';
+  const lines = recs.map(r => [r.m, r.t, r.a, r.r, r.k, r.p, r.s, r.ot, r.c, r.pv === null ? '' : r.pv, r.ff === null ? '' : r.ff].join(','));
+  const csv = header + '
+' + lines.join('
+');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'aegis-k10-' + Date.now() + '.csv';
+  a.click();
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('view-' + tab.dataset.view).classList.add('active');
+  };
+});
+
+// ---------- refresh ----------
+function refresh() {
+  const recs = filtered();
+  const cells = cellStats(recs);
+  renderMetrics(recs, cells);
+  renderMatrix(cells);
+  renderCells(cells);
+  renderPaired(cells);
+  renderResources(recs);
+  renderRecords(recs);
+}
+
+document.getElementById('minReps').onchange = (e) => {
+  state.minReps = parseInt(e.target.value, 10);
+  refresh();
+};
+
+initChips('modelChips', 'm', state.models);
+initChips('armChips', 'a', state.arms);
+initChips('kindChips', 'k', state.kinds);
+initChips('taskChips', 't', state.tasks);
+refresh();
+</script>
+</body>
+</html>
