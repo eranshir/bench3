@@ -29,11 +29,23 @@ select { background: var(--panel2); color: var(--text); border: 1px solid var(--
 .metric .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .metric .value { font-size: 20px; font-weight: 600; margin-top: 2px; font-family: var(--mono); }
 .metric .sub { font-size: 11px; color: var(--muted); }
-table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-th, td { padding: 6px 10px; border: 1px solid var(--border); text-align: right; white-space: nowrap; }
-th { background: var(--panel2); color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-td:first-child, th:first-child { text-align: left; }
-tr:hover td { background: rgba(91,140,255,.06); }
+.tblwrap { overflow: auto; max-height: 70vh; border: 1px solid var(--border); border-radius: 8px; }
+table.tbl { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12.5px; }
+table.tbl thead th { position: sticky; top: 0; z-index: 2; background: #232839; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 2px solid var(--border); white-space: nowrap; }
+table.tbl th, table.tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+table.tbl td { text-align: right; white-space: nowrap; }
+table.tbl th.num, table.tbl td.num { text-align: right; font-family: var(--mono); }
+table.tbl th.txt, table.tbl td.txt { text-align: left; }
+table.tbl tbody tr:nth-child(even) { background: rgba(255,255,255,.018); }
+table.tbl tbody tr:hover td { background: rgba(91,140,255,.07); }
+table.tbl td.model { font-weight: 600; color: #cfe0ff; }
+table.tbl td.task { color: var(--text); }
+table.tbl tr.group-end td { border-bottom: 2px solid var(--border); }
+table.tbl tfoot td { font-weight: 600; background: #232839; border-top: 2px solid var(--border); }
+.badge { display: inline-block; min-width: 52px; text-align: center; padding: 1px 6px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge.g { background: rgba(61,220,132,.15); color: var(--good); }
+.badge.r { background: rgba(255,93,93,.15); color: var(--bad); }
+.badge.y { background: rgba(255,200,87,.15); color: var(--warn); }
 .pass { color: var(--good); font-weight: 600; }
 .fail { color: var(--bad); font-weight: 600; }
 .pct { font-family: var(--mono); }
@@ -213,33 +225,33 @@ function renderMatrix(cells) {
   const tasks = [...new Set(cells.map(c => c.t))].sort();
   const arms = [...new Set(cells.map(c => c.a))].sort();
   if (!models.length || !tasks.length) { el.innerHTML = '<div class="hint">No cells match the current filters.</div>'; return; }
-  let h = '<table><thead><tr><th>Model / Task</th>';
-  arms.forEach(a => h += '<th>' + a + '</th>');
-  h += '<th>Pooled</th></tr></thead><tbody>';
+  const cellOf = {};
+  cells.forEach(c => { cellOf[c.m + '|' + c.t + '|' + c.a] = c; });
+  let h = '<div class="tblwrap"><table class="tbl"><thead><tr>';
+  h += '<th class="txt">Model</th><th class="txt">Task</th>';
+  arms.forEach(a => h += '<th class="num">' + a + '</th>');
+  h += '<th class="num">Pooled</th></tr></thead><tbody>';
   for (const m of models) {
-    let first = true;
     for (const t of tasks) {
-      const rowCells = arms.map(a => cells.find(c => c.m === m && c.t === t && c.a === a)).filter(Boolean);
+      const rowCells = arms.map(a => cellOf[m + '|' + t + '|' + a]).filter(Boolean);
       const pooled = rowCells.reduce((s, c) => s + c.pass, 0);
       const pooledN = rowCells.reduce((s, c) => s + c.n, 0);
       h += '<tr>';
-      if (first) {
-        h += '<td rowspan="' + tasks.length + '"><strong>' + m + '</strong></td>';
-        first = false;
-      }
-      h += '<td>' + t + '</td>';
+      h += '<td class="txt model">' + m + '</td>';
+      h += '<td class="txt task">' + t + '</td>';
       for (const a of arms) {
-        const c = cells.find(x => x.m === m && x.t === t && x.a === a);
-        if (!c) { h += '<td>—</td>'; continue; }
-        const cls = c.rate === 1 ? 'pass' : c.rate === 0 ? 'fail' : '';
-        h += '<td class="pct ' + cls + '">' + (100 * c.rate).toFixed(0) + '%<span style="font-size:10px;color:var(--muted)"> (' + c.pass + '/' + c.n + ')</span></td>';
+        const c = cellOf[m + '|' + t + '|' + a];
+        if (!c) { h += '<td class="num">—</td>'; continue; }
+        const pct = Math.round(100 * c.rate);
+        const badge = c.rate === 1 ? 'g' : c.rate === 0 ? 'r' : 'y';
+        h += '<td class="num"><span class="badge ' + badge + '">' + pct + '%</span><span style="color:var(--muted);font-size:10px"> ' + c.pass + '/' + c.n + '</span></td>';
       }
-      h += '<td class="pct">' + (pooledN ? (100 * pooled / pooledN).toFixed(0) + '%' : '—') + '</td>';
+      h += '<td class="num">' + (pooledN ? Math.round(100 * pooled / pooledN) + '%' : '—') + '</td>';
       h += '</tr>';
     }
-    h += '<tr><td colspan="' + (arms.length + 2) + '" style="background:var(--panel2)"></td></tr>';
+    h += '<tr class="group-end"><td colspan="' + (arms.length + 3) + '"></td></tr>';
   }
-  h += '</tbody></table>';
+  h += '</tbody></table></div>';
   el.innerHTML = h;
 }
 
@@ -247,12 +259,24 @@ function renderMatrix(cells) {
 function renderCells(cells) {
   const el = document.getElementById('cellsWrap');
   const sorted = [...cells].sort((a, b) => a.m.localeCompare(b.m) || a.t.localeCompare(b.t) || a.a.localeCompare(b.a));
-  let h = '<table><thead><tr><th>Model</th><th>Task</th><th>Arm</th><th>n</th><th>Pass</th><th>Rate</th><th>Avg time s</th><th>Avg out tok</th><th>Avg cost $</th></tr></thead><tbody>';
+  let h = '<div class="tblwrap"><table class="tbl"><thead><tr>';
+  h += '<th class="txt">Model</th><th class="txt">Task</th><th class="txt">Arm</th><th class="num">n</th><th class="num">Pass</th><th class="num">Rate</th><th class="num">Avg time s</th><th class="num">Avg out tok</th><th class="num">Avg cost $</th>';
+  h += '</tr></thead><tbody>';
+  let tPass = 0, tN = 0, tTime = 0, tTok = 0, tCost = 0;
   for (const c of sorted) {
-    const cls = c.rate === 1 ? 'pass' : c.rate === 0 ? 'fail' : '';
-    h += '<tr><td>' + c.m + '</td><td>' + c.t + '</td><td>' + c.a + '</td><td>' + c.n + '</td><td>' + c.pass + '</td><td class="pct ' + cls + '">' + (100 * c.rate).toFixed(1) + '%</td><td>' + Math.round(c.time) + '</td><td>' + Math.round(c.toks).toLocaleString() + '</td><td>$' + c.cost.toFixed(3) + '</td></tr>';
+    const badge = c.rate === 1 ? 'g' : c.rate === 0 ? 'r' : 'y';
+    h += '<tr><td class="txt model">' + c.m + '</td><td class="txt task">' + c.t + '</td><td class="txt">' + c.a + '</td>';
+    h += '<td class="num">' + c.n + '</td><td class="num">' + c.pass + '</td>';
+    h += '<td class="num"><span class="badge ' + badge + '">' + (100 * c.rate).toFixed(1) + '%</span></td>';
+    h += '<td class="num">' + Math.round(c.time) + '</td><td class="num">' + Math.round(c.toks).toLocaleString() + '</td><td class="num">$' + c.cost.toFixed(3) + '</td></tr>';
+    tPass += c.pass; tN += c.n; tTime += c.time; tTok += c.toks; tCost += c.cost;
   }
-  h += '</tbody></table>';
+  if (sorted.length) {
+    h += '</tbody><tfoot><tr><td class="txt" colspan="3">Total / avg</td><td class="num">' + tN + '</td><td class="num">' + tPass + '</td>';
+    h += '<td class="num">' + (tN ? (100 * tPass / tN).toFixed(1) + '%' : '—') + '</td>';
+    h += '<td class="num">' + Math.round(tTime / sorted.length) + '</td><td class="num">' + Math.round(tTok / sorted.length).toLocaleString() + '</td><td class="num">$' + (tCost / sorted.length).toFixed(3) + '</td></tr>';
+  }
+  h += '</tfoot></table></div>';
   el.innerHTML = h;
 }
 
@@ -262,40 +286,53 @@ function renderPaired(cells) {
   const byCell = {};
   cells.forEach(c => { byCell[c.m + '|' + c.t] = byCell[c.m + '|' + c.t] || {}; byCell[c.m + '|' + c.t][c.a] = c; });
   const pairs = [['vanilla', 'guided'], ['guided', 'enforced'], ['vanilla', 'enforced']];
-  let h = '<table><thead><tr><th>Model</th><th>Task</th>';
-  pairs.forEach(([a, b]) => h += '<th>' + a + ' → ' + b + '</th>');
+  let h = '<div class="tblwrap"><table class="tbl"><thead><tr>';
+  h += '<th class="txt">Model</th><th class="txt">Task</th>';
+  pairs.forEach(([a, b]) => h += '<th class="num">' + a + ' → ' + b + '</th>');
   h += '</tr></thead><tbody>';
   const keys = Object.keys(byCell).sort();
+  let up = 0, down = 0, flat = 0;
   for (const k of keys) {
     const [m, t] = k.split('|');
     const arms = byCell[k];
-    h += '<tr><td>' + m + '</td><td>' + t + '</td>';
+    h += '<tr><td class="txt model">' + m + '</td><td class="txt task">' + t + '</td>';
     for (const [a, b] of pairs) {
-      if (!arms[a] || !arms[b]) { h += '<td>—</td>'; continue; }
+      if (!arms[a] || !arms[b]) { h += '<td class="num">—</td>'; continue; }
       const delta = arms[b].rate - arms[a].rate;
       const cls = delta > 0 ? 'pass' : delta < 0 ? 'fail' : '';
-      h += '<td class="pct ' + cls + '">' + (delta >= 0 ? '+' : '') + (100 * delta).toFixed(1) + '%</td>';
+      if (delta > 0) up++; else if (delta < 0) down++; else flat++;
+      h += '<td class="num ' + cls + '">' + (delta >= 0 ? '+' : '') + (100 * delta).toFixed(1) + '%</td>';
     }
     h += '</tr>';
   }
-  h += '</tbody></table>';
-  el.innerHTML = h;
+  h += '</tbody></table></div>';
+  const dirs = '<div class="hint">cells with positive deltas: <span class="pass">' + up + '</span> · negative: <span class="fail">' + down + '</span> · zero: ' + flat + '</div>';
+  el.innerHTML = dirs + h;
 }
 
 // ---------- resources ----------
 function renderResources(recs) {
   const el = document.getElementById('resourcesWrap');
   const arms = [...new Set(recs.map(r => r.a))].sort();
-  let h = '<table><thead><tr><th>Arm</th><th>n</th><th>Pass rate</th><th>Avg time s</th><th>Avg out tok</th><th>Total cost $</th></tr></thead><tbody>';
+  let h = '<div class="tblwrap"><table class="tbl"><thead><tr>';
+  h += '<th class="txt">Arm</th><th class="num">n</th><th class="num">Pass rate</th><th class="num">Avg time s</th><th class="num">Avg out tok</th><th class="num">Total cost $</th>';
+  h += '</tr></thead><tbody>';
+  let tN = 0, tPass = 0, tCost = 0;
   for (const a of arms) {
     const rs = recs.filter(r => r.a === a);
+    if (!rs.length) continue;
     const pass = rs.filter(r => r.p).length;
     const time = rs.reduce((s, r) => s + r.s, 0) / rs.length;
     const toks = rs.reduce((s, r) => s + r.ot, 0) / rs.length;
     const cost = rs.reduce((s, r) => s + r.c, 0);
-    h += '<tr><td>' + a + '</td><td>' + rs.length + '</td><td class="pct">' + (100 * pass / rs.length).toFixed(1) + '%</td><td>' + Math.round(time) + '</td><td>' + Math.round(toks).toLocaleString() + '</td><td>$' + cost.toFixed(2) + '</td></tr>';
+    const badge = pass === rs.length ? 'g' : pass === 0 ? 'r' : 'y';
+    h += '<tr><td class="txt model">' + a + '</td><td class="num">' + rs.length + '</td>';
+    h += '<td class="num"><span class="badge ' + badge + '">' + (100 * pass / rs.length).toFixed(1) + '%</span></td>';
+    h += '<td class="num">' + Math.round(time) + '</td><td class="num">' + Math.round(toks).toLocaleString() + '</td><td class="num">$' + cost.toFixed(2) + '</td></tr>';
+    tN += rs.length; tPass += pass; tCost += cost;
   }
-  h += '</tbody></table>';
+  h += '</tbody><tfoot><tr><td class="txt">Total</td><td class="num">' + tN + '</td><td class="num">' + (tN ? (100 * tPass / tN).toFixed(1) + '%' : '—') + '</td><td class="num" colspan="2"></td><td class="num">$' + tCost.toFixed(2) + '</td></tr></tfoot>';
+  h += '</table></div>';
   el.innerHTML = h;
 }
 
@@ -303,13 +340,15 @@ function renderResources(recs) {
 function renderRecords(recs) {
   const el = document.getElementById('recordsTable');
   const rows = [...recs].reverse().slice(0, 500);
-  let h = '<thead><tr><th>Model</th><th>Task</th><th>Arm</th><th>Rep</th><th>Kind</th><th>Passed</th><th>Time s</th><th>Out tok</th><th>Cost $</th><th>plan_valid</th><th>falsifiers</th></tr></thead><tbody>';
+  let h = '<div class="tblwrap"><table class="tbl"><thead><tr>';
+  h += '<th class="txt">Model</th><th class="txt">Task</th><th class="txt">Arm</th><th class="num">Rep</th><th class="txt">Kind</th><th class="num">Passed</th><th class="num">Time s</th><th class="num">Out tok</th><th class="num">Cost $</th><th class="num">plan_valid</th><th class="num">falsifiers</th>';
+  h += '</tr></thead><tbody>';
   for (const r of rows) {
-    h += '<tr><td>' + r.m + '</td><td>' + r.t + '</td><td>' + r.a + '</td><td>' + r.r + '</td><td>' + r.k + '</td>' +
-         '<td class="' + (r.p ? 'pass' : 'fail') + '">' + (r.p ? '✓' : '✗') + '</td><td>' + r.s + '</td><td>' + r.ot.toLocaleString() + '</td><td>$' + r.c.toFixed(4) + '</td>' +
-         '<td>' + (r.pv === null || r.pv === undefined ? '—' : (r.pv ? '✓' : '✗')) + '</td><td>' + (r.ff === null || r.ff === undefined ? '—' : (r.ff ? '✓' : '✗')) + '</td></tr>';
+    h += '<tr><td class="txt model">' + r.m + '</td><td class="txt task">' + r.t + '</td><td class="txt">' + r.a + '</td><td class="num">' + r.r + '</td><td class="txt">' + r.k + '</td>' +
+         '<td class="num"><span class="badge ' + (r.p ? 'g' : 'r') + '">' + (r.p ? 'pass' : 'fail') + '</span></td><td class="num">' + r.s + '</td><td class="num">' + r.ot.toLocaleString() + '</td><td class="num">$' + r.c.toFixed(4) + '</td>' +
+         '<td class="num">' + (r.pv === null || r.pv === undefined ? '—' : (r.pv ? '✓' : '✗')) + '</td><td class="num">' + (r.ff === null || r.ff === undefined ? '—' : (r.ff ? '✓' : '✗')) + '</td></tr>';
   }
-  h += '</tbody>';
+  h += '</tbody></table></div>';
   el.innerHTML = h;
 }
 
