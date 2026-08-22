@@ -148,8 +148,8 @@ print(f'{cost_usd(a, $IN_TOK, $CA_TOK, $OUT_TOK):.6f}')
 
     # objective grading: hidden test the model never saw
     passed=0; failed=0; gsecs=0
-    if [ -f "$ROOT/tasks/$task/hidden_test.py" ]; then
-      cp "$ROOT/tasks/$task/hidden_test.py" "$work/_hidden_test.py"
+    if [ -f "$ROOT/hidden/${tname}_test.py" ]; then
+      cp "$ROOT/hidden/${tname}_test.py" "$work/_hidden_test.py"
       glog="$RUNS/${arm}_${catname}-${tname}_t${TRIAL}.grade"
       gstart=$(date +%s)
       ( cd "$work" && python3 -m unittest _hidden_test -v ) > "$glog" 2>&1
