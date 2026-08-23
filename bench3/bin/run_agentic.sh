@@ -36,11 +36,12 @@ fi
 if [ -n "$ONLY" ]; then
   TASKS="$ONLY"
 else
-  TASKS=$($PY - <<'EOF'
-import sys
-sys.path.insert(0, '/Users/eranshir/Documents/Projects/deepseek/bench3/bin')
+  # ROOT via the environment: the heredoc is quoted so $ROOT would not expand,
+  # and PYTHONPATH already puts bin/ on the path.
+  TASKS=$(ROOT="$ROOT" $PY - <<'EOF'
+import os
 from pathlib import Path
-root = Path('/Users/eranshir/Documents/Projects/deepseek/bench3/tasks')
+root = Path(os.environ['ROOT']) / 'tasks'
 out = []
 for cat in sorted(root.iterdir()):
     if not cat.is_dir(): continue
@@ -56,8 +57,6 @@ fi
 
 # credentials from the user's real store, exported for the isolated home (env wins)
 eval "$($PY - <<'EOF'
-import sys
-sys.path.insert(0, '/Users/eranshir/Documents/Projects/deepseek/bench3/bin')
 from lib.common import load_credentials
 for k, v in load_credentials().items():
     print(f'export {k}={v!r}')
