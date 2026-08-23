@@ -254,7 +254,7 @@ def main():
                 print("  FAILED: %s" % err)
                 append_row(results, {"arm": aid, "vendor": a["vendor"], "model": a["model"], "category": catname,
                                      "task": task, "trial": trial, "effort": a["effort"], "mode": "singleshot",
-                                     "seconds": int(secs), "input_tokens": 0, "cache_read_tokens": 0,
+                                     "seconds": round(secs, 3), "input_tokens": 0, "cache_read_tokens": 0,
                                      "output_tokens": 0, "reasoning_tokens": 0, "cost_usd": 0.0,
                                      "passed": 0, "tests_failed": 1, "grade_seconds": 0, "notes": notes[:200],
                                      "session_path": "", "log_path": ""})
@@ -283,7 +283,7 @@ def main():
             n_calls = len((resp.get("choices") or [{}])[0].get("message", {}).get("tool_calls") or [])
             append_row(results, {"arm": aid, "vendor": a["vendor"], "model": a["model"], "category": catname,
                                  "task": task, "trial": trial, "effort": effort, "mode": "singleshot",
-                                 "seconds": int(secs), "input_tokens": usage["input"], "cache_read_tokens": usage["cached"],
+                                 "seconds": round(secs, 3), "input_tokens": usage["input"], "cache_read_tokens": usage["cached"],
                                  "output_tokens": usage["output"], "reasoning_tokens": usage["reasoning"],
                                  "cost_usd": round(cost, 6), "passed": passed, "tests_failed": tests_failed,
                                  "grade_seconds": 0, "notes": notes, "session_path": "", "log_path": str(out_path)})
