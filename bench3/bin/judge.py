@@ -136,7 +136,14 @@ def main():
             print('judge error:', r['arm'], r['task'], r['trial'], err)
             continue
         aid = next((k for k, a in arms.items() if a['provider'] == judge_arm), judge_arm)
-        cost = cost_usd(arms.get(aid, {}), res['usage']['input'], res['usage']['cached'], res['usage']['output'])
+# prompt_tokens is INCLUSIVE of the cached prefix on these providers, so
+        # passing both straight through bills the cached tokens twice. Clamp at
+        # zero: cached is quantised to 128-token blocks while prompt_tokens is
+        # not, so a short cached prompt can round past it and go negative.
+        # Not folded into cost_usd because run_agentic.sh feeds it DSH session
+        # counters, where inputTokens and cacheReadTokens are disjoint.
+        cost = cost_usd(arms.get(aid, {}), max(0, res['usage']['input'] - res['usage']['cached']),
+                        res['usage']['cached'], res['usage']['output'])
         cost_total += cost
         judged.append({'judge': judge_arm, 'arm': r['arm'], 'task': r['task'], 'trial': r['trial'],
                        'model': r['model'], 'category': r['category'], 'scores': json.dumps(res['scores']),

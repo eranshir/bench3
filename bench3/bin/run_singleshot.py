@@ -261,7 +261,13 @@ def main():
                 continue
 
             usage, ticks = extract_usage(provider, resp)
-            cost = cost_usd(a, usage["input"], usage["cached"], usage["output"])
+# prompt_tokens is INCLUSIVE of the cached prefix on these providers, so
+            # passing both straight through bills the cached tokens twice. Clamp at
+            # zero: cached is quantised to 128-token blocks while prompt_tokens is
+            # not, so a short cached prompt can round past it and go negative.
+            # Not folded into cost_usd because run_agentic.sh feeds it DSH session
+            # counters, where inputTokens and cacheReadTokens are disjoint.
+            cost = cost_usd(a, max(0, usage["input"] - usage["cached"]), usage["cached"], usage["output"])
             if ticks:
                 notes = "xai_ticks=%s" % ticks
 
