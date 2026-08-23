@@ -17,6 +17,7 @@ from lib.common import BENCH, load_arms
 RESULTS = BENCH / 'results'
 RUNS = BENCH / 'runs'
 TASKS = BENCH / 'tasks'
+HIDDEN = BENCH / 'hidden'
 WEB = BENCH / 'webapp'
 DATA = WEB / 'data'
 
@@ -34,7 +35,7 @@ def task_meta(cat, name):
             meta['n_tools'] = len(json.loads((d / 'tools.json').read_text()))
         except Exception:
             pass
-    if (d / 'hidden_test.py').exists():
+    if (HIDDEN / f'{name}_test.py').exists():
         meta['has_hidden_test'] = True
     if (d / 'check.py').exists():
         meta['has_check'] = True
@@ -72,7 +73,7 @@ def run_detail(r):
                 if not f.is_file():
                     continue
                 rel = str(f.relative_to(src))
-                if rel in ('PROMPT.txt', 'hidden_test.py') or '__pycache__' in rel:
+                if rel in ('PROMPT.txt', '_hidden_test.py') or '__pycache__' in rel:
                     continue
                 wf = work / rel
                 if not wf.exists():
