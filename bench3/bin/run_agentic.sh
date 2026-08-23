@@ -95,7 +95,7 @@ print(a['provider'], a['model'], a['effort'])
 
     echo "=== $arm / $task / trial $TRIAL ==="
     log="$RUNS/${arm}_${catname}-${tname}_t${TRIAL}.log"
-    start=$(date +%s)
+    start=$($PY -c "import time; print(time.time())")
     ( cd "$work" && DSH_HOME="$DSH_HOME" dsh --profile headless "$prompt" ) > "$log" 2>&1 &
     agent=$!
     # kill the wrapper AND the dsh child (the wrapper's death orphans dsh,
@@ -105,12 +105,17 @@ print(a['provider'], a['model'], a['effort'])
     watchdog=$!
     wait "$agent"; rc=$?
     kill "$watchdog" 2>/dev/null; wait "$watchdog" 2>/dev/null
-    end=$(date +%s)
-    secs=$((end - start))
+    end=$($PY -c "import time; print(time.time())")
+    # date +%s is whole-second, which quantised every agentic latency to 1s.
+    secs=$($PY -c "print(round($end - $start, 3))")
 
     notes=""
     [ $rc -ne 0 ] && notes="cli_exit_$rc"
-    [ $secs -ge "${LIMIT:-900}" ] && notes="timeout_${LIMIT:-900}s"
+    # secs is now fractional, and [ -ge ] is integer-only: it would abort with
+    # "integer expression expected" and never flag a timeout.
+    if $PY -c "import sys; sys.exit(0 if $secs >= ${LIMIT:-900} else 1)"; then
+      notes="timeout_${LIMIT:-900}s"
+    fi
 
     # usage from the newest session under this workspace key. dsh flushes
     # the session asynchronously (worker teardown), so poll for it.
