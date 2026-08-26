@@ -1,0 +1,5 @@
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: qwen/qwen3.8-27b
+    reasoningEffort: high

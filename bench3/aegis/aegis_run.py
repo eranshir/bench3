@@ -44,6 +44,8 @@ MODELS = {
     "grok": ("xai", "grok-4.6"),
     "mtplx": ("mtplx", "mtplx"),
     "lunaroute": ("lunaroute", "glm-5.2-vision"),
+    "glm53-flash": ("openrouter", "z-ai/glm-5.3-flash"),
+    "qwen38": ("openrouter", "qwen/qwen3.8-27b"),
 }
 LIMIT = int(os.environ.get("LIMIT", "900"))
 

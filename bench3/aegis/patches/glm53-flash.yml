@@ -1,0 +1,5 @@
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: z-ai/glm-5.3-flash
+    reasoningEffort: high

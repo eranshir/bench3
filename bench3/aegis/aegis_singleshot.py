@@ -36,6 +36,7 @@ ENDPOINTS = {
     "xai": ("https://api.x.ai/v1", "chat/completions"),
     "mtplx": ("http://127.0.0.1:8000/v1", "chat/completions"),
     "lunaroute": ("https://gw.lunaroute.com/v1", "chat/completions"),
+    "openrouter": ("https://openrouter.ai/api/v1", "chat/completions"),
 }
 CRED_KEYS = {
     "deepseek-official": "DEEPSEEK_API_KEY",
@@ -43,6 +44,7 @@ CRED_KEYS = {
     "xai": "XAI_API_KEY",
     "mtplx": "",
     "lunaroute": "LUNAROUTE_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
 }
 
 
@@ -67,105 +69,107 @@ def response_has_method_artifacts(text: str) -> dict:
     }
 
 
-def main() -> int:
+
+def _main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--arm", choices=("guided", "enforced", "vanilla"), required=True)
-    ap.add_argument("--model", required=True)  # bench arm id
-    ap.add_argument("--task", required=True)
-    ap.add_argument("--rep", type=int, default=1)
-    ap.add_argument("--out", default=str(BENCH / "runs" / "aegis-records"))
+    ap.add_argument('--arm', choices=('guided', 'enforced', 'vanilla'), required=True)
+    ap.add_argument('--model', required=True)
+    ap.add_argument('--task', required=True)
+    ap.add_argument('--rep', type=int, default=1)
+    ap.add_argument('--out', default=str(BENCH / 'runs' / 'aegis-records'))
     args = ap.parse_args()
 
     arms = load_arms()
     a = arms[args.model]
-    provider = a["provider"]
-    key = load_credentials().get(CRED_KEYS.get(provider, ""))
+    provider = a['provider']
+    key = load_credentials().get(CRED_KEYS.get(provider, ''))
 
-    tdir = BENCH / "tasks" / args.task
-    prompt = (tdir / "prompt.txt").read_text()
+    tdir = BENCH / 'tasks' / args.task
+    prompt = (tdir / 'prompt.txt').read_text()
     system = None
-    if (tdir / "system.txt").exists():
-        system = (tdir / "system.txt").read_text()
-    max_tokens = int((tdir / "max_tokens.txt").read_text().strip()) if (tdir / "max_tokens.txt").exists() else 4096
+    if (tdir / 'system.txt').exists():
+        system = (tdir / 'system.txt').read_text()
+    max_tokens = int((tdir / 'max_tokens.txt').read_text().strip()) if (tdir / 'max_tokens.txt').exists() else 4096
 
     payload = PAYLOAD.read_text()
-    if args.arm != "vanilla":
-        prompt = "Aegis method (binding):\n\n" + payload + "\n\nTask:\n\n" + prompt
+    if args.arm != 'vanilla':
+        prompt = 'Aegis method (binding):\n\n' + payload + '\n\n' + "Task:\n\n" + prompt
 
     messages = []
     if system:
-        messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
+        messages.append({'role': 'system', 'content': system})
+    messages.append({'role': 'user', 'content': prompt})
 
-    body = {"model": a["model"], "messages": messages}
-    if provider == "openai":
-        body["max_completion_tokens"] = max_tokens  # gpt-5.6-sol rejects max_tokens
+    body = {'model': a['model'], 'messages': messages}
+    if provider == 'openai':
+        body['max_completion_tokens'] = max_tokens
     else:
-        body["max_tokens"] = max_tokens
-    if provider in ("deepseek-official",):
-        body["thinking"] = {"type": "disabled"}
-    elif provider == "mtplx":
-        body["reasoning_effort"] = "low" if args.arm == "vanilla" else "high"
-    elif provider == "lunaroute":
-        body["reasoning_effort"] = "none" if args.arm == "vanilla" else "high"
+        body['max_tokens'] = max_tokens
+    if provider in ('deepseek-official',):
+        body['thinking'] = {'type': 'disabled'}
+    elif provider == 'mtplx':
+        body['reasoning_effort'] = 'low' if args.arm == 'vanilla' else 'high'
+    elif provider == 'lunaroute':
+        body['reasoning_effort'] = 'none' if args.arm == 'vanilla' else 'high'
 
     base, path = ENDPOINTS[provider]
-    req = urllib.request.Request(base + "/" + path, method="POST")
+    req = urllib.request.Request(base + '/' + path, method='POST')
+    if provider == 'openrouter':
+        req.add_header('HTTP-Referer', 'https://eranshir.github.io/bench3/')
+        req.add_header('X-Title', 'bench3')
     if key:
-        req.add_header("Authorization", "Bearer " + key)
-    req.add_header("Content-Type", "application/json")
+        req.add_header('Authorization', 'Bearer ' + key)
+    req.add_header('Content-Type', 'application/json')
     t0 = time.time()
-    with urllib.request.urlopen(req, data=json.dumps(body).encode(), timeout=600) as resp:
+    with urllib.request.urlopen(req, data=json.dumps(body).encode(), timeout=900) as resp:
         d = json.load(resp)
     elapsed = int(time.time() - t0)
-    msg = d["choices"][0]["message"]
-    text = msg.get("content") or ""
+    msg = d['choices'][0]['message']
+    text = msg.get('content') or msg.get('reasoning') or ''
 
     gate = response_has_method_artifacts(text)
     resolved = True
-    if args.arm == "enforced" and not gate["passed"]:
-        resolved = False  # response-gate fails closed
+    if args.arm == 'enforced' and not gate['passed']:
+        resolved = False
 
-    # objective checker if present
     passed = 0
-    check = tdir / "check.py"
+    check = tdir / 'check.py'
     if check.exists():
-        out_path = BENCH / "runs" / ("aegis-%s_%s-%s_rep%d.json" % (args.arm, args.model,
-                                                                    args.task.replace("/", "-"), args.rep))
+        out_path = BENCH / 'runs' / ('aegis-%s_%s-%s_rep%d.json' % (args.arm, args.model,
+                                                                    args.task.replace('/', '-'), args.rep))
         out_path.write_text(json.dumps(d, indent=1))
         cr = subprocess_run([sys.executable, str(check), str(out_path)])
         try:
             score = json.loads(cr.stdout.strip())
-            passed = 1 if score.get("passed") else 0
+            passed = 1 if score.get('passed') else 0
         except Exception:
             passed = 1 if cr.returncode == 0 else 0
     else:
         passed = 1
 
-    usage = d.get("usage", {})
-    in_tok = usage.get("prompt_tokens", 0)
-    out_tok = usage.get("completion_tokens", 0)
+    usage = d.get('usage', {})
+    in_tok = usage.get('prompt_tokens', 0)
+    out_tok = usage.get('completion_tokens', 0)
     try:
         cost = round(_cost_usd(a, in_tok, 0, out_tok), 6)
     except Exception:
-        cost = float("nan")
+        cost = float('nan')
 
     record = {
-        "schema_version": "aegis.bench3.singleshot.v1",
-        "arm": args.arm, "model": args.model, "task": args.task, "repetition": args.rep,
-        "elapsed_seconds": elapsed,
-        "payload_digest": sha256(payload),
-        "response_gate": gate,
-        "resolved": resolved,
-        "checker_passed": bool(passed),
-        "output_chars": len(text),
-        "tokens": {"input": in_tok, "output": out_tok, "observed": True},
-        "cost_usd": cost,
+        'schema_version': 'aegis.bench3.singleshot.v1',
+        'arm': args.arm, 'model': args.model, 'task': args.task, 'repetition': args.rep,
+        'elapsed_seconds': elapsed,
+        'payload_digest': sha256(payload),
+        'response_gate': gate,
+        'resolved': resolved,
+        'checker_passed': bool(passed),
+        'output_chars': len(text),
+        'tokens': {'input': in_tok, 'output': out_tok, 'observed': True},
+        'cost_usd': cost,
     }
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    (out / ("%s_%s_%s_rep%d.json" % (args.arm, args.model, args.task.replace("/", "-"), args.rep))
-     ).write_text(json.dumps(record, indent=1))
+    (out / ('%s_%s_%s_rep%d.json' % (args.arm, args.model, args.task.replace('/', '-'), args.rep))).write_text(json.dumps(record, indent=1))
     print(json.dumps(record, indent=1, default=str))
     return 0
 
@@ -175,5 +179,35 @@ def subprocess_run(cmd):
     return subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
 
-if __name__ == "__main__":
+def main() -> int:
+    import argparse, pathlib as _pl
+    try:
+        return _main()
+    except Exception as e:
+        ap = argparse.ArgumentParser()
+        ap.add_argument('--arm'); ap.add_argument('--model'); ap.add_argument('--task')
+        ap.add_argument('--rep', type=int, default=1); ap.add_argument('--out', default='')
+        a = ap.parse_known_args()[0]
+        record = {
+            'schema_version': 'aegis.bench3.singleshot.v1',
+            'arm': a.arm, 'model': a.model, 'task': a.task, 'repetition': a.rep,
+            'elapsed_seconds': 0,
+            'payload_digest': sha256(PAYLOAD.read_text()),
+            'response_gate': {'passed': False},
+            'resolved': False,
+            'checker_passed': False,
+            'output_chars': 0,
+            'tokens': {'input': 0, 'output': 0, 'observed': False},
+            'cost_usd': 0.0,
+            'error': str(e)[:300],
+        }
+        out = _pl.Path(a.out or str(BENCH / 'runs' / 'aegis-records'))
+        out.mkdir(parents=True, exist_ok=True)
+        (out / ('%s_%s_%s_rep%d.json' % (a.arm, a.model, a.task.replace('/', '-'), a.rep))).write_text(json.dumps(record, indent=1))
+        print(json.dumps(record, indent=1, default=str))
+        return 2
+
+
+if __name__ == '__main__':
     sys.exit(main())
+
