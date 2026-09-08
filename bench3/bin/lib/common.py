@@ -17,10 +17,14 @@ def load_arms() -> dict:
 
 
 def load_credentials() -> dict:
-    """Read the user's DSH credential store. Never print values."""
+    """Read the user's DSH credential store. Never print values.
+    Newer stores nest keys under "refs"; flatten for compatibility."""
     store = Path.home() / ".dsh" / ".credentials.yaml"
     with open(store) as f:
-        return yaml.safe_load(f)
+        data = yaml.safe_load(f) or {}
+    if isinstance(data, dict) and isinstance(data.get("refs"), dict):
+        data = {**data.get("refs", {})}
+    return data
 
 
 def arm_env(creds: dict) -> dict:

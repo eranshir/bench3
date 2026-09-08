@@ -1,0 +1,5 @@
+- id: agent-default-model
+  config:
+    provider: openrouter
+    model: inception/mercury-2.5-preview
+    reasoningEffort: high

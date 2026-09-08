@@ -46,6 +46,7 @@ MODELS = {
     "lunaroute": ("lunaroute", "glm-5.2-vision"),
     "glm53-flash": ("openrouter", "z-ai/glm-5.3-flash"),
     "qwen38": ("openrouter", "qwen/qwen3.8-27b"),
+    "mercury": ("openrouter", "inception/mercury-2.5-preview"),
 }
 LIMIT = int(os.environ.get("LIMIT", "900"))
 

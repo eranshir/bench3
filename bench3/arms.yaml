@@ -80,6 +80,16 @@ arms:
       input: 0.425
       cached_input: 0.085
       output: 2.55
+  mercury:
+    provider: openrouter
+    model: inception/mercury-2.5-preview
+    display: Mercury 2.5 Preview
+    vendor: Inception (OpenRouter)
+    effort: high
+    prices:
+      input: 0.20
+      cached_input: 0.02
+      output: 0.75
   lunaroute:
     provider: lunaroute
     model: glm-5.2-vision
