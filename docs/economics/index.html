@@ -363,6 +363,46 @@
 
     .chart-card { padding: 28px; }
 
+    .ladder-scatter { margin: 28px 0; padding-top: 26px; border-top: 1px solid var(--line); }
+    .ladder-scatter h3 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.03em; }
+    .scatter-controls { display: flex; flex-wrap: wrap; gap: 18px; margin: 22px 0 14px; }
+    .scatter-controls label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; }
+    .scatter-controls select { max-width: 100%; min-height: 44px; padding: 9px 34px 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-solid); color: var(--ink); font: inherit; font-size: 14px; }
+    .scatter-shapes { display: flex; flex-wrap: wrap; gap: 18px; margin: 8px 0; color: var(--muted); font-size: 12px; }
+    .scatter-shapes b { color: var(--ink); }
+    .scatter-plot { width: 100%; min-width: 0; }
+    .ladder-scatter-svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .scatter-frame { fill: none; stroke: var(--line); }
+    .scatter-grid { fill: none; stroke: var(--line); stroke-width: 1; }
+    .scatter-tick { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .scatter-axis-title { fill: var(--ink); font-size: 12px; }
+    .scatter-point { cursor: pointer; }
+    .scatter-hit { fill: transparent; }
+    .scatter-mark { fill: var(--point-color); stroke: var(--bg); stroke-width: 1.5; }
+    .scatter-point.is-muted .scatter-mark { opacity: .4; }
+    .scatter-selection { fill: none; stroke: var(--ink); stroke-width: 1.5; }
+    .scatter-point:focus-visible .scatter-mark { stroke: var(--ink); stroke-width: 3; }
+    .scatter-detail { min-height: 168px; padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .scatter-selected-name { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+    .scatter-selected-name strong { font-size: 18px; }
+    .scatter-selected-name span, .scatter-detail p { color: var(--muted); font-size: 12px; }
+    .scatter-selected-values { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: 17px; }
+    .scatter-selected-values span, .scatter-selected-values small { display: block; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .scatter-selected-values strong { display: block; margin: 5px 0; font-size: 25px; font-variant-numeric: tabular-nums; }
+    .scatter-detail p { margin: 12px 0 0; }
+    .scatter-legend { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px 14px; margin-top: 16px; }
+    .scatter-legend button { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 48px; padding: 7px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--muted); text-align: left; font-size: 12px; cursor: pointer; }
+    .scatter-legend button[aria-pressed="true"] { color: var(--ink); border-color: var(--line); background: rgba(255,255,255,.035); }
+    .scatter-legend i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--point-color); }
+    .scatter-legend small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    @media (max-width: 800px) { .scatter-legend { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 520px) {
+      .scatter-controls { display: grid; grid-template-columns: 1fr; }
+      .scatter-controls select { width: 100%; font-size: 16px; }
+      .scatter-selected-values { grid-template-columns: 1fr; gap: 12px; }
+      .scatter-detail { min-height: 0; }
+    }
+
     .chart-toolbar {
       display: flex;
       align-items: center;
@@ -1113,6 +1153,21 @@
         <article class="break-card"><span class="kicker">Completed-workflow cash cost</span><strong id="linked-spend">—</strong><small id="linked-allocation"></small></article>
       </div>
       <p class="scale-explain">Each reached model gets the original task and fresh tool state. On a base failure, it gets one fully enforced Aegis retry. Only a second failure permits an upgrade. A checked pass stops the workflow. The frozen final model also gets an Aegis retry if needed; it can still fail. No training observation is counted as a fresh call.</p>
+      <div class="ladder-scatter" id="ladder-scatter">
+        <h3>Measured cost vs time</h3>
+        <p class="scale-explain">Compare the full ladder from each starting model. Cost includes all reached models and Aegis retries. Select a point or a model below for exact values.</p>
+        <div class="scatter-controls">
+          <label for="scatter-task">Task<select id="scatter-task" aria-controls="scatter-plot"></select></label>
+          <label for="scatter-effort">Effort<select id="scatter-effort" aria-controls="scatter-plot"><option value="all">Both · separate points</option><option value="low">Low effort</option><option value="high">High effort</option></select></label>
+          <label for="scatter-time">Time measure<select id="scatter-time" aria-controls="scatter-plot"><option value="wall">Full wall time</option><option value="active">Active attempt time</option></select></label>
+        </div>
+        <div class="scatter-shapes"><span><b>●</b> Low effort</span><span><b>◆</b> High effort</span><span>Color identifies the starting route</span></div>
+        <p id="scatter-summary" class="scale-explain" aria-live="polite"></p>
+        <div id="scatter-plot" class="scatter-plot"></div>
+        <div id="scatter-detail" class="scatter-detail" aria-live="polite" aria-atomic="true"></div>
+        <div id="scatter-legend" class="scatter-legend" aria-label="Select a starting model"></div>
+        <p class="scale-explain">Cost uses a logarithmic scale: each step is 10×. The cost scale stays fixed at $0.10–$100,000 for this data. Time uses a linear scale and adjusts to the selected points. Each point uses its own measured median, not an average of task medians. Low and high effort are never pooled. LunaRoute uses full-capacity cost allocation. One timeout charge remains unknown. These are repeated fixed tasks, not unseen-task quality.</p>
+      </div>
       <div class="table-card"><table><thead><tr><th>Starting route</th><th>Effort</th><th>Fresh workflows</th><th>Passes</th><th>95% pass interval</th><th>Measured / 100K attempts</th><th>95% cost interval</th><th>Earlier estimate / 100K</th><th>Measured / 100K successes</th><th>Retries / upgrades</th><th>Median wall time</th><th>Median active time</th></tr></thead><tbody id="linked-body"></tbody></table></div>
       <p class="scale-explain" id="linked-cost-note"></p>
       <p class="scale-explain">Cost includes every reached model and every enforced retry. Active time is the sum of the recorded attempt times. Wall time runs from workflow start to finish and includes local method checks. One recovered workflow includes a wait for human approval in its wall time, not its active time. Queue time before workflow start is excluded. Pass and cost intervals describe repeated fixed tasks, not unseen-task quality. The earlier estimate is frozen; new outcomes do not tune the ladder.</p>
@@ -1444,6 +1499,7 @@
   <script src="hybrid_cost.js"></script>
   <script src="ladder_data.js"></script>
   <script src="ladder_report.js"></script>
+  <script src="ladder_scatter.js"></script>
   <script>
     const legacyRoutes = [
       { id: 'ds-luna', head: 'DS · LunaRoute', name: 'DeepSeek V4.1 Flash', sub: 'LunaRoute', color: '#3dd9d0' },
@@ -1605,6 +1661,7 @@
     let activePolicy = 'base';
     let activeCategory = 'all';
     let activeEffort = 'all';
+    let ladderScatter = null;
 
     function isEstimate() { return activeMetric === 'hybrid' || activeMetric === 'ladder'; }
     function locksPolicy() {return isEstimate() || activeMetric === 'measuredLadder';}
@@ -1847,6 +1904,8 @@
       const data=window.LADDER_DATA;
       document.querySelector('#linked-ladder').hidden=!data;
       if(!data)return;
+      if(!ladderScatter)ladderScatter=LADDER_SCATTER.mount(document,data);
+      else ladderScatter.update(data);
       document.querySelector('#linked-message').textContent=data.state==='complete'&&data.finalAuditAvailable?'All ten linked-ladder repetitions are complete. Independent audit reports are available.':data.message;
       document.querySelector('#linked-count').textContent=`${data.completedChains.toLocaleString()}/${data.plannedChains.toLocaleString()}`;
       document.querySelector('#linked-rounds').textContent=`${data.completedRounds}/10`;

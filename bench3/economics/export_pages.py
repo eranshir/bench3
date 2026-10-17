@@ -12,7 +12,7 @@ from pathlib import Path
 ECON = Path(__file__).resolve().parent
 REPO = ECON.parents[1]
 ASSETS = [
-    "report.html", "report_data.js", "hybrid_cost.js", "ladder_data.js", "ladder_report.js", "REPORT.md", "SCALE.csv", "routes.yaml",
+    "report.html", "report_data.js", "hybrid_cost.js", "ladder_data.js", "ladder_report.js", "ladder_scatter.js", "REPORT.md", "SCALE.csv", "routes.yaml",
     "aegis_enforced_retry.py", "aegis_method_payload.md", "tool_runtime.py",
     "run_toolloop.py", "toolloop/REPORT.md", "toolloop/TASK_ECONOMICS.csv",
     "toolloop/audit.json",

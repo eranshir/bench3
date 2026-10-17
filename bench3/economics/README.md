@@ -99,10 +99,20 @@ The new public report has a separate measured-ladder section. Its CSV and
 JSON contain all 224 task/effort/starting-route cells. Private chain records,
 provider responses, process state, and evidence signing keys stay local.
 
+The measured cost-versus-time chart compares starting routes. Its task and
+effort filters use fresh linked observations only. Both efforts appear as
+separate points. All-task points use the saved pooled configuration median;
+they do not average task medians. Cost uses dollars per 100,000 original
+workflows on a logarithmic axis. Time uses a linear axis with full wall time
+as the default. Active attempt time is also available. Point selection shows
+sample counts, cost and pass intervals, retries, and upgrades. The chart
+does not change benchmark evidence or call a model.
+
 ```bash
 python3 -m unittest test_continue_ladder_tool.py test_ladder.py test_campaign.py test_economics.py test_toolloop.py test_extension.py
 node test_hybrid.js
 node test_ladder_report.js
+node test_ladder_scatter.js
 node test_report_ui.js
 ```
 

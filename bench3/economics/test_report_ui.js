@@ -6,6 +6,7 @@ const path = require('node:path');
 const reportDir = path.resolve(process.argv[2] || __dirname);
 const hybrid = require(reportDir+'/hybrid_cost.js');
 const ladderReport=require(reportDir+'/ladder_report.js');
+const ladderScatter=require(reportDir+'/ladder_scatter.js');
 const html = fs.readFileSync(reportDir+'/report.html','utf8');
 // querySelector('#1017-...') is invalid CSS although it is a legal HTML ID.
 // The DOM stub must not silently accept this browser syntax error.
@@ -32,13 +33,30 @@ for(const id of ['metric-switch','policy-switch','effort-switch','task-filter'])
   });
   buttonGroups.set('#'+id+' button',buttons);
 }
-const context={window:{HYBRID_COST:hybrid},HYBRID_COST:hybrid,LADDER_REPORT:ladderReport,
+const context={window:{HYBRID_COST:hybrid},HYBRID_COST:hybrid,LADDER_REPORT:ladderReport,LADDER_SCATTER:ladderScatter,
   document:{querySelector:get,querySelectorAll:key=>buttonGroups.get(key)||[],createElement:()=>new Element(),head:{appendChild(){}}},
   IntersectionObserver:class {observe(){}unobserve(){}},setInterval(){},setTimeout(){},Blob,URL};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(reportDir+'/report_data.js','utf8'),context);
 vm.runInContext(fs.readFileSync(reportDir+'/ladder_data.js','utf8'),context);
 for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(script[1].trim())vm.runInContext(script[1],context);
+const pointCount=()=>[...get('#scatter-plot').innerHTML.matchAll(/data-point=/g)].length;
+assert.equal(pointCount(),32,'Both efforts must stay separate, with one point per route and effort');
+assert.match(get('#scatter-summary').textContent,/2,240 original workflows/);
+assert.match(get('#scatter-plot').innerHTML,/Median wall time/);
+get('#scatter-task').value='reasoning/r1_tiling';get('#scatter-task').handlers.change();
+get('#scatter-effort').value='high';get('#scatter-effort').handlers.change();
+assert.equal(pointCount(),16);
+assert.match(get('#scatter-summary').textContent,/160 original workflows/);
+const plotted=get('#scatter-plot').innerHTML;
+assert.match(plotted,/glm53-flash-lunaroute\|high/);
+assert.match(plotted,/\$179\.93 per 100,000/,'Use measured high-effort tiling cost, not the old estimate');
+get('#scatter-time').value='active';get('#scatter-time').handlers.change();
+assert.match(get('#scatter-plot').innerHTML,/Median active time/);
+get('#scatter-plot').handlers.click({target:{closest:()=>({dataset:{point:'gpt61-sol-direct|high'}})}});
+assert.match(get('#scatter-detail').innerHTML,/GPT-6.1 Sol/);
+assert.match(get('#scatter-detail').innerHTML,/95% cost interval/);
+assert.match(get('#scatter-detail').innerHTML,/10\/10/);
 const click=(id,key,value)=>{
   const button=buttonGroups.get('#'+id+' button').find(button=>button.dataset[key]===value);
   get('#'+id).handlers.click({target:button});
