@@ -1,0 +1,10 @@
+{
+  "actual_run_root_method_gates": 36,
+  "journal_heads_and_signing_keys_match": true,
+  "nonempty_signed_journals": 12,
+  "provider_requests_made": 0,
+  "scope": "Strict additional audit. Actual evidence-state path; nonempty signed journal; exact saved head, segment, journal and public-key identity; all method gates at the adapter run root.",
+  "signed_entries": 24,
+  "valid": true,
+  "verified_at_utc": "2026-10-17T14:00:15.059508+00:00"
+}

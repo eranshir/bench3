@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 const reportDir = path.resolve(process.argv[2] || __dirname);
 const hybrid = require(reportDir+'/hybrid_cost.js');
+const ladderReport=require(reportDir+'/ladder_report.js');
 const html = fs.readFileSync(reportDir+'/report.html','utf8');
 // querySelector('#1017-...') is invalid CSS although it is a legal HTML ID.
 // The DOM stub must not silently accept this browser syntax error.
@@ -31,11 +32,12 @@ for(const id of ['metric-switch','policy-switch','effort-switch','task-filter'])
   });
   buttonGroups.set('#'+id+' button',buttons);
 }
-const context={window:{HYBRID_COST:hybrid},HYBRID_COST:hybrid,
+const context={window:{HYBRID_COST:hybrid},HYBRID_COST:hybrid,LADDER_REPORT:ladderReport,
   document:{querySelector:get,querySelectorAll:key=>buttonGroups.get(key)||[],createElement:()=>new Element(),head:{appendChild(){}}},
   IntersectionObserver:class {observe(){}unobserve(){}},setInterval(){},setTimeout(){},Blob,URL};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(reportDir+'/report_data.js','utf8'),context);
+vm.runInContext(fs.readFileSync(reportDir+'/ladder_data.js','utf8'),context);
 for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(script[1].trim())vm.runInContext(script[1],context);
 const click=(id,key,value)=>{
   const button=buttonGroups.get('#'+id+' button').find(button=>button.dataset[key]===value);
@@ -53,6 +55,18 @@ click('metric-switch','metric','ladder');
 assert.equal(get('#ladder-detail').hidden,false);
 assert.match(get('#ladder-body').innerHTML,/final fallback/);
 assert.match(get('#matrix-title').textContent,/Aegis cost ladder/);
+click('metric-switch','metric','measuredLadder');
+assert.equal(get('#linked-ladder').hidden,false);
+assert.match(html,/Median active time/);
+assert.match(get('#linked-recovery').href,/recovery_audit\.json$/);
+if(context.window.LADDER_DATA.finalAuditAvailable){
+  assert.equal(get('#linked-recovery').hidden,false);
+  assert.match(get('#linked-message').textContent,/audit reports are available/);
+}
+assert.match(get('#matrix-title').textContent,/Measured ladder cost/);
+assert.match(get('#policy-context').textContent,/fresh calls only/);
+assert.match(get('#ladder-detail-title').textContent,/Measured ladder paths/);
+assert.ok(!get('#task-body').innerHTML.includes('Estimate · Aegis retries included'));
 click('metric-switch','metric','success');
 assert.equal(get('#hybrid-method').hidden,true);
 assert.equal(get('#ladder-detail').hidden,true);
@@ -71,4 +85,4 @@ for(const task of data.tasks)for(const effort of ['low','high'])for(const result
   cells++;
 }
 assert.ok(cells>0,'Check policy paths against real report observations');
-console.log('Report interaction unit checks passed: initial render, Aegis-first hybrid, ladder paths, effort switch, policy isolation, task filter.');
+console.log('Report interaction unit checks passed: initial render, Aegis-first hybrid, estimated and measured ladder paths, effort switch, policy isolation, task filter.');

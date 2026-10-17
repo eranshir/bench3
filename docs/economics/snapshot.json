@@ -1,5 +1,5 @@
 {
-  "exported_at_utc": "2026-10-17T13:45:06.382346+00:00",
+  "exported_at_utc": "2026-10-17T15:45:06.441865+00:00",
   "campaign": "20261017T131926Z-ds41-1017-k10",
   "base_tasks": 140,
   "comparison_base_tasks": 2240,
@@ -7,5 +7,8 @@
   "verified_repetitions": 10,
   "state": "complete",
   "source": "Git index",
+  "measured_ladder_chains": 2240,
+  "measured_ladder_planned": 2240,
+  "measured_ladder_state": "complete",
   "note": "Public snapshot. Private run sessions and evidence signing keys are not exported."
 }

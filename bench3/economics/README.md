@@ -34,6 +34,78 @@ Responses API.
 
 ## Cost views
 
+### Fresh linked ladder benchmark
+
+`run_ladder.py` freezes the 224 task/effort/starting-route plans from the
+audited 2,240 training observations. It then runs 2,240 fresh original
+workflows: 16 starting routes, seven tasks, two efforts, and ten repetitions.
+New repetition IDs 1–10 belong only to this separate campaign. They are
+not the older pilot or a copy of training records.
+
+Each reached model gets the original task with fresh tool state. A base
+failure triggers one fully enforced Aegis retry with that model. A second
+failure permits the next frozen model. An objective pass stops the chain.
+The final model can fail; the runner records that result without extending
+the plan. Provider errors do not authorize upgrades. A persisted uncertain
+request blocks automatic resubmission. Completed stage records are reused
+only to resume that same new chain, never across chains.
+
+For the approved DeepSeek 1017 support-workflow timeout in repetition 7,
+`continue_ladder_tool.py` reconstructs the saved conversation through local
+deterministic replay. It does not send the three completed requests again.
+The timed-out fourth request consumes one of the original twelve slots.
+At most eight further provider requests are allowed; the output and tool
+limits stay unchanged. The original timeout and partial artifacts remain
+intact. Returned receipts are counted once, and the missing timeout charge
+stays unknown, not zero. `recovery_audit.json` records the continuation.
+That workflow's wall time includes the pause for human approval. Its active
+model/workflow time does not include that approval wait.
+
+The existing token limits, executed tools, graders, full method payload,
+plan/completion/closure gates, and signed journals stay unchanged. The
+runner rechecks the retry journal and method gates before each upgrade.
+`verify_ladder.py` independently replays every grade and journal, verifies
+all paths and ten round proofs, and reconciles every stage cost.
+
+The required additional `audit_ladder_evidence.py` audit checks the actual
+adapter run directory. A reasoning record's `local_ir_dir` ends in `.am`;
+its signed journal is in the parent run directory's `evidence-state`.
+The older audit helper can use the wrong empty state directory. The retry
+adapter itself verifies the correct nonempty journal when it creates the
+record. The extra audit requires a nonempty saved journal and exact matching
+head, segment, journal identity, public-key identity, and method gates.
+It makes no provider calls. Both audits must pass before publication.
+
+```bash
+cd bench3/economics
+python3 run_ladder.py --status
+python3 run_ladder.py --resume --campaign ladder_campaigns/EXACT_CAMPAIGN_ID
+python3 verify_ladder.py --campaign ladder_campaigns/EXACT_CAMPAIGN_ID --save
+python3 audit_ladder_evidence.py --campaign ladder_campaigns/EXACT_CAMPAIGN_ID --save
+```
+
+Use `--launch` only for a newly authorized run. Do not restart a new campaign
+to replace a low score or repeat completed provider calls.
+
+`ladder_data.js` contains only public aggregates. It updates after each
+completed chain. The local report refreshes it every 15 seconds. It shows
+fresh sample counts, cost per 100,000 original attempts and successes,
+Wilson pass intervals, bootstrap cost intervals, actual stage reach,
+recovery and upgrade counts, and wall time. Earlier estimates remain
+separate and frozen. Live costs cover completed chains only. In-progress
+or interrupted requests need later reconciliation.
+
+The new public report has a separate measured-ladder section. Its CSV and
+JSON contain all 224 task/effort/starting-route cells. Private chain records,
+provider responses, process state, and evidence signing keys stay local.
+
+```bash
+python3 -m unittest test_continue_ladder_tool.py test_ladder.py test_campaign.py test_economics.py test_toolloop.py test_extension.py
+node test_hybrid.js
+node test_ladder_report.js
+node test_report_ui.js
+```
+
 ### Aegis-first hybrid and greedy cost ladder
 
 The report separates four policies:
@@ -63,7 +135,7 @@ passes gives later stages zero estimated reach, but keeps the final fallback
 in the plan. This is not proof of perfect reliability or a globally optimal
 policy. Latency is not part of the score.
 
-No linked model cascade was run. Estimates use marginal pass rates from
+These estimated views do not use the fresh linked results. They use marginal pass rates from
 separately tested models. Failures can correlate across models. The cost
 of a model on upstream failures can differ from its observed mean cost.
 Selection and scoring use the same small sample. Actual cascade costs can

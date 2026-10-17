@@ -31,3 +31,10 @@ toolloop/failures.jsonl
 *.log
 *.lock
 *.tmp
+
+# Fresh linked ladders: publish aggregates, not raw chain or signing state.
+ladder_campaigns/current.json
+ladder_campaigns/*/chain_runs/
+ladder_campaigns/*/chain_records/
+ladder_campaigns/*/process.json
+ladder_campaigns/*/worker.*

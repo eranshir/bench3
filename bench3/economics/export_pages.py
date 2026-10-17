@@ -12,7 +12,7 @@ from pathlib import Path
 ECON = Path(__file__).resolve().parent
 REPO = ECON.parents[1]
 ASSETS = [
-    "report.html", "report_data.js", "hybrid_cost.js", "REPORT.md", "SCALE.csv", "routes.yaml",
+    "report.html", "report_data.js", "hybrid_cost.js", "ladder_data.js", "ladder_report.js", "REPORT.md", "SCALE.csv", "routes.yaml",
     "aegis_enforced_retry.py", "aegis_method_payload.md", "tool_runtime.py",
     "run_toolloop.py", "toolloop/REPORT.md", "toolloop/TASK_ECONOMICS.csv",
     "toolloop/audit.json",
@@ -46,7 +46,7 @@ def export(destination: Path, staged: bool = False) -> dict:
         assets[prefix + "summary.json"] = summary
         assets[prefix + "TASK_ECONOMICS.csv"] = source_bytes(prefix + "TASK_ECONOMICS.csv", staged)
         if campaign["state"] == "complete":
-            for name in ["FINAL_REPORT.md", "final_audit.json"]:
+            for name in ["FINAL_REPORT.md", "final_audit.json", "journal_audit.json"]:
                 assets[prefix + name] = source_bytes(prefix + name, staged)
         for round_id in range(1, campaign["completedRounds"] + 1):
             proof = prefix + f"checkpoints/round-{round_id:02d}-verification.json"
@@ -54,11 +54,27 @@ def export(destination: Path, staged: bool = False) -> dict:
         baseline = campaign.get("baseline")
         if baseline:
             baseline_prefix = f'campaigns/{Path(baseline["root"]).name}/'
-            for name in ["summary.json", "TASK_ECONOMICS.csv", "FINAL_REPORT.md", "final_audit.json"]:
+            for name in ["summary.json", "TASK_ECONOMICS.csv", "FINAL_REPORT.md", "final_audit.json", "journal_audit.json"]:
                 assets[baseline_prefix + name] = source_bytes(baseline_prefix + name, staged)
             for round_id in range(1, baseline["completedRounds"] + 1):
                 proof = baseline_prefix + f"checkpoints/round-{round_id:02d}-verification.json"
                 assets[proof] = source_bytes(proof, staged)
+    ladder_source=assets["ladder_data.js"]
+    ladder=json.loads(ladder_source.decode().removeprefix("window.LADDER_DATA = ").strip().removesuffix(";"))
+    if ladder:
+        prefix=f'ladder_campaigns/{Path(ladder["root"]).name}/'
+        summary=source_bytes(prefix+"summary.json",staged)
+        stats=json.loads(summary)
+        if (stats["completedChains"],stats["updated_at_utc"]) != (ladder["completedChains"],ladder["updated_at_utc"]):
+            raise ValueError("Measured ladder data and summary differ. Stage one consistent snapshot.")
+        for name in ["summary.json","TASK_ECONOMICS.csv","manifest.json"]:
+            assets[prefix+name]=source_bytes(prefix+name,staged)
+        if ladder["state"]=="complete":
+            for name in ["FINAL_REPORT.md","final_audit.json","journal_audit.json","recovery_audit.json"]:
+                assets[prefix+name]=source_bytes(prefix+name,staged)
+        for index in range(1,ladder["completedRounds"]+1):
+            proof=prefix+f"checkpoints/round-{index:02d}-verification.json"
+            assets[proof]=source_bytes(proof,staged)
     html = assets.pop("report.html").decode()
     marker = '<script>window.REPORT_SNAPSHOT = true;</script>\n'
     if '<script src="report_data.js"></script>' not in html:
@@ -77,6 +93,9 @@ def export(destination: Path, staged: bool = False) -> dict:
         "verified_repetitions": campaign.get("completedRounds") if campaign else None,
         "state": campaign.get("state") if campaign else None,
         "source": "Git index" if staged else "working tree",
+        "measured_ladder_chains":ladder.get("completedChains") if ladder else None,
+        "measured_ladder_planned":ladder.get("plannedChains") if ladder else None,
+        "measured_ladder_state":ladder.get("state") if ladder else None,
         "note": "Public snapshot. Private run sessions and evidence signing keys are not exported.",
     }
     assets["snapshot.json"] = (json.dumps(snapshot, indent=2) + "\n").encode()

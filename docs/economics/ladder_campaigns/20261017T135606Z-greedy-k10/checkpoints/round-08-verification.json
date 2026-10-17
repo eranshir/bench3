@@ -1,0 +1,9 @@
+{
+  "chains": 224,
+  "passes": 224,
+  "repetition": 8,
+  "retries": 18,
+  "round": 8,
+  "upgrades": 10,
+  "verified_at_utc": "2026-10-17T15:17:44.876297+00:00"
+}

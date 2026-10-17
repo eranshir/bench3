@@ -1,0 +1,23 @@
+{
+  "completedChains": 2240,
+  "completedRounds": 10,
+  "completed_at_utc": "2026-10-17T15:38:24.257642+00:00",
+  "currentRound": 10,
+  "errors": [
+    {
+      "cell": [
+        "ds41-1017-openrouter",
+        "tool-use/t2_toolselect",
+        "high",
+        7
+      ],
+      "error": "provider error: {\"message\": \"Provider timed out after 10942ms\", \"code\": 504, \"metadata\": {\"error_type\": \"timeout\"}}"
+    }
+  ],
+  "infrastructureErrors": 0,
+  "message": "All ten linked-ladder repetitions are complete. Independent final audit is pending.",
+  "pid": 38834,
+  "started_at_utc": "2026-10-17T13:56:06.997233+00:00",
+  "state": "complete",
+  "updated_at_utc": "2026-10-17T15:38:24.257661+00:00"
+}

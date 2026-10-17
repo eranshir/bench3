@@ -1,0 +1,18 @@
+{
+  "all_costs_reconciled": true,
+  "allocated_cost_usd": 0.011361720833333333,
+  "base_stage_records": 2334,
+  "cash_cost_usd": 30.281770924204,
+  "enforced_retries": 184,
+  "fresh_chains": 2240,
+  "grades_replayed": 2518,
+  "method_gates_replayed": 552,
+  "passes": 2240,
+  "provider_requests_made_by_audit": 0,
+  "round_proofs": 10,
+  "signed_journals_reverified": 184,
+  "training_observations_counted_as_fresh": 0,
+  "upgrades": 94,
+  "valid": true,
+  "verified_at_utc": "2026-10-17T15:39:25.223943+00:00"
+}

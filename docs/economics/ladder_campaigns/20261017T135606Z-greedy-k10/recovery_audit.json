@@ -1,0 +1,21 @@
+{
+  "cell": [
+    "ds41-1017-openrouter",
+    "tool-use/t2_toolselect",
+    "high",
+    7
+  ],
+  "completed_calls_reissued": 0,
+  "completed_prefix_receipts_preserved": 3,
+  "helper_sha256": "2287554319b5ba727cdc44eb2555e4f7550e1f1f57d5793550112ba6af5466c2",
+  "known_cost_usd": 0.0007460369199999998,
+  "missing_usage_receipts": 1,
+  "new_provider_requests": 2,
+  "objective_passed": true,
+  "original_source_pins_unchanged": true,
+  "request_cap": 12,
+  "total_provider_requests": 6,
+  "unknown_timeout_charge_usd": null,
+  "valid": true,
+  "verified_at_utc": "2026-10-17T15:05:31.784540+00:00"
+}

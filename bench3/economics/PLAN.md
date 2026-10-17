@@ -1,5 +1,52 @@
 # Task economics benchmark plan
 
+## Fresh linked ladder experiment — 17 October 2026
+
+**User promise:** Eran can compare measured ladder cost and pass rate with
+the earlier cost estimates. The new experiment has 16 starting routes,
+seven tasks, two efforts, and ten fresh repetitions: 2,240 original ladder
+workflows. It does not reuse the 2,240 training observations as new calls.
+
+**Earliest Testable journey:** Start one frozen chain, fail a model task,
+run its fully enforced Aegis retry, and upgrade only if both fail. Stop at
+the first objective pass or after the final model's retry fails. Baseline:
+the report previously estimated this path from separate model runs.
+Threshold: exact stage order, full receipt reconciliation, valid signed
+journals and method gates, and no call after success. Falsifier: a skipped
+retry, unauthorized upgrade, duplicate completed call, or omitted cost.
+Stop on an integrity failure. Pivot only a declared later experiment, not
+the running plan. Continue after the complete path passes its checks.
+
+**Earliest Usable journey:** Repeat the same frozen paths ten times for
+every starting route, task, and effort. Inspect measured cost, pass counts,
+confidence intervals, actual stage reach, recovery counts, and latency.
+Threshold: all 2,240 chains exist exactly once, all ten round proofs pass,
+and a separate final audit replays all grades and enforced journals. A
+model failure remains data, not a reason to change the ladder. Stop for
+an unresolved infrastructure or integrity failure. Resume the same run
+only after safe diagnosis. Continue to publication after the final audit.
+
+**Earliest Lovable journey:** Use the published measured policy to make
+two real routing decisions, then return for a later update. Baseline:
+manual estimates. Threshold: observed decision use and repeat use.
+Falsifier: the result does not change a real route decision. Stop if it
+has no decision value. Pivot if the fixed tasks do not represent the real
+work. No preference or general quality claim is made before user evidence.
+
+**Frozen contract:** Select all 224 task/effort/starting-route paths once
+from the audited earlier data. Keep a final fallback even when estimated
+reach is zero. Each reached model gets the original task with fresh tool
+state. The Aegis retry refers to that model's own failed base attempt.
+Use the existing checker, tool loop, output limits, and full Aegis adapter.
+Do not inject previous-model answers or tune the ladder from new outcomes.
+
+**Dependencies and deferrals:** The complete tool loop, objective graders,
+official method gates, signed journals, frozen plans, and per-chain cost
+records are hard dependencies. Earlier outcomes select the plans; they are
+an evidence relationship. API funds and concurrency are resource limits.
+Extra visual polish is a preference. Defer production routing, new tasks,
+new token budgets, latency optimization, and causal Aegis claims.
+
 ## Status on 2026-10-17
 
 - The historical objective pilot has 210 runs across 15 routes, seven tasks, and two effort levels.
