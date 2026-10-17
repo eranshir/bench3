@@ -1,0 +1,106 @@
+task,task_contract,route_id,display,runs,passes,pass_rate,cost_per_100k_attempts_usd,cost_per_100k_successes_usd,median_seconds
+reasoning/r1_tiling,reasoning answer,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,7021.5525,7021.5525,14.322778940200806
+reasoning/r1_tiling,reasoning answer,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,2,1.0,157.886025,157.886025,13.183909177780151
+reasoning/r1_tiling,reasoning answer,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,2826.5559999999996,2826.5559999999996,12.271973609924316
+reasoning/r1_tiling,reasoning answer,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,1170.1005,1170.1005,8.168439984321594
+reasoning/r1_tiling,reasoning answer,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,0,0.0,1.7412500000000004,,22.361639142036438
+reasoning/r1_tiling,reasoning answer,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,0,0.0,62.02048544999999,,19.059709548950195
+reasoning/r1_tiling,reasoning answer,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,0,0.0,62.02048544999999,,18.953992009162903
+reasoning/r1_tiling,reasoning answer,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,1,0.5,1662.5354702749999,3325.0709405499997,119.92584097385406
+reasoning/r1_tiling,reasoning answer,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,1,0.5,1233.29596005,2466.5919201,266.8270823955536
+reasoning/r1_tiling,reasoning answer,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.4052083333333333,0.4052083333333333,35.36025285720825
+reasoning/r1_tiling,reasoning answer,glm53-lunaroute,GLM 5.3 — LunaRoute,2,1,0.5,1.6616666666666666,3.3233333333333333,35.691768646240234
+reasoning/r1_tiling,reasoning answer,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,2,1.0,7101.499999999999,7101.499999999999,28.803805589675903
+reasoning/r1_tiling,reasoning answer,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,2,1.0,142.41500000000002,142.41500000000002,29.506464958190918
+reasoning/r1_tiling,reasoning answer,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,2,1.0,1450.3,1450.3,26.615074634552002
+reasoning/r1_tiling,reasoning answer,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,2,1.0,2.77875,2.77875,23.08153760433197
+reasoning/r2_expectedflips,reasoning answer,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,2237.1274999999996,2237.1274999999996,7.409476041793823
+reasoning/r2_expectedflips,reasoning answer,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,2,1.0,32.288275,32.288275,3.1766639947891235
+reasoning/r2_expectedflips,reasoning answer,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,1424.461,1424.461,7.439883470535278
+reasoning/r2_expectedflips,reasoning answer,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,479.0755000000001,479.0755000000001,3.445651412010193
+reasoning/r2_expectedflips,reasoning answer,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,2,1.0,0.2677083333333333,0.2677083333333333,2.284711718559265
+reasoning/r2_expectedflips,reasoning answer,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,2,1.0,47.522475,47.522475,2.643601417541504
+reasoning/r2_expectedflips,reasoning answer,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,2,1.0,8.489352899999998,8.489352899999998,3.579020857810974
+reasoning/r2_expectedflips,reasoning answer,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,2,1.0,443.19975552499994,443.19975552499994,37.71482694149017
+reasoning/r2_expectedflips,reasoning answer,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,2,1.0,103.5697509,103.5697509,22.29753088951111
+reasoning/r2_expectedflips,reasoning answer,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.25916666666666666,0.25916666666666666,11.977224469184875
+reasoning/r2_expectedflips,reasoning answer,glm53-lunaroute,GLM 5.3 — LunaRoute,2,2,1.0,0.210625,0.210625,4.944335103034973
+reasoning/r2_expectedflips,reasoning answer,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,2,1.0,1639.5,1639.5,8.212754487991333
+reasoning/r2_expectedflips,reasoning answer,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,2,1.0,15.594999999999999,15.594999999999999,4.540389060974121
+reasoning/r2_expectedflips,reasoning answer,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,2,1.0,315.4,315.4,7.027380585670471
+reasoning/r2_expectedflips,reasoning answer,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,2,1.0,0.6018749999999999,0.6018749999999999,4.982632875442505
+reasoning/r3_die_expected,reasoning answer,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,2751.44,2751.44,8.186281442642212
+reasoning/r3_die_expected,reasoning answer,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,2,1.0,39.620525,39.620525,4.29349160194397
+reasoning/r3_die_expected,reasoning answer,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,1698.761,1698.761,7.323989510536194
+reasoning/r3_die_expected,reasoning answer,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,446.8979999999999,446.8979999999999,3.2840869426727295
+reasoning/r3_die_expected,reasoning answer,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,2,1.0,0.21354166666666666,0.21354166666666666,2.171970009803772
+reasoning/r3_die_expected,reasoning answer,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,2,1.0,9.9657621,9.9657621,3.3484116792678833
+reasoning/r3_die_expected,reasoning answer,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,2,1.0,9.724715699999999,9.724715699999999,3.8456521034240723
+reasoning/r3_die_expected,reasoning answer,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,2,1.0,135.726103425,135.726103425,10.843015551567078
+reasoning/r3_die_expected,reasoning answer,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,2,1.0,183.14869419,183.14869419,38.52409553527832
+reasoning/r3_die_expected,reasoning answer,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.2529166666666666,0.2529166666666666,16.7164249420166
+reasoning/r3_die_expected,reasoning answer,glm53-lunaroute,GLM 5.3 — LunaRoute,2,2,1.0,0.2864583333333333,0.2864583333333333,4.307102680206299
+reasoning/r3_die_expected,reasoning answer,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,2,1.0,2436.0,2436.0,9.610925078392029
+reasoning/r3_die_expected,reasoning answer,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,2,1.0,16.86,16.86,4.219376921653748
+reasoning/r3_die_expected,reasoning answer,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,2,1.0,448.7,448.7,7.916727066040039
+reasoning/r3_die_expected,reasoning answer,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,2,1.0,0.5295833333333334,0.5295833333333334,3.4043636322021484
+reasoning/r4_catalan,reasoning answer,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,2928.1524999999997,2928.1524999999997,6.946632504463196
+reasoning/r4_catalan,reasoning answer,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,2,1.0,51.48927499999999,51.48927499999999,5.259726405143738
+reasoning/r4_catalan,reasoning answer,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,1843.2959999999998,1843.2959999999998,8.187493562698364
+reasoning/r4_catalan,reasoning answer,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,692.1854999999999,692.1854999999999,5.091297149658203
+reasoning/r4_catalan,reasoning answer,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,2,1.0,0.7720833333333332,0.7720833333333332,9.425479531288147
+reasoning/r4_catalan,reasoning answer,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,2,1.0,157.90185,157.90185,9.043228507041931
+reasoning/r4_catalan,reasoning answer,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,2,1.0,44.491892549999996,44.491892549999996,13.095507383346558
+reasoning/r4_catalan,reasoning answer,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,2,1.0,4266.7365,4266.7365,87.96775102615356
+reasoning/r4_catalan,reasoning answer,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,1,0.5,541.1947186799999,1082.3894373599999,115.92925608158112
+reasoning/r4_catalan,reasoning answer,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.235,0.235,5.108452796936035
+reasoning/r4_catalan,reasoning answer,glm53-lunaroute,GLM 5.3 — LunaRoute,2,2,1.0,0.35312499999999997,0.35312499999999997,11.088825583457947
+reasoning/r4_catalan,reasoning answer,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,2,1.0,3537.0,3537.0,16.454971075057983
+reasoning/r4_catalan,reasoning answer,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,2,1.0,24.445,24.445,5.243239879608154
+reasoning/r4_catalan,reasoning answer,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,2,1.0,543.4,543.4,12.611051440238953
+reasoning/r4_catalan,reasoning answer,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,2,1.0,0.7793749999999999,0.7793749999999999,5.120818495750427
+tool-use/t1_orchestrate,one-shot tool plan,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,5138.3775,5138.3775,9.723647952079773
+tool-use/t1_orchestrate,one-shot tool plan,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,1,0.5,58.55777499999999,117.11554999999998,5.52870786190033
+tool-use/t1_orchestrate,one-shot tool plan,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,1827.471,1827.471,7.348365068435669
+tool-use/t1_orchestrate,one-shot tool plan,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,911.6255,911.6255,4.101140141487122
+tool-use/t1_orchestrate,one-shot tool plan,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,2,1.0,0.6197916666666667,0.6197916666666667,2.617856979370117
+tool-use/t1_orchestrate,one-shot tool plan,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,2,1.0,48.741,48.741,2.734208583831787
+tool-use/t1_orchestrate,one-shot tool plan,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,2,1.0,10.778088468,10.778088468,4.069667100906372
+tool-use/t1_orchestrate,one-shot tool plan,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,2,1.0,213.4917201,213.4917201,12.348717451095581
+tool-use/t1_orchestrate,one-shot tool plan,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,2,1.0,82.726114212,82.726114212,14.830247521400452
+tool-use/t1_orchestrate,one-shot tool plan,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.3975,0.3975,12.95098876953125
+tool-use/t1_orchestrate,one-shot tool plan,glm53-lunaroute,GLM 5.3 — LunaRoute,2,0,0.0,0.3754166666666667,,3.0732901096343994
+tool-use/t1_orchestrate,one-shot tool plan,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,0,0.0,1852.5,,7.696427941322327
+tool-use/t1_orchestrate,one-shot tool plan,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,0,0.0,17.875,,4.269735932350159
+tool-use/t1_orchestrate,one-shot tool plan,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,0,0.0,300.0,,5.27852201461792
+tool-use/t1_orchestrate,one-shot tool plan,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,1,0.5,1.4947916666666667,2.9895833333333335,7.541671633720398
+tool-use/t2_toolselect,one-shot tool plan,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,0,0.0,2452.875,,5.186207413673401
+tool-use/t2_toolselect,one-shot tool plan,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,0,0.0,30.542249999999996,,4.247209906578064
+tool-use/t2_toolselect,one-shot tool plan,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,0,0.0,1019.13,,4.1259695291519165
+tool-use/t2_toolselect,one-shot tool plan,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,0,0.0,454.70500000000004,,2.3397690057754517
+tool-use/t2_toolselect,one-shot tool plan,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,0,0.0,0.49166666666666664,,0.7865809202194214
+tool-use/t2_toolselect,one-shot tool plan,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,0,0.0,24.212566499999998,,1.2093489170074463
+tool-use/t2_toolselect,one-shot tool plan,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,0,0.0,15.498356174999998,,3.7155600786209106
+tool-use/t2_toolselect,one-shot tool plan,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,0,0.0,249.05279499999997,,2.4096710681915283
+tool-use/t2_toolselect,one-shot tool plan,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,0,0.0,44.890912961999994,,5.11458694934845
+tool-use/t2_toolselect,one-shot tool plan,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,0,0.0,0.42541666666666667,,9.801875948905945
+tool-use/t2_toolselect,one-shot tool plan,glm53-lunaroute,GLM 5.3 — LunaRoute,2,0,0.0,0.405625,,2.0725358724594116
+tool-use/t2_toolselect,one-shot tool plan,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,0,0.0,593.0,,1.7555625438690186
+tool-use/t2_toolselect,one-shot tool plan,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,0,0.0,6.730000000000001,,1.5588898658752441
+tool-use/t2_toolselect,one-shot tool plan,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,0,0.0,118.6,,1.6117924451828003
+tool-use/t2_toolselect,one-shot tool plan,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,0,0.0,0.7283333333333334,,1.2322014570236206
+tool-use/t3_inventory,one-shot tool plan,claude-fable51-openrouter,Claude Fable 5.1 — OpenRouter,2,2,1.0,4873.045,4873.045,10.238956332206726
+tool-use/t3_inventory,one-shot tool plan,claude-haiku55-openrouter,Claude Haiku 5.5 — OpenRouter,2,2,1.0,72.49432499999999,72.49432499999999,5.420209527015686
+tool-use/t3_inventory,one-shot tool plan,claude-opus55-openrouter,Claude Opus 5.5 — OpenRouter,2,2,1.0,2593.823,2593.823,10.683183073997498
+tool-use/t3_inventory,one-shot tool plan,claude-sonnet55-openrouter,Claude Sonnet 5.5 — OpenRouter,2,2,1.0,1171.3665,1171.3665,6.288682341575623
+tool-use/t3_inventory,one-shot tool plan,ds41-lunaroute,DeepSeek V4.1 Flash — LunaRoute,2,2,1.0,0.56625,0.56625,2.92743456363678
+tool-use/t3_inventory,one-shot tool plan,ds41-openrouter,DeepSeek V4.1 Flash — OpenRouter,2,2,1.0,107.79989999999998,107.79989999999998,4.424279570579529
+tool-use/t3_inventory,one-shot tool plan,ds41-openrouter-floor,DeepSeek V4.1 Flash — OpenRouter price-first,2,2,1.0,11.43840495,11.43840495,3.5348070859909058
+tool-use/t3_inventory,one-shot tool plan,dspro-openrouter,DeepSeek V4 Pro 0813 — OpenRouter,2,1,0.5,309.06394854999996,618.1278970999999,17.405460476875305
+tool-use/t3_inventory,one-shot tool plan,dspro-openrouter-floor,DeepSeek V4 Pro 0813 — OpenRouter price-first,2,1,0.5,209.08910635199996,418.1782127039999,43.234034061431885
+tool-use/t3_inventory,one-shot tool plan,glm53-flash-lunaroute,GLM 5.3 Flash — LunaRoute,2,2,1.0,0.3483333333333334,0.3483333333333334,3.3731452226638794
+tool-use/t3_inventory,one-shot tool plan,glm53-lunaroute,GLM 5.3 — LunaRoute,2,0,0.0,0.33895833333333336,,2.1371859312057495
+tool-use/t3_inventory,one-shot tool plan,gpt6-astra-direct,GPT-6 Astra — OpenAI API,2,0,0.0,1434.5,,5.804651975631714
+tool-use/t3_inventory,one-shot tool plan,gpt6-luna-direct,GPT-6 Luna — OpenAI API,2,0,0.0,15.295,,3.067378282546997
+tool-use/t3_inventory,one-shot tool plan,gpt61-sol-direct,GPT-6.1 Sol — OpenAI API,2,0,0.0,293.4,,6.167366027832031
+tool-use/t3_inventory,one-shot tool plan,muse-spark-open-lunaroute,Muse Spark Open — LunaRoute,2,1,0.5,1.0668749999999998,2.1337499999999996,4.711253523826599

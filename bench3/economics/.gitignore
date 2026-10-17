@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+agentic_work/
+
+# Private local workspaces, raw sessions, and per-run evidence signing keys.
+agentic_runs/
+agentic_sessions/
+agentic_artifacts/
+agentic_results/
+results/
+runs/
+aegis_enforced_runs/
+**/evidence-state/
+*.pkcs8
+*.pem
+*.key
+.env*
+auth.json
+.credentials.yaml
+
+# Keep aggregate reports and round checkpoints, not active process state.
+campaigns/current.json
+campaigns/*/reasoning/
+campaigns/*/toolloop/
+campaigns/*/process.json
+campaigns/*/manifest.initial.json
+campaigns/*/transport-events.jsonl
+campaigns/*/worker.*
+toolloop/infra_attempts/
+toolloop/failures.jsonl
+*.log
+*.lock
+*.tmp

@@ -1,0 +1,23 @@
+name: objective-cost-quality-v1
+repetitions: 1
+long_task_output_cap: 4096
+routes:
+  - ds41-openrouter
+  - ds41-openrouter-floor
+  - ds41-lunaroute
+  - glm53-lunaroute
+  - glm53-flash-lunaroute
+  - muse-spark-open-lunaroute
+  - claude-sonnet55-direct
+  - gpt61-sol-direct
+efforts:
+  - low
+  - high
+tasks:
+  - reasoning/r1_tiling
+  - reasoning/r2_expectedflips
+  - reasoning/r3_die_expected
+  - reasoning/r4_catalan
+  - tool-use/t1_orchestrate
+  - tool-use/t2_toolselect
+  - tool-use/t3_inventory

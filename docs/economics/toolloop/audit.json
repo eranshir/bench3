@@ -1,0 +1,9 @@
+{
+  "schema_version": "bench3.toolloop.audit.v1",
+  "base_records": 90,
+  "base_passes": 90,
+  "executed_tools_in_completed_workflows": 614,
+  "provider_receipts_audited": 447,
+  "errors": [],
+  "ok": true
+}

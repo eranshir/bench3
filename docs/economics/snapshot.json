@@ -1,0 +1,9 @@
+{
+  "exported_at_utc": "2026-10-17T11:16:08.695576+00:00",
+  "campaign": "20261017T101248Z-objective-k10",
+  "base_tasks": 1437,
+  "verified_repetitions": 6,
+  "state": "running",
+  "source": "Git index",
+  "note": "Public snapshot. Private run sessions and evidence signing keys are not exported."
+}

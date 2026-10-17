@@ -1,0 +1,1438 @@
+{
+ "schema_version": "bench3.economics.catalog.v1",
+ "captured_at_utc": "2026-10-16T19:33:48.350756+00:00",
+ "configured_catalog_as_of": "2026-10-16",
+ "openrouter": [
+  {
+   "id": "anthropic/claude-haiku-5.5",
+   "canonical_slug": "anthropic/claude-haiku-5.5-20261007",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Haiku 5.5",
+   "created": 1791397883,
+   "description": "Claude Haiku 5.5 is Anthropic's small, fast model for high-volume, cost-sensitive work such as summarization, subagents, and browser use. It succeeds Claude Haiku 4.5 with stronger coding, computer use, and...",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "input_cache_write_1h": "0.0000002",
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.0000005",
+      "completion": "0.0000025",
+      "input_cache_read": "0.00000005",
+      "input_cache_write": "0.000000625",
+      "input_cache_write_1h": "0.000001"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-haiku-5.5-20261007/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1349,
+      "win_rate": 59.3,
+      "rank": 9
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1279,
+      "win_rate": 50.1,
+      "rank": 22
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1284,
+      "win_rate": 53.7,
+      "rank": 17
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1318,
+      "win_rate": 54.1,
+      "rank": 12
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1297,
+      "win_rate": 53.1,
+      "rank": 18
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1264,
+      "win_rate": 48.5,
+      "rank": 34
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 43.4,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low",
+     "none"
+    ],
+    "default_effort": "medium"
+   }
+  },
+  {
+   "id": "anthropic/claude-sonnet-5.5",
+   "canonical_slug": "anthropic/claude-sonnet-5.5-20260928",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Sonnet 5.5",
+   "created": 1790618686,
+   "description": "Claude Sonnet 5.5 is Anthropic's Sonnet-class model for well-scoped everyday work, succeeding Claude Sonnet 5 as a direct upgrade. It is especially strong at building features, fixing bugs, and producing...",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000002",
+    "completion": "0.00001",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000001",
+    "input_cache_write": "0.0000025",
+    "input_cache_write_1h": "0.000004"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-sonnet-5.5-20260928/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1460,
+      "win_rate": 69.7,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1365,
+      "win_rate": 60.5,
+      "rank": 3
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1381,
+      "win_rate": 66.3,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1473,
+      "win_rate": 72.4,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1381,
+      "win_rate": 63.8,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1328,
+      "win_rate": 56.1,
+      "rank": 5
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 56,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "anthropic/claude-opus-5.5",
+   "canonical_slug": "anthropic/claude-opus-5.5-20260921",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Opus 5.5",
+   "created": 1790094732,
+   "description": "Claude Opus 5.5 is Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work, succeeding Claude Opus 5. It is particularly strong at multi-step changes in large codebases, code...",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000004",
+    "completion": "0.00002",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000002",
+    "input_cache_write": "0.000005",
+    "input_cache_write_1h": "0.000008"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-opus-5.5-20260921/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "agents",
+      "category": "mobileapps",
+      "elo": 1327,
+      "win_rate": 64.2,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1480,
+      "win_rate": 72.1,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1391,
+      "win_rate": 63.8,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1400,
+      "win_rate": 64.8,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1461,
+      "win_rate": 72.1,
+      "rank": 2
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1331,
+      "win_rate": 51.7,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1378,
+      "win_rate": 63.3,
+      "rank": 3
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1336,
+      "win_rate": 57.6,
+      "rank": 3
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 57.6,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "deepseek/deepseek-v4.1-flash",
+   "canonical_slug": "deepseek/deepseek-v4.1-flash-20260910",
+   "hugging_face_id": "deepseek-ai/DeepSeek-V4.1-Flash",
+   "name": "DeepSeek: DeepSeek V4.1 Flash",
+   "created": 1789021285,
+   "description": "DeepSeek V4.1 Flash is a sparse mixture-of-experts model from DeepSeek, and the first built on the company's Causal Encoder-Decoder (CED) architecture. It activates 8B parameters on input and 16B on...",
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text+image->text",
+    "input_modalities": [
+     "text",
+     "image"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "DeepSeek",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000000036",
+    "completion": "0.0000006435",
+    "input_cache_read": "0.0000000054"
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 943718,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/deepseek/deepseek-v4.1-flash-20260910/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 39.5,
+     "coding_index": null,
+     "agentic_index": null
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "default_enabled": true,
+    "supported_efforts": [
+     "max",
+     "high",
+     "low",
+     "none"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "anthropic/claude-fable-5.1",
+   "canonical_slug": "anthropic/claude-fable-5.1-20260831",
+   "hugging_face_id": null,
+   "name": "Anthropic: Claude Fable 5.1",
+   "created": 1788285838,
+   "description": "Claude Fable 5.1 improves on Claude Fable 5 across the board, with the biggest gains in agentic coding, long-running agentic workflows, and knowledge work: long code refactors, front-end and visual...",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00001",
+    "completion": "0.00005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000025",
+    "input_cache_write": "0.0000125",
+    "input_cache_write_1h": "0.00002"
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 128000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "reasoning_effort",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "tool_choice",
+    "tools",
+    "verbosity"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-fable-5.1-20260831/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "agents",
+      "category": "fullstack",
+      "elo": 1326,
+      "win_rate": 57.2,
+      "rank": 1
+     },
+     {
+      "arena": "agents",
+      "category": "godotgamedev",
+      "elo": 1327,
+      "win_rate": 60.7,
+      "rank": 1
+     },
+     {
+      "arena": "agents",
+      "category": "mobileapps",
+      "elo": 1265,
+      "win_rate": 56.3,
+      "rank": 3
+     },
+     {
+      "arena": "agents",
+      "category": "python-pptxslides",
+      "elo": 1328,
+      "win_rate": 62.6,
+      "rank": 1
+     },
+     {
+      "arena": "agents",
+      "category": "webapps",
+      "elo": 1311,
+      "win_rate": 56.1,
+      "rank": 1
+     },
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1393,
+      "win_rate": 67.7,
+      "rank": 6
+     },
+     {
+      "arena": "models",
+      "category": "asciiart",
+      "elo": 1325,
+      "win_rate": 65,
+      "rank": 3
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1338,
+      "win_rate": 59.3,
+      "rank": 7
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1346,
+      "win_rate": 61.8,
+      "rank": 5
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1384,
+      "win_rate": 65.6,
+      "rank": 3
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1301,
+      "win_rate": 56.4,
+      "rank": 5
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1338,
+      "win_rate": 59.6,
+      "rank": 8
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1314,
+      "win_rate": 56.3,
+      "rank": 8
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": 53.4,
+     "coding_index": 81.6,
+     "agentic_index": 57.9
+    }
+   },
+   "reasoning": {
+    "mandatory": true,
+    "supported_efforts": [
+     "max",
+     "xhigh",
+     "high",
+     "medium",
+     "low"
+    ],
+    "default_effort": "high"
+   }
+  },
+  {
+   "id": "deepseek/deepseek-v4-pro-0813",
+   "canonical_slug": "deepseek/deepseek-v4-pro-20260813",
+   "hugging_face_id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+   "name": "DeepSeek: DeepSeek V4 Pro 0813",
+   "created": 1786549364,
+   "description": "DeepSeek V4 Pro 0813 is a large-scale mixture-of-experts model from DeepSeek. This is the GA release of DeepSeek V4 Pro.",
+   "context_length": 1048576,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "DeepSeek",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.00000066",
+    "completion": "0.00000198",
+    "input_cache_read": "0.000000022",
+    "overrides": [
+     {
+      "utc_days": [
+       "saturday",
+       "sunday"
+      ],
+      "prompt": "0.00000066",
+      "completion": "0.00000198",
+      "input_cache_read": "0.000000022"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 0,
+      "utc_end": 100,
+      "prompt": "0.00000066",
+      "completion": "0.00000198",
+      "input_cache_read": "0.000000022"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 100,
+      "utc_end": 400,
+      "prompt": "0.00000132",
+      "completion": "0.00000396",
+      "input_cache_read": "0.000000044"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 400,
+      "utc_end": 600,
+      "prompt": "0.00000066",
+      "completion": "0.00000198",
+      "input_cache_read": "0.000000022"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 600,
+      "utc_end": 1000,
+      "prompt": "0.00000132",
+      "completion": "0.00000396",
+      "input_cache_read": "0.000000044"
+     },
+     {
+      "utc_days": [
+       "monday",
+       "tuesday",
+       "wednesday",
+       "thursday",
+       "friday"
+      ],
+      "utc_start": 1000,
+      "utc_end": 0,
+      "prompt": "0.00000066",
+      "completion": "0.00000198",
+      "input_cache_read": "0.000000022"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1048576,
+    "max_completion_tokens": 393216,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "include_reasoning",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "reasoning",
+    "reasoning_effort",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 1
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": null,
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/deepseek/deepseek-v4-pro-20260813/endpoints"
+   },
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": 36,
+     "coding_index": 68.8,
+     "agentic_index": 41.3
+    }
+   },
+   "reasoning": {
+    "mandatory": false,
+    "supported_efforts": [
+     "max",
+     "high",
+     "low",
+     "none"
+    ],
+    "default_effort": "high"
+   }
+  }
+ ],
+ "lunaroute": [
+  {
+   "id": "clef-flash",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 8192,
+   "context_length": 8192,
+   "max_input_tokens": 8192,
+   "max_output_tokens": 2048,
+   "max_completion_tokens": 2048,
+   "capabilities": {
+    "systemone": true,
+    "vision": true
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "deepseek-4.1-flash",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 1048576,
+   "context_length": 1048576,
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 262144,
+   "max_completion_tokens": 262144,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "openai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "medium",
+      "minimal": null,
+      "off": null,
+      "xhigh": "xhigh"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "deepseek-4.1-flash-background",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 1048576,
+   "context_length": 1048576,
+   "max_input_tokens": 1048576,
+   "max_output_tokens": 262144,
+   "max_completion_tokens": 262144,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "openai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "medium",
+      "minimal": null,
+      "off": null,
+      "xhigh": "xhigh"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "djev",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 32768,
+   "context_length": 32768,
+   "max_input_tokens": 32768,
+   "max_output_tokens": 1024,
+   "max_completion_tokens": 1024,
+   "capabilities": {
+    "systemone": true,
+    "vision": true
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "none",
+      "xhigh": "max"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3-background",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "none",
+      "xhigh": "max"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3-flash",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 163840,
+   "max_completion_tokens": 163840,
+   "capabilities": {
+    "anthropic_messages": true,
+    "glmv_placeholder_neutralize": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "low",
+      "xhigh": "high"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3-flash-background",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 163840,
+   "max_completion_tokens": 163840,
+   "capabilities": {
+    "anthropic_messages": true,
+    "glmv_placeholder_neutralize": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "low",
+      "xhigh": "high"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3-vision",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "glmv_placeholder_neutralize": true,
+    "image_generation": false,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "none",
+      "xhigh": "max"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "glm-5.3-vision-background",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "glmv_placeholder_neutralize": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true,
+    "vision_jpeg_transcode_png": true,
+    "vision_jpeg_transcode_webp": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "zai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "max": "max",
+      "medium": "high",
+      "minimal": "low",
+      "off": "none",
+      "xhigh": "max"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "muse-spark-open",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "openai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "medium": "medium",
+      "minimal": "low",
+      "off": "low",
+      "xhigh": "xhigh"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "muse-spark-open-background",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "context_window": 524288,
+   "context_length": 524288,
+   "max_input_tokens": 524288,
+   "max_output_tokens": 131072,
+   "max_completion_tokens": 131072,
+   "capabilities": {
+    "anthropic_messages": true,
+    "json_schema": true,
+    "openai_chat": true,
+    "openai_responses": true,
+    "reasoning": true,
+    "tools": true,
+    "vision": true
+   },
+   "client_compat": {
+    "pi": {
+     "maxTokensField": "max_tokens",
+     "supportsReasoningEffort": true,
+     "thinkingFormat": "openai",
+     "thinkingLevelMap": {
+      "high": "high",
+      "low": "low",
+      "medium": "medium",
+      "minimal": "low",
+      "off": "low",
+      "xhigh": "xhigh"
+     }
+    }
+   },
+   "vision_input_max_bytes": 11534336
+  },
+  {
+   "id": "whisper-large-v3",
+   "object": "model",
+   "created": 0,
+   "owned_by": "lunaroute",
+   "capabilities": {
+    "transcription": true
+   }
+  }
+ ],
+ "lunaroute_images": [
+  {
+   "id": "flux2-klein",
+   "image_config": {
+    "cost_model": {
+     "fixed_seconds": 1,
+     "seconds_per_megapixel_step": 0.6
+    },
+    "default_size": "1024x1024",
+    "dimension_multiple": 16,
+    "extra_allowed_keys": [],
+    "formats": [
+     "png",
+     "jpeg",
+     "webp"
+    ],
+    "guidance": {
+     "default": 1,
+     "max": 10,
+     "min": 0
+    },
+    "max_height": 2048,
+    "max_pixels": 4194304,
+    "max_prompt_chars": 4000,
+    "max_reference_images": 4,
+    "max_width": 2048,
+    "steps": {
+     "default": 4,
+     "max": 50,
+     "min": 1
+    },
+    "supports_edit": true,
+    "supports_generate": true,
+    "supports_mask": false,
+    "supports_negative_prompt": false
+   },
+   "object": "model"
+  },
+  {
+   "id": "qwen-image-2.1",
+   "image_config": {
+    "cost_model": {
+     "fixed_seconds": 1.2,
+     "seconds_per_megapixel_step": 0.267
+    },
+    "default_size": "1024x1024",
+    "dimension_multiple": 16,
+    "extra_allowed_keys": [
+     "true_cfg_scale"
+    ],
+    "formats": [
+     "png",
+     "jpeg",
+     "webp"
+    ],
+    "guidance": {
+     "default": 4,
+     "max": 10,
+     "min": 0
+    },
+    "max_height": 1280,
+    "max_pixels": 1638400,
+    "max_prompt_chars": 4000,
+    "max_reference_images": 4,
+    "max_width": 1280,
+    "steps": {
+     "default": 40,
+     "max": 50,
+     "min": 1
+    },
+    "supports_edit": true,
+    "supports_generate": true,
+    "supports_mask": false,
+    "supports_negative_prompt": true
+   },
+   "object": "model"
+  },
+  {
+   "id": "qwen-image-2512",
+   "image_config": {
+    "cost_model": {
+     "fixed_seconds": 0.35,
+     "seconds_per_megapixel_step": 0.29
+    },
+    "default_size": "1024x1024",
+    "dimension_multiple": 16,
+    "extra_allowed_keys": [
+     "true_cfg_scale"
+    ],
+    "formats": [
+     "png",
+     "jpeg",
+     "webp"
+    ],
+    "guidance": {
+     "default": 4,
+     "max": 10,
+     "min": 1
+    },
+    "max_height": 2048,
+    "max_pixels": 4194304,
+    "max_prompt_chars": 4000,
+    "max_reference_images": 0,
+    "max_width": 2048,
+    "steps": {
+     "default": 20,
+     "max": 50,
+     "min": 1
+    },
+    "supports_edit": false,
+    "supports_generate": true,
+    "supports_mask": false,
+    "supports_negative_prompt": true
+   },
+   "object": "model"
+  },
+  {
+   "id": "qwen-image-edit-2511",
+   "image_config": {
+    "cost_model": {
+     "fixed_seconds": 2,
+     "seconds_per_megapixel_step": 0.5
+    },
+    "default_size": "1024x1024",
+    "dimension_multiple": 16,
+    "extra_allowed_keys": [],
+    "formats": [
+     "png",
+     "jpeg",
+     "webp"
+    ],
+    "guidance": {
+     "default": 1,
+     "max": 10,
+     "min": 0
+    },
+    "max_height": 2048,
+    "max_pixels": 4194304,
+    "max_prompt_chars": 4000,
+    "max_reference_images": 4,
+    "max_width": 2048,
+    "steps": {
+     "default": 40,
+     "max": 50,
+     "min": 1
+    },
+    "supports_edit": true,
+    "supports_generate": false,
+    "supports_mask": false,
+    "supports_negative_prompt": true
+   },
+   "object": "model"
+  }
+ ],
+ "lunaroute_embeddings": [
+  {
+   "embedding_config": {
+    "dimensions": 768,
+    "max_batch_inputs": 64,
+    "max_input_tokens": 32768,
+    "normalized": true,
+    "supports_dimensions": false,
+    "task": "embed"
+   },
+   "id": "emb-granite",
+   "object": "model"
+  },
+  {
+   "embedding_config": {
+    "dimensions": 3584,
+    "max_batch_inputs": 64,
+    "max_input_tokens": 32768,
+    "normalized": true,
+    "supports_dimensions": false,
+    "task": "embed"
+   },
+   "id": "emb-nomic-code",
+   "object": "model"
+  },
+  {
+   "embedding_config": {
+    "dimensions": 768,
+    "max_batch_inputs": 64,
+    "max_input_tokens": 512,
+    "normalized": true,
+    "supports_dimensions": true,
+    "task": "embed"
+   },
+   "id": "emb-nomic-moe",
+   "object": "model"
+  },
+  {
+   "embedding_config": {
+    "dimensions": 1024,
+    "max_batch_inputs": 64,
+    "max_input_tokens": 32768,
+    "normalized": true,
+    "supports_dimensions": true,
+    "task": "embed"
+   },
+   "id": "emb-qwen3",
+   "object": "model"
+  }
+ ],
+ "lunaroute_rerank": [
+  {
+   "embedding_config": {
+    "max_documents": 99,
+    "max_input_tokens": 8192,
+    "task": "rerank"
+   },
+   "id": "bge-rr-v2-m3",
+   "object": "model"
+  }
+ ]
+}

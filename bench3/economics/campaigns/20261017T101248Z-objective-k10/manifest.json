@@ -1,0 +1,621 @@
+{
+  "amendments": [
+    {
+      "at_utc": "2026-10-17T10:13:27.619047+00:00",
+      "new_sha256": "3adf47eb8cb7092dac93ccac601747db360cc5f0dc152875e089ffb7b7eb5590",
+      "old_sha256": "b0fab1226e72b157d6f7d2ebb6bb0869b877ec5b174121dbbd9107d46d906c5a",
+      "reason": "Fixed a startup state-parameter collision before any API requests. Matrix and budgets unchanged.",
+      "source": "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/run_campaign.py"
+    }
+  ],
+  "config": {
+    "catalog_as_of": "2026-10-16",
+    "plans": {
+      "lunaroute-teams-10-40": {
+        "billing": "subscription",
+        "capacity_days_per_month": 30,
+        "monthly_usd": 500.0,
+        "note": "Observed rule supplied by the user for this study.",
+        "observed_tokens_per_24h": 4000000000,
+        "priority_lanes": 10,
+        "token_basis": "reported_input_plus_output",
+        "total_lanes": 40
+      }
+    },
+    "routes": {
+      "claude-fable51-direct": {
+        "api_shape": "anthropic-messages",
+        "billing": "token",
+        "credential": "ANTHROPIC_API_KEY",
+        "display": "Claude Fable 5.1 \u2014 Anthropic API",
+        "effort_style": "anthropic-effort",
+        "enabled": false,
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "claude-fable-5-1",
+        "model_family": "claude-fable-5.1",
+        "prices": {
+          "cache_write": 12.5,
+          "cached_input": 0.25,
+          "input": 10.0,
+          "output": 50.0
+        },
+        "provider": "anthropic",
+        "replaced_by": "claude-fable51-openrouter",
+        "route": "Anthropic API",
+        "vendor": "Anthropic"
+      },
+      "claude-fable51-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "Claude Fable 5.1 \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "anthropic/claude-fable-5.1",
+        "model_family": "claude-fable-5.1",
+        "prices": {
+          "cache_write": 12.5,
+          "cached_input": 0.25,
+          "input": 10.0,
+          "output": 50.0
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "Anthropic"
+      },
+      "claude-haiku55-direct": {
+        "api_shape": "anthropic-messages",
+        "billing": "token",
+        "credential": "ANTHROPIC_API_KEY",
+        "display": "Claude Haiku 5.5 \u2014 Anthropic API",
+        "effort_style": "anthropic-effort",
+        "enabled": false,
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "claude-haiku-5-5",
+        "model_family": "claude-haiku-5.5",
+        "prices": {
+          "cache_write": 0.125,
+          "cached_input": 0.01,
+          "input": 0.1,
+          "output": 0.5
+        },
+        "provider": "anthropic",
+        "replaced_by": "claude-haiku55-openrouter",
+        "route": "Anthropic API",
+        "vendor": "Anthropic"
+      },
+      "claude-haiku55-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "Claude Haiku 5.5 \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "anthropic/claude-haiku-5.5",
+        "model_family": "claude-haiku-5.5",
+        "prices": {
+          "cache_write": 0.125,
+          "cached_input": 0.01,
+          "input": 0.1,
+          "output": 0.5
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "Anthropic"
+      },
+      "claude-opus55-direct": {
+        "api_shape": "anthropic-messages",
+        "billing": "token",
+        "credential": "ANTHROPIC_API_KEY",
+        "display": "Claude Opus 5.5 \u2014 Anthropic API",
+        "effort_style": "anthropic-effort",
+        "enabled": false,
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "claude-opus-5-5",
+        "model_family": "claude-opus-5.5",
+        "prices": {
+          "cache_write": 5.0,
+          "cached_input": 0.2,
+          "input": 4.0,
+          "output": 20.0
+        },
+        "provider": "anthropic",
+        "replaced_by": "claude-opus55-openrouter",
+        "route": "Anthropic API",
+        "vendor": "Anthropic"
+      },
+      "claude-opus55-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "Claude Opus 5.5 \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "anthropic/claude-opus-5.5",
+        "model_family": "claude-opus-5.5",
+        "prices": {
+          "cache_write": 5.0,
+          "cached_input": 0.2,
+          "input": 4.0,
+          "output": 20.0
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "Anthropic"
+      },
+      "claude-sonnet55-direct": {
+        "api_shape": "anthropic-messages",
+        "billing": "token",
+        "credential": "ANTHROPIC_API_KEY",
+        "display": "Claude Sonnet 5.5 \u2014 Anthropic API",
+        "effort_style": "anthropic-effort",
+        "enabled": false,
+        "endpoint": "https://api.anthropic.com/v1/messages",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "claude-sonnet-5-5",
+        "model_family": "claude-sonnet-5.5",
+        "prices": {
+          "cache_write": 2.5,
+          "cached_input": 0.1,
+          "input": 2.0,
+          "output": 10.0
+        },
+        "provider": "anthropic",
+        "replaced_by": "claude-sonnet55-openrouter",
+        "route": "Anthropic API",
+        "vendor": "Anthropic"
+      },
+      "claude-sonnet55-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "Claude Sonnet 5.5 \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "anthropic/claude-sonnet-5.5",
+        "model_family": "claude-sonnet-5.5",
+        "prices": {
+          "cache_write": 2.5,
+          "cached_input": 0.1,
+          "input": 2.0,
+          "output": 10.0
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "Anthropic"
+      },
+      "ds41-direct": {
+        "api_shape": "openai-chat",
+        "billing": "token-time-window",
+        "credential": "DEEPSEEK_API_KEY",
+        "display": "DeepSeek V4.1 Flash \u2014 DeepSeek API",
+        "effort_style": "deepseek-thinking",
+        "enabled": false,
+        "endpoint": "https://api.deepseek.com/chat/completions",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "deepseek-flash",
+        "model_family": "deepseek-v4.1-flash",
+        "peak_utc_weekday_windows": [
+          [
+            "01:00",
+            "04:00"
+          ],
+          [
+            "06:00",
+            "10:00"
+          ]
+        ],
+        "prices": {
+          "off_peak": {
+            "cached_input": 0.003,
+            "input": 0.15,
+            "output": 0.6
+          },
+          "peak": {
+            "cached_input": 0.006,
+            "input": 0.3,
+            "output": 1.2
+          }
+        },
+        "provider": "deepseek-official",
+        "replaced_by": "ds41-openrouter",
+        "route": "DeepSeek API",
+        "vendor": "DeepSeek"
+      },
+      "ds41-lunaroute": {
+        "api_shape": "openai-chat",
+        "billing": "subscription",
+        "credential": "LUNAROUTE_API_KEY",
+        "display": "DeepSeek V4.1 Flash \u2014 LunaRoute",
+        "effort_style": "openai-reasoning-effort",
+        "enabled": true,
+        "endpoint": "https://gw.lunaroute.com/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "deepseek-4.1-flash",
+        "model_family": "deepseek-v4.1-flash",
+        "plan": "lunaroute-teams-10-40",
+        "provider": "lunaroute",
+        "route": "LunaRoute",
+        "vendor": "DeepSeek"
+      },
+      "ds41-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "DeepSeek V4.1 Flash \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "deepseek/deepseek-v4.1-flash",
+        "model_family": "deepseek-v4.1-flash",
+        "prices": {
+          "cached_input": 0.003,
+          "input": 0.15,
+          "output": 0.6
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "DeepSeek"
+      },
+      "ds41-openrouter-floor": {
+        "agent_estimate_prices": {
+          "cached_input": 0.000714,
+          "input": 0.0357,
+          "output": 0.1428
+        },
+        "agent_model": "deepseek/deepseek-v4.1-flash:floor",
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "DeepSeek V4.1 Flash \u2014 OpenRouter price-first",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "deepseek/deepseek-v4.1-flash",
+        "model_family": "deepseek-v4.1-flash",
+        "prices": {
+          "cached_input": 0.003,
+          "input": 0.15,
+          "output": 0.6
+        },
+        "provider": "openrouter",
+        "provider_preferences": {
+          "sort": "price"
+        },
+        "route": "OpenRouter price-first",
+        "vendor": "DeepSeek"
+      },
+      "dspro-direct": {
+        "api_shape": "openai-chat",
+        "billing": "token-time-window",
+        "credential": "DEEPSEEK_API_KEY",
+        "display": "DeepSeek V4 Pro \u2014 DeepSeek API",
+        "effort_style": "deepseek-thinking",
+        "enabled": false,
+        "endpoint": "https://api.deepseek.com/chat/completions",
+        "historical_only": true,
+        "input_includes_cached": true,
+        "model": "deepseek-v4-pro",
+        "model_family": "deepseek-v4-pro-0813",
+        "peak_utc_weekday_windows": [
+          [
+            "01:00",
+            "04:00"
+          ],
+          [
+            "06:00",
+            "10:00"
+          ]
+        ],
+        "prices": {
+          "off_peak": {
+            "cached_input": 0.022,
+            "input": 0.66,
+            "output": 1.98
+          },
+          "peak": {
+            "cached_input": 0.044,
+            "input": 1.32,
+            "output": 3.96
+          }
+        },
+        "provider": "deepseek-official",
+        "replaced_by": "dspro-openrouter",
+        "route": "DeepSeek API",
+        "vendor": "DeepSeek"
+      },
+      "dspro-openrouter": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "DeepSeek V4 Pro 0813 \u2014 OpenRouter",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "model_family": "deepseek-v4-pro-0813",
+        "prices": {
+          "cached_input": 0.022,
+          "input": 0.66,
+          "output": 1.98
+        },
+        "provider": "openrouter",
+        "route": "OpenRouter",
+        "vendor": "DeepSeek"
+      },
+      "dspro-openrouter-floor": {
+        "api_shape": "openai-chat",
+        "billing": "token",
+        "credential": "OPENROUTER_API_KEY",
+        "credit_fee_percent": 5.5,
+        "display": "DeepSeek V4 Pro 0813 \u2014 OpenRouter price-first",
+        "effort_style": "openrouter-reasoning",
+        "enabled": true,
+        "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "model_family": "deepseek-v4-pro-0813",
+        "prices": {
+          "cached_input": 0.022,
+          "input": 0.66,
+          "output": 1.98
+        },
+        "provider": "openrouter",
+        "provider_preferences": {
+          "sort": "price"
+        },
+        "route": "OpenRouter price-first",
+        "vendor": "DeepSeek"
+      },
+      "glm53-flash-lunaroute": {
+        "api_shape": "openai-chat",
+        "billing": "subscription",
+        "credential": "LUNAROUTE_API_KEY",
+        "display": "GLM 5.3 Flash \u2014 LunaRoute",
+        "effort_style": "openai-reasoning-effort",
+        "enabled": true,
+        "endpoint": "https://gw.lunaroute.com/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "glm-5.3-flash",
+        "model_family": "glm-5.3-flash",
+        "plan": "lunaroute-teams-10-40",
+        "provider": "lunaroute",
+        "route": "LunaRoute",
+        "vendor": "Z.ai"
+      },
+      "glm53-lunaroute": {
+        "api_shape": "openai-chat",
+        "billing": "subscription",
+        "credential": "LUNAROUTE_API_KEY",
+        "display": "GLM 5.3 \u2014 LunaRoute",
+        "effort_style": "openai-reasoning-effort",
+        "enabled": true,
+        "endpoint": "https://gw.lunaroute.com/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "glm-5.3",
+        "model_family": "glm-5.3",
+        "plan": "lunaroute-teams-10-40",
+        "provider": "lunaroute",
+        "route": "LunaRoute",
+        "vendor": "Z.ai"
+      },
+      "gpt6-astra-direct": {
+        "api_shape": "openai-responses",
+        "billing": "token",
+        "credential": "OPENAI_API_KEY",
+        "display": "GPT-6 Astra \u2014 OpenAI API",
+        "effort_style": "openai-responses",
+        "enabled": true,
+        "endpoint": "https://api.openai.com/v1/responses",
+        "input_includes_cached": true,
+        "model": "gpt-6-astra",
+        "model_family": "gpt-6-astra",
+        "prices": {
+          "cache_write": 12.5,
+          "cached_input": 1.0,
+          "input": 10.0,
+          "output": 50.0
+        },
+        "provider": "openai",
+        "route": "OpenAI API",
+        "vendor": "OpenAI"
+      },
+      "gpt6-luna-direct": {
+        "api_shape": "openai-responses",
+        "billing": "token",
+        "credential": "OPENAI_API_KEY",
+        "display": "GPT-6 Luna \u2014 OpenAI API",
+        "effort_style": "openai-responses",
+        "enabled": true,
+        "endpoint": "https://api.openai.com/v1/responses",
+        "input_includes_cached": true,
+        "model": "gpt-6-luna",
+        "model_family": "gpt-6-luna",
+        "prices": {
+          "cache_write": 0.125,
+          "cached_input": 0.01,
+          "input": 0.1,
+          "output": 0.5
+        },
+        "provider": "openai",
+        "route": "OpenAI API",
+        "vendor": "OpenAI"
+      },
+      "gpt61-sol-direct": {
+        "api_shape": "openai-responses",
+        "billing": "token",
+        "credential": "OPENAI_API_KEY",
+        "display": "GPT-6.1 Sol \u2014 OpenAI API",
+        "effort_style": "openai-responses",
+        "enabled": true,
+        "endpoint": "https://api.openai.com/v1/responses",
+        "input_includes_cached": true,
+        "model": "gpt-6.1-sol",
+        "model_family": "gpt-6.1-sol",
+        "prices": {
+          "cache_write": 2.5,
+          "cached_input": 0.1,
+          "input": 2.0,
+          "output": 10.0
+        },
+        "provider": "openai",
+        "route": "OpenAI API",
+        "vendor": "OpenAI"
+      },
+      "muse-spark-open-lunaroute": {
+        "api_shape": "openai-chat",
+        "billing": "subscription",
+        "credential": "LUNAROUTE_API_KEY",
+        "display": "Muse Spark Open \u2014 LunaRoute",
+        "effort_style": "openai-reasoning-effort",
+        "enabled": true,
+        "endpoint": "https://gw.lunaroute.com/v1/chat/completions",
+        "input_includes_cached": true,
+        "model": "muse-spark-open",
+        "model_family": "muse-spark-open",
+        "plan": "lunaroute-teams-10-40",
+        "provider": "lunaroute",
+        "route": "LunaRoute",
+        "vendor": "Muse"
+      }
+    },
+    "sources": {
+      "anthropic_models": "https://platform.claude.com/docs/en/models/overview",
+      "anthropic_pricing": "https://platform.claude.com/docs/en/about-claude/pricing",
+      "deepseek_pricing": "https://api-docs.deepseek.com/quick_start/pricing/",
+      "lunaroute_models": "https://docs.lunaroute.com/models/",
+      "lunaroute_pricing": "https://www.lunaroute.com/",
+      "openai_models": "https://developers.openai.com/api/docs/models",
+      "openai_pricing": "https://developers.openai.com/api/docs/pricing",
+      "openrouter_models": "https://openrouter.ai/api/v1/models",
+      "openrouter_pricing": "https://openrouter.ai/pricing"
+    }
+  },
+  "created_at_utc": "2026-10-17T10:12:48.234382+00:00",
+  "efforts": [
+    "low",
+    "high"
+  ],
+  "id": "20261017T101248Z-objective-k10",
+  "jobs": 8,
+  "method": "full managed Aegis, official plan/completion/closure gates and signed journals",
+  "output_tokens": {
+    "reasoning/r1_tiling": 4096,
+    "reasoning/r2_expectedflips": 8192,
+    "reasoning/r3_die_expected": 8192,
+    "reasoning/r4_catalan": 8192,
+    "tool-use/t1_orchestrate": 4096,
+    "tool-use/t2_toolselect": 4096,
+    "tool-use/t3_inventory": 4096
+  },
+  "pilot_rep_excluded": 1,
+  "planned_base": 2100,
+  "rep_ids": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "repetitions": 10,
+  "routes": [
+    "ds41-openrouter",
+    "ds41-openrouter-floor",
+    "dspro-openrouter",
+    "dspro-openrouter-floor",
+    "ds41-lunaroute",
+    "glm53-lunaroute",
+    "glm53-flash-lunaroute",
+    "muse-spark-open-lunaroute",
+    "gpt6-luna-direct",
+    "gpt61-sol-direct",
+    "gpt6-astra-direct",
+    "claude-haiku55-openrouter",
+    "claude-sonnet55-openrouter",
+    "claude-opus55-openrouter",
+    "claude-fable51-openrouter"
+  ],
+  "schema_version": "bench3.campaign.v1",
+  "source_sha256": {
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/aegis_enforced_retry.py": "10b50c6f1ef0efe86c7ea1943b40635674a02e79d9bc5d4777fddc44dd13dd30",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/common.py": "b6aac01707d5084fbf989ce5036f83fa0408b0d0e88e80ddcf7b82222a58de71",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/run_campaign.py": "3adf47eb8cb7092dac93ccac601747db360cc5f0dc152875e089ffb7b7eb5590",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/run_singleshot.py": "f51e0e6ffe290ee894c1d283b3d36c631defdd6492babe2ea618f608cd4812bc",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/run_toolloop.py": "7212cf3a51e00cfac8face7ae33e56cad33d4c9d68d085024ba6b2e9db49fcd3",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/tool_runtime.py": "f591a7a1ed8936fe147f56fb44010daa10f90b8df43e361b70e8dd61f446f586",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/toolloop_recovery.py": "c046cb76d0e169fb8ced16b7aef639c69740a1f96ccfd3d67e6b461e6735fe2b",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r1_tiling/check.py": "58bffdd7f8f31deb5d08eadc1c734fe00d5eca3603891187a2bb0172d781f945",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r1_tiling/max_tokens.txt": "0be508172e87a2af98f344d18610bbaaa0e6bbfcef0c7804b24457f839e129c9",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r1_tiling/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r1_tiling/prompt.txt": "8d6de42a694ea40cdfe8eb2841b73d4cf6625de150d0ec0fa59bfbe9becb648d",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r2_expectedflips/check.py": "01c529bd7cf755154e41c3cdd39c922e680e1bf1cb50c4440964abc37e5e2642",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r2_expectedflips/max_tokens.txt": "131e490ede5d344e5a8539d4a5335ccc70db7eacb397b876cffc72578b1331bf",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r2_expectedflips/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r2_expectedflips/prompt.txt": "4633be8c17edce3942fff49f928b6e202e918395a0b437f5f2993732c5984d1c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r3_die_expected/check.py": "e915ea5d33aa8eb7ef17199ce53feb2906ca5f86078ec3f11b3e7d95a19d5107",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r3_die_expected/max_tokens.txt": "131e490ede5d344e5a8539d4a5335ccc70db7eacb397b876cffc72578b1331bf",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r3_die_expected/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r3_die_expected/prompt.txt": "fc8e4fe3f01ac6f0d496426f9ab7c0ba00508e3fb1a030134b317803fa6f5a7c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r4_catalan/check.py": "a4f47f62376ea09456cd0151894961c17dfffdfb3cec67efc6e98215a6c9ba6c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r4_catalan/max_tokens.txt": "131e490ede5d344e5a8539d4a5335ccc70db7eacb397b876cffc72578b1331bf",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r4_catalan/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/reasoning/r4_catalan/prompt.txt": "96212b371ca7a07a813097b315347bb1f69934cc95a8a2d749dbc2075e29b3b0",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t1_orchestrate/check.py": "2a4a5534c53eb13ff64196f3e7909c81cf1a75b5fd5a7515a941a157338c9856",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t1_orchestrate/max_tokens.txt": "25ac87b7309b7946b51c32e824793ff48b56b735efa16875cf33e4ba67523d91",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t1_orchestrate/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t1_orchestrate/prompt.txt": "8e8a3027bbbf2644038d18f1c6436f53ab181786ec956521aafcb4e2e9f40f7a",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t1_orchestrate/tools.json": "be338b74c40c4cd240943d0114317ce3eb7786f6f75bada6bcdc2f3d6d3952d2",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t2_toolselect/check.py": "a2acad8249dc8006480756bdebb491f4bfa9d433b33d3c76b14ab4960833f81e",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t2_toolselect/max_tokens.txt": "25ac87b7309b7946b51c32e824793ff48b56b735efa16875cf33e4ba67523d91",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t2_toolselect/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t2_toolselect/prompt.txt": "6b88787415fc50e2c0c94d61f3af8b4258a008f45796463cac3449fc376c356e",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t2_toolselect/tools.json": "20a17dc2bfbe6c623432af51b2fa675c7f16691c00a7b7faeadd689307d1f216",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t3_inventory/check.py": "6ea9273e534fa9aad11886102d841990ac0e2af854c7f964b574de73586fd3c0",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t3_inventory/max_tokens.txt": "25ac87b7309b7946b51c32e824793ff48b56b735efa16875cf33e4ba67523d91",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t3_inventory/mode.txt": "92224306fa290cc075501b0205326751f36523308ab89e19300ef1d9dfd05c0c",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t3_inventory/prompt.txt": "5918ce4b0658c7c310d4e245e5de546c5b3d3ac5cb25e93b0dce9a0630e2580e",
+    "/Users/eranshir/Documents/Projects/deepseek/bench3/tasks/tool-use/t3_inventory/tools.json": "5ee051d9e233822cc023e29e6e058c1e02a31f8db22c6f747e648a158426b9ee",
+    "/Users/eranshir/Documents/Projects/mithran/aegis-method/artifacts/agents/codex/AGENTS.md": "7f3a11908f4b167e7d9307b3318a0047918d61e2de79654f48d8bac1d8171383",
+    "/Users/eranshir/Documents/Projects/mithran/aegis-method/target/release/aegis-method": "cf21e3c8e29c21d11f9d5f53b14b920cc2f6d86232c82dc805f6a8391ed16068"
+  },
+  "tasks": [
+    "reasoning/r1_tiling",
+    "reasoning/r2_expectedflips",
+    "reasoning/r3_die_expected",
+    "reasoning/r4_catalan",
+    "tool-use/t1_orchestrate",
+    "tool-use/t2_toolselect",
+    "tool-use/t3_inventory"
+  ]
+}

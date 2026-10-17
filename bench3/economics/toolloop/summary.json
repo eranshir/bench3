@@ -1,0 +1,498 @@
+{
+  "base": {
+    "runs": 90,
+    "passes": 90,
+    "retries": 0,
+    "passRate": 100.0,
+    "cost100kAttempts": 1924.7621742065191,
+    "cost100kSuccesses": 1924.7621742065191,
+    "latency": 11.841401854500873,
+    "meanCalls": 4.966666666666667,
+    "tokens": 661366,
+    "totalCost": 1.7322859567858673
+  },
+  "withAegis": {
+    "runs": 90,
+    "passes": 90,
+    "retries": 0,
+    "passRate": 100.0,
+    "cost100kAttempts": 1924.7621742065191,
+    "cost100kSuccesses": 1924.7621742065191,
+    "latency": 11.841401854500873,
+    "meanCalls": 4.966666666666667,
+    "tokens": 661366,
+    "totalCost": 1.7322859567858673
+  },
+  "retries": 0,
+  "recoveries": 0,
+  "journalsValid": 0,
+  "transportRestarts": 3,
+  "missingUsageReceipts": 3,
+  "routes": [
+    {
+      "id": "ds41-openrouter",
+      "name": "DeepSeek V4.1 Flash \u2014 OpenRouter",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 156.24418125000003,
+        "cost100kSuccesses": 156.24418125000003,
+        "latency": 8.914473021010053,
+        "meanCalls": 5.0,
+        "tokens": 47038,
+        "totalCost": 0.009374650875000001
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 156.24418125000003,
+        "cost100kSuccesses": 156.24418125000003,
+        "latency": 8.914473021010053,
+        "meanCalls": 5.0,
+        "tokens": 47038,
+        "totalCost": 0.009374650875000001
+      }
+    },
+    {
+      "id": "ds41-openrouter-floor",
+      "name": "DeepSeek V4.1 Flash \u2014 OpenRouter price-first",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 2,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 124.34721278333335,
+        "cost100kSuccesses": 124.34721278333335,
+        "latency": 57.80502804151911,
+        "meanCalls": 5.333333333333333,
+        "tokens": 58864,
+        "totalCost": 0.0074608327670000005
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 124.34721278333335,
+        "cost100kSuccesses": 124.34721278333335,
+        "latency": 57.80502804151911,
+        "meanCalls": 5.333333333333333,
+        "tokens": 58864,
+        "totalCost": 0.0074608327670000005
+      }
+    },
+    {
+      "id": "dspro-openrouter",
+      "name": "DeepSeek V4 Pro 0813 \u2014 OpenRouter",
+      "oldPasses": 3,
+      "oldRuns": 6,
+      "toolErrors": 1,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 367.0733880033333,
+        "cost100kSuccesses": 367.0733880033333,
+        "latency": 15.099007499986328,
+        "meanCalls": 5.0,
+        "tokens": 45923,
+        "totalCost": 0.0220244032802
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 367.0733880033333,
+        "cost100kSuccesses": 367.0733880033333,
+        "latency": 15.099007499986328,
+        "meanCalls": 5.0,
+        "tokens": 45923,
+        "totalCost": 0.0220244032802
+      }
+    },
+    {
+      "id": "dspro-openrouter-floor",
+      "name": "DeepSeek V4 Pro 0813 \u2014 OpenRouter price-first",
+      "oldPasses": 3,
+      "oldRuns": 6,
+      "toolErrors": 1,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 254.70698661666665,
+        "cost100kSuccesses": 254.70698661666665,
+        "latency": 20.50989891651261,
+        "meanCalls": 5.333333333333333,
+        "tokens": 49267,
+        "totalCost": 0.015282419197
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 254.70698661666665,
+        "cost100kSuccesses": 254.70698661666665,
+        "latency": 20.50989891651261,
+        "meanCalls": 5.333333333333333,
+        "tokens": 49267,
+        "totalCost": 0.015282419197
+      }
+    },
+    {
+      "id": "ds41-lunaroute",
+      "name": "DeepSeek V4.1 Flash \u2014 LunaRoute",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.9958333333333336,
+        "cost100kSuccesses": 2.9958333333333336,
+        "latency": 5.00931658349873,
+        "meanCalls": 4.833333333333333,
+        "tokens": 43140,
+        "totalCost": 0.00017975
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.9958333333333336,
+        "cost100kSuccesses": 2.9958333333333336,
+        "latency": 5.00931658349873,
+        "meanCalls": 4.833333333333333,
+        "tokens": 43140,
+        "totalCost": 0.00017975
+      }
+    },
+    {
+      "id": "glm53-lunaroute",
+      "name": "GLM 5.3 \u2014 LunaRoute",
+      "oldPasses": 0,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.0529166666666665,
+        "cost100kSuccesses": 2.0529166666666665,
+        "latency": 7.5981563545065,
+        "meanCalls": 4.833333333333333,
+        "tokens": 29562,
+        "totalCost": 0.000123175
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.0529166666666665,
+        "cost100kSuccesses": 2.0529166666666665,
+        "latency": 7.5981563545065,
+        "meanCalls": 4.833333333333333,
+        "tokens": 29562,
+        "totalCost": 0.000123175
+      }
+    },
+    {
+      "id": "glm53-flash-lunaroute",
+      "name": "GLM 5.3 Flash \u2014 LunaRoute",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 1,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.1150694444444444,
+        "cost100kSuccesses": 2.1150694444444444,
+        "latency": 12.44587847951334,
+        "meanCalls": 5.0,
+        "tokens": 30457,
+        "totalCost": 0.00012690416666666666
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2.1150694444444444,
+        "cost100kSuccesses": 2.1150694444444444,
+        "latency": 12.44587847951334,
+        "meanCalls": 5.0,
+        "tokens": 30457,
+        "totalCost": 0.00012690416666666666
+      }
+    },
+    {
+      "id": "muse-spark-open-lunaroute",
+      "name": "Muse Spark Open \u2014 LunaRoute",
+      "oldPasses": 2,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 4.578541666666666,
+        "cost100kSuccesses": 4.578541666666666,
+        "latency": 12.67587112498586,
+        "meanCalls": 5.166666666666667,
+        "tokens": 65931,
+        "totalCost": 0.0002747125
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 4.578541666666666,
+        "cost100kSuccesses": 4.578541666666666,
+        "latency": 12.67587112498586,
+        "meanCalls": 5.166666666666667,
+        "tokens": 65931,
+        "totalCost": 0.0002747125
+      }
+    },
+    {
+      "id": "gpt6-luna-direct",
+      "name": "GPT-6 Luna \u2014 OpenAI API",
+      "oldPasses": 0,
+      "oldRuns": 6,
+      "toolErrors": 3,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 58.18541666666667,
+        "cost100kSuccesses": 58.18541666666667,
+        "latency": 9.257629770494532,
+        "meanCalls": 5.166666666666667,
+        "tokens": 24703,
+        "totalCost": 0.0034911250000000003
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 58.18541666666667,
+        "cost100kSuccesses": 58.18541666666667,
+        "latency": 9.257629770494532,
+        "meanCalls": 5.166666666666667,
+        "tokens": 24703,
+        "totalCost": 0.0034911250000000003
+      }
+    },
+    {
+      "id": "gpt61-sol-direct",
+      "name": "GPT-6.1 Sol \u2014 OpenAI API",
+      "oldPasses": 0,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 963.9,
+        "cost100kSuccesses": 963.9,
+        "latency": 12.82858868749463,
+        "meanCalls": 5.0,
+        "tokens": 21153,
+        "totalCost": 0.057833999999999997
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 963.9,
+        "cost100kSuccesses": 963.9,
+        "latency": 12.82858868749463,
+        "meanCalls": 5.0,
+        "tokens": 21153,
+        "totalCost": 0.057833999999999997
+      }
+    },
+    {
+      "id": "gpt6-astra-direct",
+      "name": "GPT-6 Astra \u2014 OpenAI API",
+      "oldPasses": 0,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 4999.166666666667,
+        "cost100kSuccesses": 4999.166666666667,
+        "latency": 11.56861106249562,
+        "meanCalls": 4.833333333333333,
+        "tokens": 21325,
+        "totalCost": 0.29995
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 4999.166666666667,
+        "cost100kSuccesses": 4999.166666666667,
+        "latency": 11.56861106249562,
+        "meanCalls": 4.833333333333333,
+        "tokens": 21325,
+        "totalCost": 0.29995
+      }
+    },
+    {
+      "id": "claude-haiku55-openrouter",
+      "name": "Claude Haiku 5.5 \u2014 OpenRouter",
+      "oldPasses": 3,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 139.48506666666665,
+        "cost100kSuccesses": 139.48506666666665,
+        "latency": 7.969287104497198,
+        "meanCalls": 5.0,
+        "tokens": 59420,
+        "totalCost": 0.008369103999999999
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 139.48506666666665,
+        "cost100kSuccesses": 139.48506666666665,
+        "latency": 7.969287104497198,
+        "meanCalls": 5.0,
+        "tokens": 59420,
+        "totalCost": 0.008369103999999999
+      }
+    },
+    {
+      "id": "claude-sonnet55-openrouter",
+      "name": "Claude Sonnet 5.5 \u2014 OpenRouter",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 0,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2376.4578333333334,
+        "cost100kSuccesses": 2376.4578333333334,
+        "latency": 8.85865185399598,
+        "meanCalls": 4.333333333333333,
+        "tokens": 49529,
+        "totalCost": 0.14258747
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 2376.4578333333334,
+        "cost100kSuccesses": 2376.4578333333334,
+        "latency": 8.85865185399598,
+        "meanCalls": 4.333333333333333,
+        "tokens": 49529,
+        "totalCost": 0.14258747
+      }
+    },
+    {
+      "id": "claude-opus55-openrouter",
+      "name": "Claude Opus 5.5 \u2014 OpenRouter",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 1,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 5240.747666666665,
+        "cost100kSuccesses": 5240.747666666665,
+        "latency": 17.377503896001144,
+        "meanCalls": 4.666666666666667,
+        "tokens": 54761,
+        "totalCost": 0.31444485999999994
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 5240.747666666665,
+        "cost100kSuccesses": 5240.747666666665,
+        "latency": 17.377503896001144,
+        "meanCalls": 4.666666666666667,
+        "tokens": 54761,
+        "totalCost": 0.31444485999999994
+      }
+    },
+    {
+      "id": "claude-fable51-openrouter",
+      "name": "Claude Fable 5.1 \u2014 OpenRouter",
+      "oldPasses": 4,
+      "oldRuns": 6,
+      "toolErrors": 2,
+      "base": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 14179.375833333332,
+        "cost100kSuccesses": 14179.375833333332,
+        "latency": 21.084352436999325,
+        "meanCalls": 5.0,
+        "tokens": 60293,
+        "totalCost": 0.8507625499999999
+      },
+      "withAegis": {
+        "runs": 6,
+        "passes": 6,
+        "retries": 0,
+        "passRate": 100.0,
+        "cost100kAttempts": 14179.375833333332,
+        "cost100kSuccesses": 14179.375833333332,
+        "latency": 21.084352436999325,
+        "meanCalls": 5.0,
+        "tokens": 60293,
+        "totalCost": 0.8507625499999999
+      }
+    }
+  ]
+}

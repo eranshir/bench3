@@ -1,5 +1,30 @@
 # bench3 — three-provider benchmark (DeepSeek / OpenAI / xAI)
 
+> Current work: [`economics/`](economics/) adds a dated, route-aware economic
+> comparison for current OpenAI, Claude, DeepSeek, OpenRouter, and LunaRoute
+> models. Historical result files and their original model identities remain
+> unchanged.
+
+## Current economic routes
+
+The dated source of truth is [`economics/routes.yaml`](economics/routes.yaml).
+It contains these current model families:
+
+| Vendor | Current models in the economic catalog | Routes |
+|---|---|---|
+| DeepSeek | V4.1 Flash, V4 Pro | OpenRouter, OpenRouter price-first, LunaRoute |
+| Z.ai | GLM 5.3, GLM 5.3 Flash | LunaRoute |
+| Muse | Muse Spark Open | LunaRoute |
+| OpenAI | GPT-6 Luna, GPT-6.1 Sol, GPT-6 Astra | OpenAI API |
+| Anthropic | Claude Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.1 | OpenRouter |
+
+The `arms.yaml` table below is historical. It stays unchanged so old result
+files keep their original meaning.
+
+The economic agent runner uses an operating-system file sandbox. The
+historical `bin/run_agentic.sh` runner does not block access to the source
+benchmark. Do not use its old coding results as hidden-test evidence.
+
 Continuation of the repo's first benchmark (bench/). Now four arms through one
 harness: **deepseek-v4-flash, deepseek-v4-pro, gpt-5.6-sol, grok-4.6**.
 
