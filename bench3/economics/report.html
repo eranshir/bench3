@@ -363,7 +363,7 @@
 
     .chart-card { padding: 28px; }
 
-    .ladder-scatter { margin: 28px 0; padding-top: 26px; border-top: 1px solid var(--line); }
+    .ladder-scatter { margin: 28px 0; padding-top: 26px; border-top: 1px solid var(--line); scroll-margin-top: 90px; }
     .ladder-scatter h3 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.03em; }
     .scatter-controls { display: flex; flex-wrap: wrap; gap: 18px; margin: 22px 0 14px; }
     .scatter-controls label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; }
@@ -1157,9 +1157,9 @@
         <h3>Measured cost vs time</h3>
         <p class="scale-explain">Compare the full ladder from each starting model. Cost includes all reached models and Aegis retries. Select a point or a model below for exact values.</p>
         <div class="scatter-controls">
-          <label for="scatter-task">Task<select id="scatter-task" aria-controls="scatter-plot"></select></label>
-          <label for="scatter-effort">Effort<select id="scatter-effort" aria-controls="scatter-plot"><option value="all">Both · separate points</option><option value="low">Low effort</option><option value="high">High effort</option></select></label>
-          <label for="scatter-time">Time measure<select id="scatter-time" aria-controls="scatter-plot"><option value="wall">Full wall time</option><option value="active">Active attempt time</option></select></label>
+          <label for="scatter-task">Task<select id="scatter-task" aria-label="Task" aria-controls="scatter-plot"></select></label>
+          <label for="scatter-effort">Effort<select id="scatter-effort" aria-label="Effort" aria-controls="scatter-plot"><option value="all">Both · separate points</option><option value="low">Low effort</option><option value="high">High effort</option></select></label>
+          <label for="scatter-time">Time measure<select id="scatter-time" aria-label="Time measure" aria-controls="scatter-plot"><option value="wall">Full wall time</option><option value="active">Active attempt time</option></select></label>
         </div>
         <div class="scatter-shapes"><span><b>●</b> Low effort</span><span><b>◆</b> High effort</span><span>Color identifies the starting route</span></div>
         <p id="scatter-summary" class="scale-explain" aria-live="polite"></p>

@@ -41,6 +41,7 @@ vm.runInContext(fs.readFileSync(reportDir+'/report_data.js','utf8'),context);
 vm.runInContext(fs.readFileSync(reportDir+'/ladder_data.js','utf8'),context);
 for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(script[1].trim())vm.runInContext(script[1],context);
 const pointCount=()=>[...get('#scatter-plot').innerHTML.matchAll(/data-point=/g)].length;
+for(const name of ['Task','Effort','Time measure'])assert.ok(html.includes('aria-label="'+name+'" aria-controls="scatter-plot"'));
 assert.equal(pointCount(),32,'Both efforts must stay separate, with one point per route and effort');
 assert.match(get('#scatter-summary').textContent,/2,240 original workflows/);
 assert.match(get('#scatter-plot').innerHTML,/Median wall time/);
