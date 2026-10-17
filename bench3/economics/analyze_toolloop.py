@@ -65,6 +65,8 @@ def report_data() -> dict:
         if not route.get("enabled", True):
             continue
         group = [r for r in base if r["route_id"] == rid]
+        if not group:
+            continue  # A new route must not appear as a completed pilot route.
         old_group = [r for r in old if r["route_id"] == rid]
         routes.append({"id": rid, "name": route["display"],
                        "oldPasses": sum(bool(r["grade"]["passed"]) for r in old_group),

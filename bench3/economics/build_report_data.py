@@ -22,6 +22,7 @@ ROUTE_SPECS = [
     ("dspro-openrouter-floor", "DS Pro · OR floor", "DeepSeek V4 Pro 0813", "OpenRouter · price-first", "#c084fc"),
     ("gpt6-luna-direct", "GPT-6 Luna", "GPT-6 Luna", "OpenAI API", "#34d399"),
     ("ds41-openrouter", "DS 4.1 · OR", "DeepSeek V4.1 Flash", "OpenRouter · default", "#4c7dff"),
+    ("ds41-1017-openrouter", "DS 4.1 · 1017", "DeepSeek V4.1 Flash 1017", "OpenRouter · pinned 1017", "#2563eb"),
     ("dspro-openrouter", "DS Pro · OR", "DeepSeek V4 Pro 0813", "OpenRouter · default", "#60a5fa"),
     ("gpt61-sol-direct", "GPT-6.1 Sol", "GPT-6.1 Sol", "OpenAI API", "#17b890"),
     ("claude-haiku55-openrouter", "Claude Haiku", "Claude Haiku 5.5", "OpenRouter", "#fb923c"),

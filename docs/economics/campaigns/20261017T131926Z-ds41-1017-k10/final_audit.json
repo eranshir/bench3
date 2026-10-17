@@ -1,0 +1,46 @@
+{
+  "after_retry_ci95": [
+    90.03926927042932,
+    97.55717269632352
+  ],
+  "after_retry_passes": 133,
+  "allocated_cost_usd": 0,
+  "base_pass_ci95": [
+    85.61546785666259,
+    95.02887554130032
+  ],
+  "base_passes": 128,
+  "base_records": 140,
+  "cash_cost_usd": 0.12569313465999998,
+  "enforced_retries": 12,
+  "extension": {
+    "baseline_audit_sha256": "c429a2ad395f0b0162758e5c4fd6635e191a71667e0de40b415cff79fc5bf50f",
+    "baseline_base_records": 2100,
+    "baseline_manifest_sha256": "6b9c6183fc20c7928a671212e81b3fbc1fe07be3342687031cc73abd1c82f11f",
+    "baseline_retry_records": 135,
+    "baseline_root": "/Users/eranshir/Documents/Projects/deepseek/bench3/economics/campaigns/20261017T101248Z-objective-k10",
+    "new_routes": [
+      "ds41-1017-openrouter"
+    ],
+    "note": "Existing baseline observations are retained, not rerun. The new route runs later with the same task and budget contract."
+  },
+  "failures_by_task": {
+    "reasoning/r1_tiling": 12
+  },
+  "journals_reverified": 12,
+  "matrix_cells": 140,
+  "method_gates_replayed": 36,
+  "provider_requests_made_by_audit": 0,
+  "recoveries": 5,
+  "recovery_ci95": [
+    19.326031365875664,
+    68.04886874504503
+  ],
+  "replayed_grades": 152,
+  "round_proofs": 10,
+  "scope": "Repeated fixed tasks, not unseen-task generalization or a causal Aegis comparison.",
+  "tool_passes": 60,
+  "tool_runs": 60,
+  "valid": true,
+  "verified_at_utc": "2026-10-17T13:38:42.658412+00:00"
+}

@@ -1,0 +1,1916 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Interactive economic comparison of DeepSeek, Claude, GPT, OpenRouter, and LunaRoute benchmark routes.">
+  <title>The cost of 100,000 tasks</title>
+  <style>
+    :root {
+      --ink: #f5f7fb;
+      --muted: #98a6b9;
+      --faint: #657287;
+      --line: rgba(255, 255, 255, .09);
+      --panel: rgba(17, 25, 38, .82);
+      --panel-solid: #111926;
+      --bg: #070b12;
+      --blue: #4c7dff;
+      --purple: #a78bfa;
+      --green: #17b890;
+      --orange: #e98963;
+      --cyan: #3dd9d0;
+      --red: #ff6b78;
+      --yellow: #f6c85f;
+      --radius: 22px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .34);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 8%, rgba(76, 125, 255, .19), transparent 28rem),
+        radial-gradient(circle at 86% 17%, rgba(23, 184, 144, .13), transparent 31rem),
+        linear-gradient(180deg, #080d15 0%, #070b12 55%, #090e16 100%);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      opacity: .22;
+      background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 75%);
+    }
+
+    a { color: inherit; }
+    button, input { font: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+    }
+
+    .nav-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 11, 18, .78);
+      backdrop-filter: blur(18px);
+    }
+
+    nav {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      width: 28px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      background: conic-gradient(from 180deg, var(--green), var(--blue), var(--purple), var(--green));
+      box-shadow: 0 0 30px rgba(76, 125, 255, .25);
+    }
+
+    .brand-mark::after {
+      content: "";
+      width: 12px;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      background: #071018;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-links a {
+      padding: 9px 12px;
+      border-radius: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .nav-links a:hover,
+    .nav-links a:focus-visible {
+      color: var(--ink);
+      background: rgba(255,255,255,.06);
+      outline: none;
+    }
+
+    .hero {
+      position: relative;
+      padding: 92px 0 62px;
+    }
+
+    .eyebrow {
+      margin: 0 0 20px;
+      color: #b9c6d8;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 940px;
+      margin: 0;
+      font-size: clamp(48px, 8vw, 96px);
+      line-height: .96;
+      letter-spacing: -.065em;
+      text-wrap: balance;
+    }
+
+    .deepseek { color: var(--blue); }
+    .claude { color: var(--orange); }
+    .gpt { color: var(--green); }
+
+    .dek {
+      max-width: 770px;
+      margin: 30px 0 0;
+      color: #b0bdce;
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.5;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin-top: 32px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #c8d2df;
+      background: rgba(255,255,255,.035);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .pill::before {
+      content: "";
+      width: 6px;
+      aspect-ratio: 1;
+      border-radius: 99px;
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+    }
+
+    .verdict-grid {
+      display: grid;
+      grid-template-columns: 1.28fr .72fr;
+      gap: 18px;
+      margin-top: 52px;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg, rgba(18, 27, 42, .92), rgba(12, 18, 28, .88));
+      box-shadow: var(--shadow);
+    }
+
+    .winner {
+      min-height: 314px;
+      padding: 34px;
+    }
+
+    .winner::after {
+      content: "";
+      position: absolute;
+      width: 430px;
+      aspect-ratio: 1;
+      right: -190px;
+      top: -205px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(61, 217, 208, .28), transparent 66%);
+    }
+
+    .kicker {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .winner h2 {
+      max-width: 650px;
+      margin: 20px 0 14px;
+      font-size: clamp(31px, 4vw, 52px);
+      line-height: 1.02;
+      letter-spacing: -.045em;
+    }
+
+    .winner p {
+      max-width: 680px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .winner-number {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      margin-top: 28px;
+      color: var(--cyan);
+    }
+
+    .winner-number strong {
+      font-size: clamp(42px, 6vw, 70px);
+      line-height: 1;
+      letter-spacing: -.06em;
+    }
+
+    .winner-number span {
+      color: #b9c8d8;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .assumption {
+      display: flex;
+      min-height: 314px;
+      padding: 30px;
+      flex-direction: column;
+      justify-content: space-between;
+      background:
+        linear-gradient(180deg, rgba(76,125,255,.09), transparent 50%),
+        linear-gradient(145deg, rgba(18, 27, 42, .95), rgba(12, 18, 28, .9));
+    }
+
+    .big-stat {
+      margin-top: 24px;
+      font-size: clamp(48px, 6vw, 72px);
+      font-weight: 850;
+      line-height: .9;
+      letter-spacing: -.06em;
+    }
+
+    .big-stat small {
+      margin-left: 5px;
+      color: var(--muted);
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .equation {
+      padding-top: 22px;
+      border-top: 1px solid var(--line);
+      color: #c4cede;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    section { padding: 62px 0; }
+
+    .section-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .section-head h2 {
+      max-width: 690px;
+      margin: 0;
+      font-size: clamp(31px, 4vw, 48px);
+      line-height: 1.04;
+      letter-spacing: -.045em;
+    }
+
+    .section-head p {
+      max-width: 390px;
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+      text-align: right;
+    }
+
+    .segmented {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255,255,255,.03);
+    }
+
+    .segmented button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 9px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .segmented button[aria-pressed="true"] {
+      color: var(--ink);
+      background: rgba(255,255,255,.09);
+      box-shadow: 0 5px 18px rgba(0,0,0,.18);
+    }
+
+    .chart-card { padding: 28px; }
+
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .scale-note {
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .scale-explain {
+      margin: 24px 0 0;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--faint);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .scale-ruler {
+      display: grid;
+      grid-template-columns: minmax(170px, 270px) 1fr minmax(90px, auto);
+      gap: 18px;
+      min-height: 42px;
+      margin-top: 7px;
+    }
+
+    .axis-track {
+      position: relative;
+      grid-column: 2;
+      height: 35px;
+      margin-top: 8px;
+      border-top: 1px solid rgba(255,255,255,.17);
+    }
+
+    .axis-tick {
+      position: absolute;
+      top: -5px;
+      color: var(--faint);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+
+    .axis-tick::before {
+      content: "";
+      display: block;
+      width: 1px;
+      height: 9px;
+      margin: 0 auto 5px;
+      background: rgba(255,255,255,.28);
+    }
+
+    .axis-tick.edge-end { transform: translateX(-100%); }
+
+    .bars { display: grid; gap: 19px; }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: minmax(170px, 270px) 1fr minmax(90px, auto);
+      align-items: center;
+      gap: 18px;
+    }
+
+    .route-label {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 11px;
+    }
+
+    .route-dot {
+      width: 10px;
+      aspect-ratio: 1;
+      flex: 0 0 auto;
+      border-radius: 99px;
+      background: var(--route-color);
+      box-shadow: 0 0 16px color-mix(in srgb, var(--route-color), transparent 35%);
+    }
+
+    .route-label strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .route-label small {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--faint);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    .bar-track {
+      height: 15px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255,255,255,.055);
+    }
+
+    .bar-fill {
+      width: var(--bar-width);
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--route-color), white 8%), var(--route-color));
+      box-shadow: 0 0 24px color-mix(in srgb, var(--route-color), transparent 55%);
+      transition: width .55s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .bar-value {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 18px;
+    }
+
+    .sim-control { padding: 30px; }
+
+    .sim-value {
+      margin: 22px 0 4px;
+      font-size: clamp(52px, 7vw, 82px);
+      font-weight: 850;
+      line-height: .9;
+      letter-spacing: -.065em;
+    }
+
+    .sim-value span {
+      margin-left: 8px;
+      color: var(--muted);
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .sim-copy {
+      margin: 16px 0 24px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .range {
+      width: 100%;
+      height: 6px;
+      appearance: none;
+      border-radius: 999px;
+      outline: none;
+      background: linear-gradient(90deg, var(--green) var(--range-progress), rgba(255,255,255,.1) var(--range-progress));
+    }
+
+    .range::-webkit-slider-thumb {
+      width: 22px;
+      height: 22px;
+      appearance: none;
+      border: 4px solid #08100f;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 0 26px rgba(23,184,144,.48);
+      cursor: grab;
+    }
+
+    .range-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 10px;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .reset {
+      margin-top: 22px;
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink);
+      background: rgba(255,255,255,.05);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .spend-card { padding: 22px; }
+
+    .spend-row {
+      display: grid;
+      grid-template-columns: minmax(150px, 1fr) minmax(100px, auto);
+      gap: 18px;
+      padding: 16px 8px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .spend-row:last-child { border-bottom: 0; }
+
+    .spend-route {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .spend-price {
+      text-align: right;
+      font-size: 15px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .spend-price small {
+      display: block;
+      margin-top: 3px;
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .break-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .break-card {
+      min-height: 168px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.026);
+    }
+
+    .break-card strong {
+      display: block;
+      margin-top: 26px;
+      font-size: 28px;
+      letter-spacing: -.04em;
+    }
+
+    .break-card small {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .table-card {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(13, 20, 31, .82);
+      box-shadow: var(--shadow);
+    }
+
+    #matrix table { min-width: 2580px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 850px;
+    }
+
+    th, td {
+      padding: 16px 17px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 66px;
+      z-index: 2;
+      color: var(--muted);
+      background: #0e1622;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover td { background: rgba(255,255,255,.024); }
+
+    .task-name strong { display: block; font-size: 13px; }
+    .task-name small { display: block; margin-top: 4px; color: var(--faint); font-size: 10px; }
+
+    .result {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result::before {
+      content: "";
+      width: 7px;
+      aspect-ratio: 1;
+      border-radius: 99px;
+      background: var(--result-color);
+    }
+
+    .result.pass { --result-color: var(--green); color: #b9f2df; }
+    .result.partial { --result-color: var(--yellow); color: #ffe5a1; }
+    .result.fail { --result-color: var(--red); color: #ffc0c6; }
+
+    .coding-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .coding-card { padding: 23px; }
+
+    .coding-card .route-label strong { white-space: normal; }
+
+    .test-ring {
+      position: relative;
+      width: 94px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      margin: 28px auto;
+      border-radius: 50%;
+      background: conic-gradient(var(--route-color) 0 75%, rgba(255,255,255,.08) 75% 100%);
+    }
+
+    .test-ring::after {
+      content: "";
+      position: absolute;
+      inset: 9px;
+      border-radius: inherit;
+      background: var(--panel-solid);
+    }
+
+    .test-ring strong {
+      position: relative;
+      z-index: 1;
+      font-size: 23px;
+      letter-spacing: -.04em;
+    }
+
+    .coding-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 11px;
+    }
+
+    .coding-stat {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .coding-stat span { display: block; color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+    .coding-stat strong { display: block; margin-top: 6px; font-size: 14px; }
+
+    .alert {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: start;
+      margin-top: 18px;
+      padding: 19px 21px;
+      border: 1px solid rgba(246,200,95,.22);
+      border-radius: 17px;
+      color: #d6dce7;
+      background: rgba(246,200,95,.055);
+      line-height: 1.55;
+    }
+
+    .alert-icon {
+      width: 28px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: #100f08;
+      background: var(--yellow);
+      font-weight: 900;
+    }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 18px;
+    }
+
+    .method-card { padding: 30px; }
+
+    .method-card h3 { margin: 0 0 18px; font-size: 22px; letter-spacing: -.025em; }
+    .method-card p, .method-card li { color: var(--muted); line-height: 1.65; }
+    .method-card ul { margin: 0; padding-left: 19px; }
+    .method-card li + li { margin-top: 8px; }
+
+    .source-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .source-links a {
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      color: #cad3df;
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 750;
+    }
+    .source-links a:hover { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.04); }
+
+    .task-picker {
+      display: grid;
+      gap: 7px;
+      min-width: min(100%, 330px);
+    }
+
+    .task-picker label {
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .task-picker select {
+      width: 100%;
+      min-height: 44px;
+      padding: 0 38px 0 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--ink);
+      background: #111926;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .bar-row.is-empty .bar-track {
+      border: 1px dashed rgba(255,255,255,.13);
+      background: transparent;
+    }
+
+    .bar-row.is-empty .bar-value { color: var(--faint); }
+
+    .task-insight {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: start;
+      margin-top: 18px;
+      padding: 20px 22px;
+      border: 1px solid rgba(61,217,208,.2);
+      border-radius: 17px;
+      background: rgba(61,217,208,.05);
+      line-height: 1.55;
+    }
+
+    .task-insight strong { color: #c9fff7; }
+
+    .insight-icon {
+      width: 30px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: #061210;
+      background: var(--cyan);
+      font-weight: 900;
+    }
+
+    .cell-value {
+      display: block;
+      white-space: nowrap;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cell-note {
+      display: block;
+      margin-top: 4px;
+      color: var(--faint);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+
+    .cell-value.no-pass { color: #ffb7be; }
+    .cell-value.has-pass { color: #b9f2df; }
+
+    .status-chip {
+      display: inline-flex;
+      min-height: 25px;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 850;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .status-chip.tested { color: #b9f2df; background: rgba(23,184,144,.12); }
+    .status-chip.untested { color: #c1cad7; background: rgba(255,255,255,.06); }
+
+    .price-note {
+      display: block;
+      margin-top: 5px;
+      color: var(--faint);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .catalog-review {
+      margin-top: 28px;
+    }
+
+    .catalog-review h3 {
+      margin: 0 0 8px;
+      font-size: 23px;
+      letter-spacing: -.025em;
+    }
+
+    .catalog-review > p {
+      max-width: 820px;
+      margin: 0 0 16px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .catalog-more {
+      margin-top: 14px;
+      padding: 16px 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(255,255,255,.025);
+    }
+
+    .catalog-more summary {
+      cursor: pointer;
+      color: #dce5f0;
+      font-weight: 800;
+    }
+
+    .catalog-more p { margin: 12px 0 0; line-height: 1.6; }
+
+    .gate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .gate-card { padding: 26px; }
+    .gate-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--gate-color);
+    }
+
+    .gate-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--gate-color);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .gate-number {
+      width: 26px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--gate-color), transparent 55%);
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--gate-color), transparent 88%);
+    }
+
+    .gate-card h3 { margin: 20px 0 11px; font-size: 23px; letter-spacing: -.03em; }
+    .gate-card p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .gate-card ul { margin: 18px 0 0; padding-left: 17px; color: #bac4d2; font-size: 13px; line-height: 1.55; }
+    .gate-card li + li { margin-top: 7px; }
+
+    .protocol-card {
+      margin-top: 18px;
+      padding: 24px;
+      border: 1px solid rgba(76,125,255,.22);
+      border-radius: 18px;
+      background: linear-gradient(90deg, rgba(76,125,255,.08), rgba(23,184,144,.045));
+    }
+
+    .protocol-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 16px;
+      color: #c9d4e2;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+    }
+
+    .protocol-flow span {
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,.035);
+    }
+
+    .protocol-flow b { color: var(--faint); }
+
+    footer {
+      padding: 34px 0 54px;
+      color: var(--faint);
+      font-size: 12px;
+    }
+
+    .fade-in {
+      /* Keep report sections readable if a data or script request fails. */
+      opacity: 1;
+      transform: none;
+      transition: opacity .6s ease, transform .6s ease;
+    }
+
+    .fade-in.visible { opacity: 1; transform: none; }
+
+    @media (max-width: 900px) {
+      .verdict-grid, .sim-grid, .method-grid { grid-template-columns: 1fr; }
+      .break-grid, .coding-grid, .gate-grid { grid-template-columns: repeat(2, 1fr); }
+      .section-head { align-items: start; flex-direction: column; }
+      .section-head p { text-align: left; }
+    }
+
+    @media (max-width: 650px) {
+      .shell { width: min(100% - 24px, 1180px); }
+      .nav-links a:nth-child(-n+3),
+      .nav-links a:nth-child(5) { display: none; }
+      .hero { padding-top: 62px; }
+      .winner, .assumption, .chart-card, .sim-control { padding: 23px; }
+      .bar-row { grid-template-columns: 1fr; gap: 8px; }
+      .bar-value { text-align: left; }
+      .scale-ruler { grid-template-columns: 1fr; }
+      .axis-track { grid-column: 1; }
+      .break-grid, .coding-grid, .gate-grid { grid-template-columns: 1fr; }
+      .chart-toolbar { align-items: start; flex-direction: column; }
+      .hero-meta { max-width: 430px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition: none !important; animation: none !important; }
+      .fade-in { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="nav-wrap">
+    <nav class="shell" aria-label="Report sections">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Task economics</div>
+      <div class="nav-links">
+        <a href="#campaign">Live campaign</a>
+        <a href="#economics">Task cost</a>
+        <a href="#matrix">Matrix</a>
+        <a href="#aegis">Aegis enforcement</a>
+        <a href="#prices">Price points</a>
+        <a href="#next">Next bench</a>
+        <a href="#methods">Methods</a>
+      </div>
+    </nav>
+  </div>
+
+  <main>
+    <header class="hero shell">
+      <p class="eyebrow">Economic benchmark · 16–17 October 2026</p>
+      <h1>The cost of 100,000 tasks with <span class="deepseek">DeepSeek</span>, <span class="claude">Claude</span>, and <span class="gpt">GPT</span>.</h1>
+      <p class="dek">Compare the price of an attempt, the price of a successful task, pass rate, and latency. The task is the main unit. The vendor plan is only a cost input.</p>
+      <div class="hero-meta" aria-label="Study scope">
+        <span class="pill">90 executed tool workflows</span>
+        <span class="pill">7 objective tasks</span>
+        <span class="pill">15 tested routes</span>
+        <span class="pill">120 earlier reasoning runs</span>
+        <span class="pill">Low + high effort</span>
+      </div>
+
+      <div class="verdict-grid">
+        <article class="card winner fade-in">
+          <span class="kicker">Main decision rule</span>
+          <h2>The lowest price matters only when the route passes the task.</h2>
+          <p>Choose the task first. Then compare cost per 100,000 successful tasks. Failed attempts stay in the cost.</p>
+          <div class="winner-number"><strong>100K</strong><span>task attempts or successful tasks</span></div>
+        </article>
+        <aside class="card assumption fade-in">
+          <div>
+          <span class="kicker">Completed pilot · corrected tool loop</span>
+          <div class="big-stat" id="gpt-loop-result">Running<small>Three GPT models · three tasks · two efforts</small></div>
+          </div>
+          <div class="equation" id="gpt-loop-comparison">The earlier one-response harness scored GPT at 0/18.</div>
+        </aside>
+      </div>
+    </header>
+
+    <section id="campaign" class="shell" hidden>
+      <div class="section-head">
+        <div><p class="eyebrow">Ten new repetitions · pilot excluded</p><h2 id="campaign-title">Repeated objective benchmark</h2></div>
+        <p id="campaign-message"></p>
+      </div>
+      <div class="break-grid">
+        <article class="break-card"><span class="kicker">Verified repetitions</span><strong id="campaign-rounds">0/10</strong><small id="campaign-current">Preparing</small></article>
+        <article class="break-card"><span class="kicker" id="campaign-count-label">Base tasks recorded</span><strong id="campaign-count">—</strong><small id="campaign-matrix">Seven tasks × two efforts × ten repetitions per route.</small></article>
+        <article class="break-card"><span class="kicker">Aegis failure retries</span><strong id="campaign-retries">0</strong><small id="campaign-recoveries">Recoveries appear after the enforced retry.</small></article>
+        <article class="break-card"><span class="kicker">Recorded cash cost</span><strong id="campaign-spend">$0</strong><small id="campaign-allocation">LunaRoute allocation is shown separately.</small></article>
+      </div>
+      <p class="scale-explain" id="campaign-provenance"></p>
+      <div class="table-card" style="margin-top:18px">
+        <table><thead><tr><th>Route</th><th>Effort</th><th>Tasks / 70 planned</th><th>Base passes</th><th>After Aegis</th><th>Retries</th><th>Base / 100K attempts</th><th>Aegis / 100K attempts</th><th>Aegis / 100K successes</th><th>Aegis → fallback / 100K</th><th>Aegis cost ladder / 100K</th><th>Median time</th></tr></thead><tbody id="campaign-body"></tbody></table>
+      </div>
+      <div class="alert"><span class="alert-icon" aria-hidden="true">i</span><div>Each task/configuration will have 10 new attempts. The task chart below shows 95% Wilson intervals for pass rates and bootstrap intervals for cost. A 10/10 pass result still has a lower confidence bound of about 72%. Repetition measures consistency on these fixed tasks; it does not prove a general model rank.</div></div>
+      <p class="scale-explain" id="campaign-updated"></p>
+      <div class="source-links"><a id="campaign-csv" href="#campaign">Repeated task costs CSV</a><a id="campaign-json" href="#campaign">Campaign statistics JSON</a><a id="campaign-final-report" href="#campaign" hidden>Final report</a><a id="campaign-audit" href="#campaign" hidden>Final integrity audit</a></div>
+    </section>
+
+    <section id="tool-loop" class="shell">
+      <div class="section-head fade-in">
+        <div><p class="eyebrow">Completed pilot · corrected tool-use benchmark</p><h2>Execute. Return results. Continue.</h2></div>
+        <p>The old test asked for every call in one response. This test executes local tools and checks the completed workflow.</p>
+      </div>
+      <div class="break-grid fade-in">
+        <article class="break-card"><span class="kicker">Base workflows</span><strong id="loop-base">—</strong><small>Three tasks × two efforts × 15 model routes.</small></article>
+        <article class="break-card"><span class="kicker">Passed before retry</span><strong id="loop-passes">—</strong><small>Checked against replayed tool results and final state.</small></article>
+        <article class="break-card"><span class="kicker">Enforced Aegis retries</span><strong id="loop-retries">—</strong><small>One fresh workflow for each failed base attempt.</small></article>
+        <article class="break-card"><span class="kicker">Recovered by retry</span><strong id="loop-recovered">—</strong><small>All method gates and journal checks must pass.</small></article>
+      </div>
+      <div class="table-card fade-in" style="margin-top:18px">
+        <table><thead><tr><th>Model route</th><th>Old one-shot</th><th>Executed loop</th><th>After Aegis</th><th>Corrected tool errors</th><th>Model calls / task</th><th>Median time</th><th>Cost / 100K attempts</th><th>Cost / 100K successes</th></tr></thead><tbody id="tool-loop-body"></tbody></table>
+      </div>
+      <div class="alert fade-in"><span class="alert-icon" aria-hidden="true">i</span><div id="tool-loop-insight">Costs include every model request in the workflow and any failure retry. The loop uses deterministic local fixtures.</div></div>
+      <p class="scale-explain" id="loop-transport-note"></p>
+      <div class="source-links"><a href="toolloop/REPORT.md">Tool-loop report</a><a href="toolloop/TASK_ECONOMICS.csv">Workflow costs CSV</a><a href="toolloop/audit.json">Trace and cost audit</a><a href="tool_runtime.py">Tool fixtures and grader</a><a href="run_toolloop.py">Tool-loop runner</a></div>
+    </section>
+
+    <section id="economics" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Task economics</p>
+          <h2>Pick a task. Then compare the routes.</h2>
+        </div>
+        <div class="task-picker">
+          <label for="task-select">Benchmark task</label>
+          <select id="task-select"></select>
+        </div>
+      </div>
+
+      <div class="card chart-card fade-in">
+        <div class="chart-toolbar">
+          <div class="segmented" id="effort-switch" aria-label="Reasoning effort">
+            <button type="button" data-effort="all" aria-pressed="true">Both efforts</button>
+            <button type="button" data-effort="low" aria-pressed="false">Low effort</button>
+            <button type="button" data-effort="high" aria-pressed="false">High effort</button>
+          </div>
+          <span class="scale-note" id="task-data-note">Completed pilot results</span>
+        </div>
+        <div class="chart-toolbar">
+          <div class="segmented" id="policy-switch" aria-label="Failure retry policy">
+            <button type="button" data-policy="base" aria-pressed="true">Base workflow</button>
+            <button type="button" data-policy="withAegis" aria-pressed="false">With Aegis on failure</button>
+          </div>
+          <span class="scale-note">Measured policies: base or Aegis. Estimated policies: Aegis → fallback or cost ladder.</span>
+        </div>
+        <div class="chart-toolbar">
+          <div class="segmented" id="metric-switch" aria-label="Chart metric">
+            <button type="button" data-metric="success" aria-pressed="true">Cost / 100K successes</button>
+            <button type="button" data-metric="attempt" aria-pressed="false">Cost / 100K attempts</button>
+            <button type="button" data-metric="hybrid" aria-pressed="false">Aegis → fallback cost</button>
+            <button type="button" data-metric="ladder" aria-pressed="false">Aegis cost ladder</button>
+            <button type="button" data-metric="passRate" aria-pressed="false">Pass rate</button>
+            <button type="button" data-metric="latency" aria-pressed="false">Latency</button>
+          </div>
+          <span class="scale-note" id="scale-note">Log scale · failed attempts included</span>
+        </div>
+        <div class="protocol-card" id="hybrid-method" hidden>
+          <span class="kicker">Aegis first. Upgrade only if the retry fails.</span>
+          <p><strong>Hybrid = base + Aegis retry cost + remaining failure ratio × fallback cost.</strong> Retry cost includes every recorded failure-only retry, divided by the original task count. Failed attempts are paid. All costs use 100,000 original tasks.</p>
+          <p id="hybrid-candidates"></p>
+          <p><strong>Greedy ladder:</strong> each model gets one base attempt and one enforced Aegis retry on failure. Choose the next model by the lowest cost/pass ratio among models with a higher observed after-Aegis pass rate for this task and effort. Skip levels that do not reduce estimated cost. Keep a fully qualified model as the final fallback. Latency is not part of the score.</p>
+          <p><strong>Estimate only.</strong> We did not run a linked model ladder. The estimate applies each model's observed average pass rate to tasks that reach it. Models can fail on the same cases, so the ladder can cost more than this estimate. A 10/10 result does not prove zero failures. A final fallback with zero estimated reach remains in the plan. No combined pass-rate claim or hybrid confidence interval is made.</p>
+          <p>The CSV also keeps the original weighted formula, <strong>p × base cost + (1 − p) × fallback cost</strong>. That old formula excludes failed cheap attempts and all Aegis retries. It is not the hybrid bill shown here. “Both efforts” averages the low/high estimates.</p>
+          <a id="hybrid-download" href="#economics">Download all cost policies and ladder paths CSV</a>
+        </div>
+        <p class="scale-explain" id="policy-context"></p>
+        <div class="bars" id="route-bars" aria-live="polite"></div>
+        <div class="scale-ruler" id="scale-ruler" aria-label="Chart scale"></div>
+        <p class="scale-explain" id="scale-explain"></p>
+      </div>
+      <div class="task-insight fade-in" aria-live="polite">
+        <span class="insight-icon" aria-hidden="true">↳</span>
+        <div id="task-insight"></div>
+      </div>
+      <div id="ladder-detail" hidden>
+        <h3>Estimated ladder paths for the selected task</h3>
+        <p class="scale-explain">Each level shows its share of original tasks and its cost contribution. Shares are estimates, not observed model handoffs. The named model gets an Aegis retry only after a base failure.</p>
+        <div class="table-card"><table><thead><tr><th>Starting route</th><th>Effort</th><th>Model levels · estimated reach · cost contribution / 100K</th><th>Total / 100K original tasks</th></tr></thead><tbody id="ladder-body"></tbody></table></div>
+      </div>
+    </section>
+
+    <section id="matrix" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">All task results</p>
+          <h2 id="matrix-title">Cost per 100,000 successful tasks.</h2>
+        </div>
+        <div class="segmented" id="task-filter" aria-label="Task category">
+          <button type="button" data-category="all" aria-pressed="true">All</button>
+          <button type="button" data-category="reasoning" aria-pressed="false">Reasoning</button>
+          <button type="button" data-category="tool-loop" aria-pressed="false">Executed tool loop</button>
+        </div>
+      </div>
+
+      <div class="table-card fade-in">
+        <table>
+          <thead>
+            <tr id="task-head"></tr>
+          </thead>
+          <tbody id="task-body"></tbody>
+        </table>
+      </div>
+
+      <div class="protocol-card fade-in">
+        <span class="kicker">Why the earlier GPT result changed</span>
+        <p>The earlier test penalized a model that returned a valid first call and waited for its result. The corrected test returns every result, permits dependent calls across requests, and checks the invoice, account, or order state after completion.</p>
+        <div class="protocol-flow" aria-label="Required real tool loop">
+          <span>model request</span><b>→</b><span>tool call</span><b>→</b><span>execute tool</span><b>→</b><span>return result</span><b>→</b><span>model continues</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="aegis" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Historical one-response experiment</p>
+          <h2>Earlier Aegis retries on the one-shot contract.</h2>
+        </div>
+        <p>These 61 retries belong to the earlier harness. The corrected tool-loop results appear above.</p>
+      </div>
+      <div class="break-grid fade-in">
+        <article class="break-card"><span class="kicker">Base failures</span><strong id="aegis-retries">61</strong><small>Every graded base failure received one retry.</small></article>
+        <article class="break-card"><span class="kicker">Recovered</span><strong id="aegis-recovered">18</strong><small>Passed the task checker and every method gate.</small></article>
+        <article class="break-card"><span class="kicker">Recovery rate</span><strong id="aegis-rate">30%</strong><small>Recovered tasks divided by enforced retries.</small></article>
+        <article class="break-card"><span class="kicker">Evidence journals</span><strong id="aegis-journals">61/61</strong><small>Signed, hash-linked, and independently verified.</small></article>
+      </div>
+      <div class="table-card fade-in" style="margin-top:18px">
+        <table>
+          <thead><tr><th>Route</th><th>Retries</th><th>Recovered</th><th>Recovery</th><th>Failed-base tokens</th><th>Enforced tokens</th><th>Extra cost / 100K retries</th></tr></thead>
+          <tbody id="aegis-body"></tbody>
+        </table>
+      </div>
+      <div class="alert fade-in">
+        <span class="alert-icon" aria-hidden="true">i</span>
+        <div id="aegis-interpretation"><strong>Interpretation.</strong> The enforced method recovered some reasoning, orchestration, and inventory failures. It did not repair the chained tool-selection contract. A failed falsifier left the task open and blocked closure.</div>
+      </div>
+      <div class="protocol-card fade-in">
+        <span class="kicker">Enforcement path</span>
+        <p>The provider-neutral adapter keeps the original model route. It uses the full managed method payload. Aegis Method 0.3.0 validates the contracts and closure. The installed Aegis product writes and verifies the signed journal.</p>
+        <div class="protocol-flow" aria-label="Aegis enforcement sequence">
+          <span>plan + child contracts</span><b>→</b><span>plan gate</span><b>→</b><span>model request</span><b>→</b><span>objective falsifier</span><b>→</b><span>completion + closure gates</span><b>→</b><span>signed journal</span>
+        </div>
+        <p class="price-note">This is a benchmark-native reimplementation. It does not claim native Codex-hook or Claude-hook transport equivalence.</p>
+      </div>
+    </section>
+
+    <section id="prices" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Model and vendor price points</p>
+          <h2>The price ladder is now in the task bench.</h2>
+        </div>
+        <p>USD per one million tokens. “Not tested” means the route is in the catalog but has no result in this bench.</p>
+      </div>
+      <div class="table-card fade-in">
+        <table>
+          <thead>
+            <tr><th>Model</th><th>Vendor route</th><th>Input</th><th>Output</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>DeepSeek V4.1 Flash</strong></td><td>LunaRoute</td><td colspan="2">$0.004167 / 1M total<span class="price-note">Allocated fixed-plan cost at full capacity. Not a token list price.</span></td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>GLM 5.3</strong></td><td>LunaRoute</td><td colspan="2">$0.004167 / 1M total<span class="price-note">Allocated fixed-plan cost at full capacity.</span></td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>GLM 5.3 Flash</strong></td><td>LunaRoute</td><td colspan="2">$0.004167 / 1M total<span class="price-note">Allocated fixed-plan cost at full capacity.</span></td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>Muse Spark Open</strong></td><td>LunaRoute</td><td colspan="2">$0.004167 / 1M total<span class="price-note">Allocated fixed-plan cost at full capacity.</span></td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>GPT-6 Luna</strong></td><td>OpenAI API</td><td>$0.10</td><td>$0.50</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>Claude Haiku 5.5</strong></td><td>OpenRouter</td><td>$0.10</td><td>$0.50</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>DeepSeek V4.1 Flash</strong></td><td>OpenRouter</td><td>$0.15</td><td>$0.60</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>DeepSeek V4.1 Flash 1017</strong></td><td>OpenRouter · pinned snapshot</td><td>$0.15</td><td>$0.60</td><td><span class="status-chip" id="pinned-route-status">New ten-repeat run</span><span class="price-note">Catalog rate. Actual provider charges can differ.</span></td></tr>
+            <tr><td><strong>DeepSeek V4 Pro 0813</strong></td><td>OpenRouter</td><td>$0.66</td><td>$1.98</td><td><span class="status-chip tested">Tested · default and price-first</span></td></tr>
+            <tr><td><strong>GPT-6.1 Sol</strong></td><td>OpenAI API</td><td>$2.00</td><td>$10.00</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>Claude Sonnet 5.5</strong></td><td>OpenRouter</td><td>$2.00</td><td>$10.00</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>Claude Opus 5.5</strong></td><td>OpenRouter</td><td>$4.00</td><td>$20.00</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>GPT-6 Astra</strong></td><td>OpenAI API</td><td>$10.00</td><td>$50.00</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>Claude Fable 5.1</strong></td><td>OpenRouter</td><td>$10.00</td><td>$50.00</td><td><span class="status-chip tested">Tested</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert fade-in">
+        <span class="alert-icon" aria-hidden="true">i</span>
+        <div><strong>Billing notes.</strong> DeepSeek and Claude tests use OpenRouter. GPT tests use the direct OpenAI Responses API. OpenRouter task costs use the provider-reported charge when available and include the configured 5.5% Standard credit purchase fee. LunaRoute uses the supplied full-capacity assumption: $500 for 120 billion reported tokens per 30-day month.</div>
+      </div>
+
+      <div class="catalog-review fade-in">
+        <h3>Complete LunaRoute main catalog review</h3>
+        <p>The October 17 live catalog has 14 entries. The four primary chat choices have task results. The new <code>beam</code> entry is not part of this extension. Background variants still need a sustained-load test.</p>
+        <div class="table-card">
+          <table>
+            <thead><tr><th>Live catalog ID</th><th>Type</th><th>Decision</th></tr></thead>
+            <tbody>
+              <tr><td><strong>beam</strong></td><td>New catalog entry</td><td>Not included in this extension</td></tr>
+              <tr><td><strong>deepseek-4.1-flash</strong></td><td>Chat</td><td><span class="status-chip tested">Already tested</span></td></tr>
+              <tr><td><strong>glm-5.3</strong></td><td>Chat</td><td><span class="status-chip tested">Tested</span></td></tr>
+              <tr><td><strong>glm-5.3-flash</strong></td><td>Chat speed variant</td><td><span class="status-chip tested">Tested</span></td></tr>
+              <tr><td><strong>muse-spark-open</strong></td><td>Chat</td><td><span class="status-chip tested">Tested</span></td></tr>
+              <tr><td><strong>deepseek-4.1-flash-background</strong></td><td>Background scheduler</td><td>Capacity test only</td></tr>
+              <tr><td><strong>glm-5.3-background</strong></td><td>Background scheduler</td><td>Capacity test only</td></tr>
+              <tr><td><strong>glm-5.3-flash-background</strong></td><td>Background scheduler</td><td>Capacity test only</td></tr>
+              <tr><td><strong>muse-spark-open-background</strong></td><td>Background scheduler</td><td>Capacity test only</td></tr>
+              <tr><td><strong>glm-5.3-vision</strong></td><td>Vision chat</td><td>Defer until image-input tasks</td></tr>
+              <tr><td><strong>glm-5.3-vision-background</strong></td><td>Vision background</td><td>Defer until image-input tasks</td></tr>
+              <tr><td><strong>clef-flash</strong></td><td>System One decision</td><td>Separate decision bench</td></tr>
+              <tr><td><strong>djev</strong></td><td>Visual System One decision</td><td>Separate decision bench</td></tr>
+              <tr><td><strong>whisper-large-v3</strong></td><td>Transcription</td><td>Outside this benchmark</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <details class="catalog-more">
+          <summary>Other LunaRoute catalogs</summary>
+          <p><strong>Images:</strong> flux2-klein, qwen-image-2.1, qwen-image-2512, qwen-image-edit-2511.</p>
+          <p><strong>Embeddings:</strong> emb-granite, emb-nomic-code, emb-nomic-moe, emb-qwen3. <strong>Rerank:</strong> bge-rr-v2-m3.</p>
+          <p>These models need image, retrieval, or transcription tasks. They do not belong in the current reasoning, tool-loop, or coding comparison.</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="coding" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Sandboxed coding pilot</p>
+          <h2>Cost per 100,000 coding attempts.</h2>
+        </div>
+        <p>Each route passed three of four hidden tests. No route completed the task. Cost per 100,000 successful tasks is undefined.</p>
+      </div>
+      <div class="coding-grid" id="coding-grid"></div>
+    </section>
+
+    <section id="next" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Recommended bench expansion</p>
+          <h2>The loop works. Next, test harder workflows.</h2>
+        </div>
+        <p>The order produces trustworthy evidence before it adds more model spend.</p>
+      </div>
+      <div class="gate-grid">
+        <article class="card gate-card fade-in" style="--gate-color: var(--cyan)">
+          <div class="gate-label"><span class="gate-number">1</span>Testable</div>
+          <h3>Executed tool loop: complete.</h3>
+          <p>The current run executes all three workflows on every model route.</p>
+          <ul>
+            <li>Execute each tool call.</li>
+            <li>Return deterministic results.</li>
+            <li>Reconcile total cost.</li>
+            <li>Check invoice, account, and order state after completion.</li>
+          </ul>
+        </article>
+        <article class="card gate-card fade-in" style="--gate-color: var(--blue)">
+          <div class="gate-label"><span class="gate-number">2</span>Usable</div>
+          <h3>Add failure and recovery tasks.</h3>
+          <p>Use varied data and tool failures to separate model quality.</p>
+          <ul>
+            <li>Repeat with changed IDs, prices, and stock.</li>
+            <li>Keep DeepSeek and Claude on OpenRouter.</li>
+            <li>Test unavailable stock, timeouts, and rollback.</li>
+            <li>Report task cost, pass rate, and latency.</li>
+          </ul>
+        </article>
+        <article class="card gate-card fade-in" style="--gate-color: var(--orange)">
+          <div class="gate-label"><span class="gate-number">3</span>Lovable</div>
+          <h3>Choose by workload mix.</h3>
+          <p>Let a user set the task mix, minimum pass rate, and latency limit.</p>
+          <ul>
+            <li>Return the lowest-cost valid route.</li>
+            <li>Compare it with the current choice.</li>
+            <li>Continue after repeat use or clear preference.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="methods" class="shell">
+      <div class="section-head fade-in">
+        <div>
+          <p class="eyebrow">Method and limits</p>
+          <h2>This is task evidence. It is not a universal model rank.</h2>
+        </div>
+      </div>
+      <div class="method-grid">
+        <article class="card method-card fade-in">
+          <h3>How to read the cost</h3>
+          <ul>
+            <li>Cost per 100,000 attempts is total task cost divided by attempts, then multiplied by 100,000.</li>
+            <li>Cost per 100,000 successes is total task cost divided by successful tasks, then multiplied by 100,000.</li>
+            <li>Failed attempts remain in the successful-task cost.</li>
+            <li>A route with no successful run has no successful-task cost.</li>
+          </ul>
+        </article>
+        <article class="card method-card fade-in">
+          <h3>Evidence limits</h3>
+          <ul>
+            <li>Each objective task has one low-effort and one high-effort run per route.</li>
+            <li>The completed pilot combines 120 earlier reasoning runs and 90 executed tool workflows across 15 routes.</li>
+            <li>The live campaign adds 10 new repetitions for each route, effort, and task. Its statistics exclude the pilot.</li>
+            <li>Every failed tool workflow triggers one enforced Aegis retry with fresh fixture state.</li>
+            <li>The historical one-shot experiment has 61 enforced retries and 18 recoveries. It uses a different task contract.</li>
+            <li>The long reasoning task used a common 4,096-token output limit.</li>
+            <li>DeepSeek and Claude use OpenRouter. GPT uses the direct OpenAI API.</li>
+            <li>The earlier Aegis Method Lite arm covered 41 failures and recovered nine. It remains a separate prompt-only condition.</li>
+            <li>The coding pilot has one high-effort run per route.</li>
+          </ul>
+          <div class="source-links">
+            <a href="toolloop/REPORT.md">Current tool-loop report</a>
+            <a href="REPORT.md">Historical one-shot report</a>
+            <a href="toolloop/TASK_ECONOMICS.csv">Current workflow costs CSV</a>
+            <a href="SCALE.csv">Historical scale CSV</a>
+            <a href="routes.yaml">Route catalog</a>
+            <a href="aegis_enforced_retry.py">Enforced Aegis adapter</a>
+            <a href="aegis_method_payload.md">Earlier Lite payload</a>
+            <a href="https://developers.openai.com/api/docs/guides/function-calling">OpenAI tool-call flow</a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">Task economics benchmark · Local interactive report · Catalog dated 2026-10-16 · Results updated 2026-10-17</footer>
+
+  <script>window.REPORT_SNAPSHOT = true;</script>
+<script src="report_data.js"></script>
+  <script src="hybrid_cost.js"></script>
+  <script>
+    const legacyRoutes = [
+      { id: 'ds-luna', head: 'DS · LunaRoute', name: 'DeepSeek V4.1 Flash', sub: 'LunaRoute', color: '#3dd9d0' },
+      { id: 'glm53', head: 'GLM 5.3', name: 'GLM 5.3', sub: 'LunaRoute', color: '#7dd3fc' },
+      { id: 'glm53-flash', head: 'GLM 5.3 Flash', name: 'GLM 5.3 Flash', sub: 'LunaRoute', color: '#22c55e' },
+      { id: 'muse', head: 'Muse', name: 'Muse Spark Open', sub: 'LunaRoute', color: '#f6c85f' },
+      { id: 'or-floor', head: 'DS · OR floor', name: 'DeepSeek V4.1 Flash', sub: 'OpenRouter · price-first', color: '#a78bfa' },
+      { id: 'gpt-luna', head: 'GPT-6 Luna', name: 'GPT-6 Luna', sub: 'OpenAI API', color: '#34d399' },
+      { id: 'or-default', head: 'DS · OR default', name: 'DeepSeek V4.1 Flash', sub: 'OpenRouter · default', color: '#4c7dff' },
+      { id: 'gpt-sol', head: 'GPT-6.1 Sol', name: 'GPT-6.1 Sol', sub: 'OpenAI API', color: '#17b890' },
+      { id: 'claude', head: 'Claude Sonnet', name: 'Claude Sonnet 5.5', sub: 'OpenRouter', color: '#e98963' },
+      { id: 'gpt-astra', head: 'GPT-6 Astra', name: 'GPT-6 Astra', sub: 'OpenAI API', color: '#ff6b78' }
+    ];
+
+    const legacyTasks = [
+      { category: 'reasoning', name: 'Long tiling proof', code: 'reasoning/r1_tiling', results: [
+        { attempt: .0174125, success: null, passRate: 0, latency: 22.3616, passes: 0, runs: 2 },
+        { attempt: .0166167, success: .0332333, passRate: 50, latency: 35.6918, passes: 1, runs: 2 },
+        { attempt: .0040521, success: .0040521, passRate: 100, latency: 35.3603, passes: 2, runs: 2 },
+        { attempt: .0277875, success: .0277875, passRate: 100, latency: 23.0815, passes: 2, runs: 2 },
+        { attempt: .6202049, success: null, passRate: 0, latency: 18.9540, passes: 0, runs: 2 },
+        { attempt: 1.42415, success: 1.42415, passRate: 100, latency: 29.5065, passes: 2, runs: 2 },
+        { attempt: .6202049, success: null, passRate: 0, latency: 19.0597, passes: 0, runs: 2 },
+        { attempt: 14.503, success: 14.503, passRate: 100, latency: 26.6151, passes: 2, runs: 2 },
+        { attempt: 11.701005, success: 11.701005, passRate: 100, latency: 8.1684, passes: 2, runs: 2 },
+        { attempt: 71.015, success: 71.015, passRate: 100, latency: 28.8038, passes: 2, runs: 2 }
+      ]},
+      { category: 'reasoning', name: 'Expected flips', code: 'reasoning/r2_expectedflips', results: [
+        { attempt: .0026771, success: .0026771, passRate: 100, latency: 2.2847, passes: 2, runs: 2 },
+        { attempt: .0021063, success: .0021063, passRate: 100, latency: 4.9443, passes: 2, runs: 2 },
+        { attempt: .0025917, success: .0025917, passRate: 100, latency: 11.9772, passes: 2, runs: 2 },
+        { attempt: .0060188, success: .0060188, passRate: 100, latency: 4.9826, passes: 2, runs: 2 },
+        { attempt: .0848935, success: .0848935, passRate: 100, latency: 3.5790, passes: 2, runs: 2 },
+        { attempt: .15595, success: .15595, passRate: 100, latency: 4.5404, passes: 2, runs: 2 },
+        { attempt: .4752248, success: .4752248, passRate: 100, latency: 2.6436, passes: 2, runs: 2 },
+        { attempt: 3.154, success: 3.154, passRate: 100, latency: 7.0274, passes: 2, runs: 2 },
+        { attempt: 4.790755, success: 4.790755, passRate: 100, latency: 3.4457, passes: 2, runs: 2 },
+        { attempt: 16.395, success: 16.395, passRate: 100, latency: 8.2128, passes: 2, runs: 2 }
+      ]},
+      { category: 'reasoning', name: 'Die expectation', code: 'reasoning/r3_die_expected', results: [
+        { attempt: .0021354, success: .0021354, passRate: 100, latency: 2.1720, passes: 2, runs: 2 },
+        { attempt: .0028646, success: .0028646, passRate: 100, latency: 4.3071, passes: 2, runs: 2 },
+        { attempt: .0025292, success: .0025292, passRate: 100, latency: 16.7164, passes: 2, runs: 2 },
+        { attempt: .0052958, success: .0052958, passRate: 100, latency: 3.4044, passes: 2, runs: 2 },
+        { attempt: .0972472, success: .0972472, passRate: 100, latency: 3.8457, passes: 2, runs: 2 },
+        { attempt: .1686, success: .1686, passRate: 100, latency: 4.2194, passes: 2, runs: 2 },
+        { attempt: .0996576, success: .0996576, passRate: 100, latency: 3.3484, passes: 2, runs: 2 },
+        { attempt: 4.487, success: 4.487, passRate: 100, latency: 7.9167, passes: 2, runs: 2 },
+        { attempt: 4.46898, success: 4.46898, passRate: 100, latency: 3.2841, passes: 2, runs: 2 },
+        { attempt: 24.36, success: 24.36, passRate: 100, latency: 9.6109, passes: 2, runs: 2 }
+      ]},
+      { category: 'reasoning', name: 'Catalan count', code: 'reasoning/r4_catalan', results: [
+        { attempt: .0077208, success: .0077208, passRate: 100, latency: 9.4255, passes: 2, runs: 2 },
+        { attempt: .0035313, success: .0035313, passRate: 100, latency: 11.0888, passes: 2, runs: 2 },
+        { attempt: .00235, success: .00235, passRate: 100, latency: 5.1085, passes: 2, runs: 2 },
+        { attempt: .0077938, success: .0077938, passRate: 100, latency: 5.1208, passes: 2, runs: 2 },
+        { attempt: .4449189, success: .4449189, passRate: 100, latency: 13.0955, passes: 2, runs: 2 },
+        { attempt: .24445, success: .24445, passRate: 100, latency: 5.2432, passes: 2, runs: 2 },
+        { attempt: 1.5790185, success: 1.5790185, passRate: 100, latency: 9.0432, passes: 2, runs: 2 },
+        { attempt: 5.434, success: 5.434, passRate: 100, latency: 12.6111, passes: 2, runs: 2 },
+        { attempt: 6.921855, success: 6.921855, passRate: 100, latency: 5.0913, passes: 2, runs: 2 },
+        { attempt: 35.37, success: 35.37, passRate: 100, latency: 16.4550, passes: 2, runs: 2 }
+      ]},
+      { category: 'tool-plan', name: 'Tool orchestration', code: 'tool-use/t1_orchestrate', results: [
+        { attempt: .0061979, success: .0061979, passRate: 100, latency: 2.6179, passes: 2, runs: 2 },
+        { attempt: .0037542, success: null, passRate: 0, latency: 3.0733, passes: 0, runs: 2 },
+        { attempt: .003975, success: .003975, passRate: 100, latency: 12.9510, passes: 2, runs: 2 },
+        { attempt: .0149479, success: .0298958, passRate: 50, latency: 7.5417, passes: 1, runs: 2 },
+        { attempt: .1077809, success: .1077809, passRate: 100, latency: 4.0697, passes: 2, runs: 2 },
+        { attempt: .17875, success: null, passRate: 0, latency: 4.2697, passes: 0, runs: 2 },
+        { attempt: .48741, success: .48741, passRate: 100, latency: 2.7342, passes: 2, runs: 2 },
+        { attempt: 3, success: null, passRate: 0, latency: 5.2785, passes: 0, runs: 2 },
+        { attempt: 9.116255, success: 9.116255, passRate: 100, latency: 4.1011, passes: 2, runs: 2 },
+        { attempt: 18.525, success: null, passRate: 0, latency: 7.6964, passes: 0, runs: 2 }
+      ]},
+      { category: 'tool-plan', name: 'Chained support tools', code: 'tool-use/t2_toolselect', results: [
+        { attempt: .0049167, success: null, passRate: 0, latency: .7866, passes: 0, runs: 2 },
+        { attempt: .0040563, success: null, passRate: 0, latency: 2.0725, passes: 0, runs: 2 },
+        { attempt: .0042542, success: null, passRate: 0, latency: 9.8019, passes: 0, runs: 2 },
+        { attempt: .0072833, success: null, passRate: 0, latency: 1.2322, passes: 0, runs: 2 },
+        { attempt: .1549836, success: null, passRate: 0, latency: 3.7156, passes: 0, runs: 2 },
+        { attempt: .0673, success: null, passRate: 0, latency: 1.5589, passes: 0, runs: 2 },
+        { attempt: .2421257, success: null, passRate: 0, latency: 1.2093, passes: 0, runs: 2 },
+        { attempt: 1.186, success: null, passRate: 0, latency: 1.6118, passes: 0, runs: 2 },
+        { attempt: 4.54705, success: null, passRate: 0, latency: 2.3398, passes: 0, runs: 2 },
+        { attempt: 5.93, success: null, passRate: 0, latency: 1.7556, passes: 0, runs: 2 }
+      ]},
+      { category: 'tool-plan', name: 'Inventory tools', code: 'tool-use/t3_inventory', results: [
+        { attempt: .0056625, success: .0056625, passRate: 100, latency: 2.9274, passes: 2, runs: 2 },
+        { attempt: .0033896, success: null, passRate: 0, latency: 2.1372, passes: 0, runs: 2 },
+        { attempt: .0034833, success: .0034833, passRate: 100, latency: 3.3731, passes: 2, runs: 2 },
+        { attempt: .0106688, success: .0213375, passRate: 50, latency: 4.7113, passes: 1, runs: 2 },
+        { attempt: .1143840, success: .1143840, passRate: 100, latency: 3.5348, passes: 2, runs: 2 },
+        { attempt: .15295, success: null, passRate: 0, latency: 3.0674, passes: 0, runs: 2 },
+        { attempt: 1.077999, success: 1.077999, passRate: 100, latency: 4.4243, passes: 2, runs: 2 },
+        { attempt: 2.934, success: null, passRate: 0, latency: 6.1674, passes: 0, runs: 2 },
+        { attempt: 11.713665, success: 11.713665, passRate: 100, latency: 6.2887, passes: 2, runs: 2 },
+        { attempt: 14.345, success: null, passRate: 0, latency: 5.8047, passes: 0, runs: 2 }
+      ]}
+    ];
+
+    HYBRID_COST.derive(window.REPORT_DATA);
+    let { routes, tasks, aegisEnforced, toolLoop, campaign } = window.REPORT_DATA;
+
+    const coding = [
+      { name: 'LunaRoute', sub: 'DeepSeek V4.1 Flash', color: '#3dd9d0', cost: .719408, calls: 10, tokens: 172658, seconds: 70.7 },
+      { name: 'OR price-first', sub: 'DeepSeek V4.1 Flash', color: '#a78bfa', cost: 9.421629, calls: 15, tokens: 431701, seconds: 402.4 },
+      { name: 'Claude Sonnet 5.5', sub: 'OpenRouter', color: '#e98963', cost: 55.791143, calls: 7, tokens: 100149, seconds: 32.6 },
+      { name: 'GPT-6.1 Sol', sub: 'OpenAI API', color: '#17b890', cost: 116.0396, calls: 36, tokens: 480293, seconds: 178.2 }
+    ];
+
+    const metrics = {
+      success: {
+        note: 'Fixed log₁₀ scale · $0.10 to $100,000 / 100K tasks',
+        explain: 'The scale is fixed across all tasks. Each 10× cost increase uses the same horizontal distance. $0.10 starts at an 8% visual floor, and $100,000 fills the bar. Use the dollar label for the exact value.',
+        format: v => v == null ? 'No successful run' : taskMoney(v), log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
+      attempt: {
+        note: 'Fixed log₁₀ scale · $0.10 to $100,000 / 100K tasks',
+        explain: 'The scale is fixed across all tasks. Each 10× cost increase uses the same horizontal distance. $0.10 starts at an 8% visual floor, and $100,000 fills the bar. Use the dollar label for the exact value.',
+        format: taskMoney, log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
+      passRate: {
+        note: 'Fixed linear scale · 0% to 100%',
+        explain: 'The scale is fixed across all tasks. Bar length is equal to the pass-rate percentage.',
+        format: v => v.toFixed(0) + '%', log: false, scale: 1, domain: [0, 100],
+        ticks: [0, 25, 50, 75, 100], tickFormat: v => v + '%'
+      },
+      hybrid: {
+        note: 'Aegis-first estimate · fixed log₁₀ scale · / 100K original tasks',
+        explain: 'Pay the base attempt and every failure-only Aegis retry. Only tasks that still fail move to the cheapest fully qualified fallback. The fallback was tested separately, not as a linked handoff.',
+        format: taskMoney, log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
+      ladder: {
+        note: 'Greedy cost estimate · fixed log₁₀ scale · / 100K original tasks',
+        explain: 'At each reached model, pay its base attempt and one Aegis retry on failure. Move up only after both fail. The greedy score is cost divided by after-Aegis pass ratio, not latency. The full path and cost contributions appear below.',
+        format: taskMoney, log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
+      latency: {
+        note: 'Fixed linear scale · 0 to 120 seconds',
+        explain: 'The scale is fixed across all tasks. A 120-second median fills the bar. Use the seconds label for the exact value.',
+        format: v => v.toFixed(1) + ' s', log: false, scale: 1, domain: [0, 120],
+        ticks: [0, 30, 60, 90, 120], tickFormat: v => v + 's'
+      }
+    };
+
+    let activeMetric = 'success';
+    let activePolicy = 'base';
+    let activeCategory = 'all';
+    let activeEffort = 'all';
+
+    function isEstimate() { return activeMetric === 'hybrid' || activeMetric === 'ladder'; }
+
+    function taskResults(task) {
+      if (task.byEffort) return task.byEffort[activeEffort][activePolicy];
+      return activePolicy === 'withAegis' ? task.withAegis : task.results;
+    }
+
+    function uncertainty(result) {
+      if (!campaign || !result.runs) return '';
+      if (isEstimate()) return result[activeMetric] == null ? 'Incomplete policy or no fallback'
+        : `Aegis stage: ${taskMoney(result.aegisStageCost)} · after-Aegis pass: ${(100*result.aegisStagePassRate).toFixed(0)}% · n=${result.runs}`;
+      const ci = activeMetric === 'success' ? result.successCI100k
+        : activeMetric === 'attempt' ? result.attemptCI100k
+        : activeMetric === 'passRate' ? result.passCI : null;
+      if (!ci) return `n=${result.runs}`;
+      const format = v => v == null ? 'unbounded' : activeMetric === 'passRate' ? v.toFixed(0) + '%' : money(v);
+      return `95%: ${format(ci[0])}–${format(ci[1])} · n=${result.runs}`;
+    }
+
+    function money(value) {
+      if (value === 0) return '$0';
+      if (value < .01) return '$' + value.toFixed(4);
+      if (value < 1) return '$' + value.toFixed(3);
+      if (value < 100) return '$' + value.toFixed(2);
+      if (value < 1000) return '$' + value.toFixed(0);
+      return '$' + Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value);
+    }
+
+    function taskMoney(value) {
+      return money(value * 100);
+    }
+
+    function compact(value) {
+      return Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
+    }
+
+    function renderSelector() {
+      document.querySelector('#task-select').innerHTML = tasks.map((task, index) =>
+        `<option value="${index}">${task.name} · ${task.category === 'reasoning' ? 'reasoning' : 'executed tool loop'}</option>`
+      ).join('');
+      document.querySelector('#task-select').value = Math.max(0, tasks.findIndex(task => task.category === 'tool-loop'));
+    }
+
+    function renderTaskHead() {
+      document.querySelector('#task-head').innerHTML = '<th>Task</th>' + routes.map(route =>
+        `<th>${route.head}</th>`
+      ).join('');
+    }
+
+    function renderBars() {
+      const task = tasks[Number(document.querySelector('#task-select').value || 0)];
+      const spec = metrics[activeMetric];
+      const [min, max] = spec.domain;
+      document.querySelector('#route-bars').innerHTML = routes.map((route, index) => {
+        const result = taskResults(task)[index];
+        const value = result[activeMetric];
+        const empty = value == null;
+        let width = 0;
+        if (!empty && value > 0) {
+          const plotValue = value * spec.scale;
+          if (spec.log) {
+            const span = Math.log10(max) - Math.log10(min) || 1;
+            const position = Math.max(0, Math.min(1, (Math.log10(plotValue) - Math.log10(min)) / span));
+            width = 8 + 92 * position;
+          } else {
+            width = 100 * Math.max(0, Math.min(1, (plotValue - min) / (max - min)));
+          }
+        }
+        return `<div class="bar-row${empty ? ' is-empty' : ''}" style="--route-color:${route.color}">
+          <div class="route-label"><span class="route-dot"></span><div><strong>${route.name}</strong><small>${route.sub}</small></div></div>
+          <div class="bar-track" aria-hidden="true">${empty ? '' : `<div class="bar-fill" style="--bar-width:${width}%"></div>`}</div>
+          <div class="bar-value">${!result.runs ? 'Pending' : empty ? (isEstimate() ? 'Policy unavailable' : 'No successful run') : spec.format(value)}<small class="price-note">${uncertainty(result)}</small></div>
+        </div>`;
+      }).join('');
+      document.querySelector('#scale-note').textContent = spec.note;
+      renderScale(spec);
+      document.querySelector('#scale-explain').textContent = spec.explain;
+      document.querySelector('#hybrid-method').hidden = !isEstimate();
+      document.querySelector('#hybrid-candidates').textContent = 'Qualifying fallback routes: ' + window.REPORT_DATA.hybridMethod.qualifyingRoutes.map(id => {const r = routes.find(r => r.id === id);return r.name + ' through ' + r.sub;}).join('; ') + '. Each passed all ' + window.REPORT_DATA.hybridMethod.objectiveRunsPerQualifyingRoute + ' objective base tasks. The coding pilot and Aegis recoveries do not qualify a route.';
+      document.querySelectorAll('#policy-switch button').forEach(button => {button.disabled = isEstimate();});
+      document.querySelector('#policy-context').textContent = isEstimate()
+        ? 'Estimated policy · base + one Aegis retry at each reached model · includes failed attempts and retries · not a cost per observed success.'
+        : activePolicy === 'withAegis'
+        ? 'Measured Aegis-only policy · one base attempt + one enforced retry on failure · no model upgrade. Cost per success divides all paid attempts by observed successful original tasks.'
+        : 'Measured base-only policy · no failure retry and no model upgrade. Cost per success divides all paid attempts by observed successful tasks.';
+      document.querySelector('#ladder-detail').hidden = activeMetric !== 'ladder';
+      if (activeMetric === 'ladder') renderLadders(task);
+      renderInsight(task);
+    }
+
+    function renderLadders(task) {
+      const efforts = activeEffort === 'all' ? ['low','high'] : [activeEffort];
+      document.querySelector('#ladder-body').innerHTML = routes.map((route,index) => efforts.map(effort => {
+        const result = task.byEffort[effort].base[index];
+        const path = result.ladderPlan?.map((stage,level) => `${level+1}. ${stage.name} · ${stage.vendor}${stage.terminal ? ' · final fallback' : ''}<br><small>${(100*stage.reach).toFixed(1)}% reach · ${taskMoney(stage.contribution)} contribution</small>`).join('<br>↓<br>') || 'Incomplete policy or no qualified fallback';
+        return `<tr><td>${route.name}<span class="price-note">${route.sub}</span></td><td>${effort}</td><td>${path}</td><td>${result.ladder == null ? 'Unavailable' : taskMoney(result.ladder)}</td></tr>`;
+      }).join('')).join('');
+    }
+
+    function renderScale(spec) {
+      const [min, max] = spec.domain;
+      const ticks = spec.ticks.map(value => {
+        let position;
+        if (spec.log) {
+          const span = Math.log10(max) - Math.log10(min);
+          position = 8 + 92 * ((Math.log10(value) - Math.log10(min)) / span);
+        } else {
+          position = 100 * ((value - min) / (max - min));
+        }
+        const edgeClass = position >= 99.5 ? ' edge-end' : '';
+        return `<span class="axis-tick${edgeClass}" style="left:${position}%">${spec.tickFormat(value)}</span>`;
+      }).join('');
+      document.querySelector('#scale-ruler').innerHTML = `<div class="axis-track">${ticks}</div>`;
+    }
+
+    function renderInsight(task) {
+      if (isEstimate()) {
+        const ranked = taskResults(task).map((result, index) => ({result, route:routes[index]})).filter(item => item.result[activeMetric] != null).sort((a,b) => a.result[activeMetric] - b.result[activeMetric]);
+        document.querySelector('#task-insight').innerHTML = ranked.length ? `<strong>${ranked[0].route.name} through ${ranked[0].route.sub} has the lowest ${activeMetric === 'ladder' ? 'greedy ladder' : 'Aegis-first hybrid'} estimate: ${taskMoney(ranked[0].result[activeMetric])} per 100,000 original tasks.</strong> The estimate includes base failures and Aegis retries. It is not an observed model ladder or a general model ranking.` : '<strong>The policy estimate is not available.</strong> Complete retry records and a qualified fallback are required.';
+        return;
+      }
+      const successful = taskResults(task).map((result, index) => ({ result, route: routes[index] }))
+        .filter(item => item.result.success != null)
+        .sort((a, b) => a.result.success - b.result.success);
+      const target = document.querySelector('#task-insight');
+      if (!successful.length) {
+        const anyResults = taskResults(task).some(result => result.runs);
+        target.innerHTML = anyResults ? `<strong>No completed attempt passed ${task.name}.</strong> The successful-task cost is undefined. More repetitions are pending.` : '<strong>Results are pending.</strong> The page will update as this configuration completes.';
+        return;
+      }
+      const best = successful[0];
+      const context = task.category === 'tool-loop'
+        ? ' This cost includes all requests in the executed workflow' + (activePolicy === 'withAegis' ? ' and any Aegis failure retry.' : '.')
+        : '';
+      target.innerHTML = `<strong>${best.route.name} through ${best.route.sub} has the lowest observed successful-task cost: ${taskMoney(best.result.success)} per 100,000.</strong> ${successful.length} of ${routes.length} routes produced successful runs.${context}`;
+    }
+
+    function renderTasks(category = 'all') {
+      const visible = tasks.filter(task => category === 'all' || task.category === category);
+      document.querySelector('#matrix-title').textContent = isEstimate() ? `${activeMetric === 'ladder' ? 'Aegis cost ladder' : 'Aegis-first hybrid'} estimate per 100,000 original tasks.` : 'Cost per 100,000 successful tasks.';
+      document.querySelector('#task-body').innerHTML = visible.map(task => `
+        <tr>
+          <td class="task-name"><strong>${task.name}</strong><small>${task.category === 'reasoning' ? 'reasoning' : 'executed tool loop'} · ${task.code.split('/')[1]}</small></td>
+          ${taskResults(task).map(result => !result.runs
+            ? '<td><span class="cell-value no-pass">Pending</span><span class="cell-note">0 completed attempts</span></td>'
+            : isEstimate()
+            ? `<td><span class="cell-value ${result[activeMetric] == null ? 'no-pass' : 'has-pass'}">${result[activeMetric] == null ? 'Unavailable' : taskMoney(result[activeMetric])}</span><span class="cell-note">Estimate · Aegis retries included</span></td>`
+            : result.success == null
+            ? `<td><span class="cell-value no-pass">No pass</span><span class="cell-note">${taskMoney(result.attempt)} / 100K attempts · ${result.passes}/${result.runs}</span></td>`
+            : `<td><span class="cell-value has-pass">${taskMoney(result.success)}</span><span class="cell-note">per 100K successes · ${result.passes}/${result.runs}</span></td>`
+          ).join('')}
+        </tr>`).join('');
+    }
+
+    function renderCoding() {
+      document.querySelector('#coding-grid').innerHTML = coding.map(route => `
+        <article class="card coding-card fade-in visible" style="--route-color:${route.color}">
+          <div class="route-label"><span class="route-dot"></span><div><strong>${route.name}</strong><small>${route.sub}</small></div></div>
+          <div class="test-ring"><strong>3/4</strong></div>
+          <div class="coding-stats">
+            <div class="coding-stat"><span>Cost / 100K attempts</span><strong>${taskMoney(route.cost)}</strong></div>
+            <div class="coding-stat"><span>Time</span><strong>${route.seconds.toFixed(1)}s</strong></div>
+            <div class="coding-stat"><span>Calls</span><strong>${route.calls}</strong></div>
+            <div class="coding-stat"><span>Tokens</span><strong>${compact(route.tokens)}</strong></div>
+          </div>
+        </article>`).join('');
+    }
+
+    function renderAegis() {
+      if (!aegisEnforced || !aegisEnforced.retries) return;
+      document.querySelector('#aegis-retries').textContent = aegisEnforced.retries;
+      document.querySelector('#aegis-recovered').textContent = aegisEnforced.recovered;
+      document.querySelector('#aegis-rate').textContent = Math.round(100 * aegisEnforced.recovered / aegisEnforced.retries) + '%';
+      document.querySelector('#aegis-journals').textContent = `${aegisEnforced.journalsValid}/${aegisEnforced.retries}`;
+      document.querySelector('#aegis-body').innerHTML = aegisEnforced.routes.map(route => {
+        const rate = route.recoveryRate;
+        const outcome = rate === 0 ? 'fail' : 'partial';
+        return `<tr>
+          <td><strong>${route.name}</strong><span class="price-note">${route.sub}</span></td>
+          <td>${route.retries}</td>
+          <td>${route.recovered}</td>
+          <td><span class="result ${outcome}">${rate.toFixed(0)}%</span></td>
+          <td>${compact(route.baseTokens)}</td>
+          <td>${compact(route.enforcedTokens)}</td>
+          <td>${money(route.extraCost100k)}</td>
+        </tr>`;
+      }).join('');
+      const overlap = aegisEnforced.overlap;
+      document.querySelector('#aegis-interpretation').innerHTML = `<strong>Historical result.</strong> The enforced method recovered ${aegisEnforced.recovered} of ${aegisEnforced.retries} failures under the earlier one-response contract. On the ${overlap.runs} cases shared with the Lite arm, it recovered ${overlap.enforcedRecovered}; Lite recovered ${overlap.liteRecovered}. This is one retry per condition, not a causal estimate. Use the corrected tool-loop section above for current tool-use results.`;
+    }
+
+    function renderToolLoop() {
+      if (!toolLoop || !toolLoop.base.runs) return;
+      document.querySelector('#loop-base').textContent = toolLoop.base.runs;
+      document.querySelector('#loop-passes').textContent = `${toolLoop.base.passes}/${toolLoop.base.runs}`;
+      document.querySelector('#loop-retries').textContent = toolLoop.retries;
+      document.querySelector('#loop-recovered').textContent = toolLoop.recoveries;
+      const gpt = toolLoop.routes.filter(route => route.id.startsWith('gpt'));
+      const passes = gpt.reduce((sum, r) => sum + r.base.passes, 0);
+      const runs = gpt.reduce((sum, r) => sum + r.base.runs, 0);
+      document.querySelector('#gpt-loop-result').innerHTML = `${passes}/${runs}<small>GPT base tool workflows passed</small>`;
+      document.querySelector('#gpt-loop-comparison').textContent = `Earlier one-response test: 0/18. Corrected executed loop: ${passes}/${runs}.`;
+      document.querySelector('#tool-loop-body').innerHTML = toolLoop.routes.map(route => {
+        const b = route.base, a = route.withAegis;
+        return `<tr><td><strong>${route.name}</strong></td>
+          <td>${route.oldPasses}/${route.oldRuns}</td>
+          <td><span class="result ${b.passes === b.runs ? 'pass' : 'partial'}">${b.passes}/${b.runs}</span></td>
+          <td>${a.passes}/${a.runs}</td><td>${route.toolErrors}</td><td>${a.meanCalls.toFixed(1)}</td><td>${a.latency.toFixed(1)}s</td>
+          <td>${money(a.cost100kAttempts)}</td><td>${a.cost100kSuccesses == null ? 'No success' : money(a.cost100kSuccesses)}</td></tr>`;
+      }).join('');
+      document.querySelector('#tool-loop-insight').innerHTML = `<strong>The proper loop changed the result.</strong> GPT passed ${passes}/${runs} base workflows. Across all routes, ${toolLoop.base.passes}/${toolLoop.base.runs} passed before retry. ${toolLoop.retries ? `${toolLoop.recoveries}/${toolLoop.retries} Aegis retries recovered a task; ${toolLoop.journalsValid} signed journals verified.` : 'No base workflow failed, so no Aegis retry was triggered.'} Costs include all model requests and any failure retry. The tasks use deterministic local fixtures. They are too small to establish a broad model ranking.`;
+      document.querySelector('#loop-transport-note').textContent = `${toolLoop.transportRestarts} provider connection resets required fresh-state restarts. Returned receipts from partial workflows are included in cost and token totals. The ${toolLoop.missingUsageReceipts} interrupted requests had no usage receipt; their charges are unknown. Corrected tool errors count rejected calls that the model fixed within the same workflow.`;
+    }
+
+    function renderCampaign() {
+      const section = document.querySelector('#campaign');
+      section.hidden = !campaign;
+      if (!campaign) return;
+      document.querySelector('#campaign-title').textContent = campaign.state === 'complete' ? 'Ten repetitions are complete.' : (window.REPORT_SNAPSHOT ? 'Repeated benchmark snapshot: ' : 'Repeated benchmark: ') + campaign.state.replaceAll('_', ' ');
+      document.querySelector('#campaign-message').textContent = campaign.message;
+      document.querySelector('#campaign-rounds').textContent = `${campaign.completedRounds}/${campaign.repetitions}`;
+      document.querySelector('#campaign-current').textContent = `Current repetition: ${campaign.currentRound}/${campaign.repetitions}`;
+      document.querySelector('#campaign-count').textContent = `${campaign.baseRuns.toLocaleString()}/${campaign.plannedBase.toLocaleString()}`;
+      document.querySelector('#campaign-count-label').textContent = campaign.extension ? 'New route base tasks' : 'Base tasks recorded';
+      document.querySelector('#campaign-matrix').textContent = campaign.extension ? 'One new route × two efforts × seven tasks × ten repetitions.' : `${campaign.routeCount} routes × two efforts × seven tasks × ten repetitions.`;
+      document.querySelector('#campaign-provenance').textContent = campaign.baseline ? `${campaign.baseline.baseRuns.toLocaleString()} completed baseline tasks are retained. The comparison now has ${campaign.comparisonBaseRuns.toLocaleString()} recorded base tasks across ${campaign.routeCount} routes. ${campaign.state === 'complete' ? 'The new pinned 1017 route is complete.' : 'Only the new pinned 1017 route is running.'} The baseline ran earlier; this is not a concurrent paired model comparison.` : '';
+      const pinnedConfig = campaign.configs.filter(c => c.route_id === 'ds41-1017-openrouter');
+      const pinnedRuns = pinnedConfig.reduce((n,c) => n + c.base.runs, 0);
+      document.querySelector('#pinned-route-status').textContent = pinnedRuns === 140 ? 'Tested · ten repetitions' : `${pinnedRuns}/140 recorded`;
+      document.querySelector('#campaign-retries').textContent = campaign.retries;
+      document.querySelector('#campaign-recoveries').textContent = `${campaign.recoveries} recovered · ${campaign.pendingRetries} retries pending`;
+      document.querySelector('#campaign-spend').textContent = money(campaign.cashCost);
+      document.querySelector('#campaign-allocation').textContent = `LunaRoute allocated cost: ${money(campaign.allocatedCost)}`;
+      document.querySelector('#campaign-body').innerHTML = campaign.configs.map(config => {
+        const b = config.base, a = config.withAegis;
+        return `<tr><td><strong>${config.name}</strong><span class="price-note">${config.vendor}</span></td><td>${config.effort}</td><td>${b.runs}/${config.plannedTasks}</td><td>${b.passes}/${b.runs}</td><td>${a.passes}/${a.runs}</td><td>${a.retryCount}</td><td>${b.attempt == null ? 'Pending' : taskMoney(b.attempt)}</td><td>${a.attempt == null ? 'Pending' : taskMoney(a.attempt)}</td><td>${!b.runs ? 'Pending' : a.success == null ? 'No success' : taskMoney(a.success)}</td><td>${config.hybrid == null ? 'Pending' : taskMoney(config.hybrid)}<span class="price-note">Estimate · includes Aegis</span></td><td>${config.ladder == null ? 'Pending' : taskMoney(config.ladder)}<span class="price-note">Estimate · includes Aegis</span></td><td>${a.latency == null ? 'Pending' : a.latency.toFixed(1)+'s'}</td></tr>`;
+      }).join('');
+      const updateNote = window.REPORT_SNAPSHOT ? 'GitHub Pages snapshot. New local results need another export and push.' : 'The page checks for new results every 15 seconds.';
+      document.querySelector('#campaign-updated').textContent = `Updated ${new Date(campaign.updated_at_utc).toLocaleString()}. ${updateNote} Cost includes every returned request receipt and any Aegis retry.`;
+      if (window.REPORT_SNAPSHOT) document.querySelector('a[href="#campaign"]').textContent = 'Campaign snapshot';
+      const relative = 'campaigns/' + campaign.root.split('/').at(-1) + '/';
+      document.querySelector('#campaign-csv').href = relative + 'TASK_ECONOMICS.csv';
+      document.querySelector('#campaign-json').href = relative + 'summary.json';
+      document.querySelector('#campaign-final-report').href = relative + 'FINAL_REPORT.md';
+      document.querySelector('#campaign-audit').href = relative + 'final_audit.json';
+      document.querySelector('#campaign-final-report').hidden = campaign.state !== 'complete';
+      document.querySelector('#campaign-audit').hidden = campaign.state !== 'complete';
+      document.querySelector('#task-data-note').textContent = 'New repetitions only · pilot excluded · 95% confidence intervals';
+    }
+
+    document.querySelector('#task-select').addEventListener('change', renderBars);
+    document.querySelector('#metric-switch').addEventListener('click', event => {
+      const button = event.target.closest('button[data-metric]');
+      if (!button) return;
+      activeMetric = button.dataset.metric;
+      if (isEstimate()) {
+        activePolicy = 'withAegis';
+        document.querySelectorAll('#policy-switch button').forEach(item => item.setAttribute('aria-pressed', String(item.dataset.policy === activePolicy)));
+      }
+      document.querySelectorAll('#metric-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      renderBars();
+      renderTasks(activeCategory);
+    });
+
+    document.querySelector('#task-filter').addEventListener('click', event => {
+      const button = event.target.closest('button[data-category]');
+      if (!button) return;
+      document.querySelectorAll('#task-filter button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      activeCategory = button.dataset.category;
+      renderTasks(activeCategory);
+    });
+
+    document.querySelector('#policy-switch').addEventListener('click', event => {
+      const button = event.target.closest('button[data-policy]');
+      if (!button || isEstimate()) return;
+      activePolicy = button.dataset.policy;
+      document.querySelectorAll('#policy-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      renderBars();
+      renderTasks(activeCategory);
+    });
+
+    document.querySelector('#effort-switch').addEventListener('click', event => {
+      const button = event.target.closest('button[data-effort]');
+      if (!button) return;
+      activeEffort = button.dataset.effort;
+      document.querySelectorAll('#effort-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      renderBars();
+      renderTasks(activeCategory);
+    });
+
+    document.querySelector('#hybrid-download').addEventListener('click', event => {
+      event.preventDefault();
+      const url = URL.createObjectURL(new Blob([HYBRID_COST.csv(window.REPORT_DATA)], {type:'text/csv;charset=utf-8'}));
+      const link = document.createElement('a');link.href = url;link.download = 'hybrid-task-costs.csv';link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: .08 });
+
+    renderSelector();
+    renderTaskHead();
+    renderBars();
+    renderTasks();
+    renderCoding();
+    renderAegis();
+    renderToolLoop();
+    renderCampaign();
+    document.querySelectorAll('.fade-in').forEach(element => observer.observe(element));
+
+    let refreshPending = false;
+    setInterval(() => {
+      if (window.REPORT_SNAPSHOT || refreshPending || !campaign || campaign.state === 'complete') return;
+      refreshPending = true;
+      const script = document.createElement('script');
+      script.src = 'report_data.js?refresh=' + Date.now();
+      script.onload = () => {
+        HYBRID_COST.derive(window.REPORT_DATA);
+        ({routes, tasks, aegisEnforced, toolLoop, campaign} = window.REPORT_DATA);
+        renderCampaign();
+        renderBars();
+        renderTasks(activeCategory);
+        script.remove();
+        refreshPending = false;
+      };
+      script.onerror = () => { script.remove(); refreshPending = false; };
+      document.head.appendChild(script);
+    }, 15000);
+  </script>
+</body>
+</html>

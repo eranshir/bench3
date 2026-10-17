@@ -7,9 +7,26 @@
 - GPT-6.1 Sol passed all eight reasoning runs.
 - The original tool pilot used a one-response tool-plan contract. It did not execute tool calls or return tool results. Keep those results as history, not as current tool-use evidence.
 - The corrected tool pilot completed 90 workflows across 15 routes, three tasks, and two effort levels. All 90 passed. GPT passed 18/18 workflows. The grader replayed the executed tool calls.
-- The current campaign adds ten new repetitions of all seven objective tasks for each of the 30 route/effort settings. This is 2,100 base tasks. A failed base task gets one full enforced Aegis retry.
+- The campaign completed ten new repetitions of all seven objective tasks for each of the 30 route/effort settings. It has 2,100 base tasks: 1,965 passed. All 135 failed tasks received one full enforced Aegis retry; 47 recovered.
 - The new OpenRouter slice adds DeepSeek V4 Pro 0813 and the Claude Haiku, Opus, and Fable tiers.
-- The real tool-loop gate is closed for these local tasks. The repeated task-cost comparison is the active evidence gate. The coding pilot remains separate.
+- The real tool-loop gate and the repeated measurement checks are closed for these local tasks. The final audit replayed all 2,235 grades, all 135 signed journals, and 405 method gates. All 900 tool workflows passed. GPT-6.1 Sol passed all 140 base tasks. The coding pilot remains separate.
+- The user has authorized one extension: `deepseek/deepseek-v4.1-flash-1017` through OpenRouter. It adds 140 base tasks: seven tasks, low/high effort, and ten repetitions. Each model failure gets one fully enforced Aegis retry. Keep the completed 2,100 baseline observations. Do not repeat their API calls.
+
+## Pinned 1017 extension gate
+
+**User promise:** The user can compare the new pinned snapshot with the completed routes at the same task and budget limits.
+
+**Complete journey:** Run each task at low and high effort ten times -> execute the same tools -> grade the result -> run one enforced retry for each model failure -> audit all new grades, method gates, and journals -> add the new route to the local report -> publish the reviewed report to the existing GitHub Pages site.
+
+**Baseline, metric, and threshold:** Retain the completed 2,100 baseline tasks. Record all 140 new base tasks exactly once. Require ten verified round proofs, a valid enforced retry for every failed base task, and successful final page and data-file checks. Keep all original token and tool limits. Record the upstream provider and returned charge. Show costs per 100,000 tasks, pass intervals, and median time.
+
+**Falsifier:** The pinned route cannot complete the same tool protocol, a grade cannot be reproduced, or an evidence journal is invalid. A low model score is an observed result, not a reason to change the budget or grader.
+
+**Deferrals:** No other new models, no reruns of old routes, no new tasks, and no change to the LunaRoute allocation assumption.
+
+**Stop / Pivot / Continue:** Stop for unresolved access or integrity errors. Fix a local control error only if the task contract stays unchanged. Continue to publication only after the final audit passes. Do not declare a general quality rank or a causal Aegis effect from these fixed tasks.
+
+**Relationships:** Working model access, unchanged task contracts, valid method gates, and a successful audit are verified hard dependencies for this publication. The older baseline is an evidence relationship, not a concurrent control. API spend and provider queues are resource relationships. Extra design work is a preference and does not block the run.
 
 ## User and job
 
@@ -112,6 +129,46 @@ and records the result as `aegis_enforced_retry`.
 **Deferrals:** Automatic route changes and cloud hosting. Keep the first tool local.
 
 **Stop / Pivot / Continue:** Stop if the tool has no decision value. Pivot the workload model when observed use differs from the benchmark. Continue only after observed repeat use or clear preference.
+
+## Cost-policy report slice — Aegis first and greedy model upgrades
+
+**User promise:** Eran can compare the full cost of a failed base task,
+an Aegis retry, and later model upgrades without mixing measured costs
+with policy estimates.
+
+**Earliest Testable journey:** Select tiling at high effort. Compare base,
+Aegis only, Aegis then a qualified fallback, and the greedy ladder. Inspect
+each ladder level and export its costs. Baseline: the old weighted estimate
+excluded failed cheap attempts and all Aegis retries. Threshold: fixture
+arithmetic and all 224 complete task/effort/route cells include every stage
+cost; each final fallback passed all 140 base tests; ladder cost does not
+exceed direct escalation from the same starting route. Falsifier: an omitted
+retry, a partial model used as the final fallback, or an estimate labeled
+as an observed handoff. Stop on a false cost or evidence label. Pivot the
+heuristic if it adds cost. Continue to the usable gate when checks pass.
+
+**Earliest Usable journey:** Repeat the comparison at both efforts and on
+tool tasks. Export all policies and inspect the published report without
+builder rescue. Threshold: interaction tests pass, all published links
+work, and cost units and policy labels remain clear. Falsifier: an estimate
+switch changes the task evidence or mixes effort-specific fallback costs.
+Stop for evidence corruption. Pivot unclear controls. Continue only when
+the repeated journey is clear. User observation is still needed.
+
+**Earliest Lovable journey:** Eran uses the ladder to choose real model
+routes and later returns to it. Baseline: manual cost comparison. Threshold:
+two observed routing decisions and later repeat use. Falsifier: the ladder
+does not change a decision. Stop if it has no decision value. Pivot if the
+estimated handoff costs do not match a later linked test. Continue only
+after preference or repeat use is observed.
+
+**Order and deferrals:** Check one complete task journey, then all task
+cells, then controls and export, then publication. Do not launch a new paid
+linked-ladder campaign as part of a report estimate. Do not claim a measured
+combined pass rate, statistical significance, or global cost optimality.
+Complete source records, retry costs, and the final integrity audit are hard
+dependencies. Later linked tests are evidence relationships. API budget is
+a resource relationship. Visual polish is a preference relationship.
 
 ## Dependency classification
 

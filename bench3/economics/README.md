@@ -34,6 +34,59 @@ Responses API.
 
 ## Cost views
 
+### Aegis-first hybrid and greedy cost ladder
+
+The report separates four policies:
+
+1. Base only: measured base attempts, with no retry or model upgrade.
+2. Aegis only: measured base attempts plus one enforced retry per failure.
+3. Aegis then fallback: the measured Aegis policy, then an estimated model upgrade for tasks that still fail.
+4. Aegis cost ladder: estimated successive model levels, with one failure-only Aegis retry at each reached model.
+
+`hybrid = mean base-plus-Aegis cost + (1 − after-Aegis pass ratio) × fallback cost`
+
+The mean cost includes all base attempts and all recorded retries, divided
+by the original task count. Failed attempts are paid. All policy estimates
+use 100,000 original tasks, not 100,000 successful tasks. The fallback is
+the cheapest route for that task and effort among routes that passed all
+140 objective base tasks: seven tasks, both efforts, and ten repetitions.
+Partial runs, coding pilot scores, and Aegis recoveries do not qualify a
+fallback. A stage requires all ten base observations and every required
+retry. An incomplete stage produces no policy estimate.
+
+The greedy ladder chooses the next model by the lowest stage cost divided
+by its after-Aegis task pass ratio. Each upgrade must have a higher observed
+pass ratio. A reverse savings check removes levels that do not reduce the
+estimated remaining cost. The ladder ends at a fully qualified fallback.
+Its cost is `sum(estimated reach × full stage cost)`. A stage with 10/10
+passes gives later stages zero estimated reach, but keeps the final fallback
+in the plan. This is not proof of perfect reliability or a globally optimal
+policy. Latency is not part of the score.
+
+No linked model cascade was run. Estimates use marginal pass rates from
+separately tested models. Failures can correlate across models. The cost
+of a model on upstream failures can differ from its observed mean cost.
+Selection and scoring use the same small sample. Actual cascade costs can
+therefore be higher. No combined measured pass rate or policy confidence
+interval is claimed.
+
+The CSV also keeps the original requested formula
+`p × base cost + (1 − p) × fallback cost`, with the base pass ratio `p`.
+That weighted estimate omits failed cheap attempts and Aegis retries. It
+is not the hybrid bill shown in the report. The CSV includes base-first
+escalation, Aegis-first escalation, and ladder costs and paths.
+
+`hybrid_cost.js` computes these values from the report data. It does not
+call models, change grades, or change the frozen benchmark. The campaign
+summary's hybrid column is the equal-task mean of the task-level estimates,
+not a new estimate from a pooled pass ratio. “Both efforts” averages
+separately calculated low/high policies.
+
+```bash
+node bench3/economics/test_hybrid.js
+node bench3/economics/test_report_ui.js
+```
+
 Token-billed routes report two cost values:
 
 1. `inference_cost_usd`: the posted token cost.
@@ -65,6 +118,34 @@ Anthropic, DeepSeek, OpenRouter, and LunaRoute routes. Historical `arms.yaml`
 entries remain unchanged so old results keep their original meaning.
 
 ## Ten new repetitions
+
+### Pinned DeepSeek 1017 extension
+
+The October 17 extension adds `deepseek/deepseek-v4.1-flash-1017` through
+OpenRouter. It runs only that new route. The seven tasks, low/high effort,
+ten repetitions, output limits, graders, and full enforced Aegis failure
+retries stay unchanged. The extension has 140 new base tasks.
+
+The report retains the completed 2,100-task baseline. It reads the two
+campaigns separately; it does not copy or relabel old observations as new
+runs. A complete comparison has 2,240 base tasks across 16 routes. The
+baseline ran earlier. The report states this limit on the comparison.
+
+To start a newly authorized extension:
+
+```bash
+cd bench3/economics
+python3 extend_campaign.py \
+  --baseline campaigns/20261017T101248Z-objective-k10 \
+  --route ds41-1017-openrouter
+```
+
+The extension checks baseline source hashes, route settings, and the final
+baseline audit before it starts. It rejects an old route as a new route.
+The final audit checks the exact declared matrix; it supports both the
+original 2,100-task campaign and the 140-task extension.
+
+### Original campaign
 
 `run_campaign.py` runs the current objective matrix ten more times. Each
 repetition has 15 routes, two effort levels, and seven tasks: four reasoning
@@ -147,6 +228,17 @@ Tests do not call providers:
 ```bash
 python3 -m unittest test_campaign.py test_economics.py test_toolloop.py
 ```
+
+After completion, run the independent local audit. This command makes no
+provider requests. It checks exact matrix coverage, the round snapshots,
+all grades, all method gates, and every signed retry journal:
+
+```bash
+python3 verify_campaign.py --save
+```
+
+The final campaign report is `campaigns/<campaign-id>/FINAL_REPORT.md`.
+The audit result is `campaigns/<campaign-id>/final_audit.json`.
 
 ## Run the first gate
 

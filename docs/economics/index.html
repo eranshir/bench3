@@ -997,8 +997,9 @@
     }
 
     .fade-in {
-      opacity: 0;
-      transform: translateY(16px);
+      /* Keep report sections readable if a data or script request fails. */
+      opacity: 1;
+      transform: none;
       transition: opacity .6s ease, transform .6s ease;
     }
 
@@ -1086,16 +1087,17 @@
       </div>
       <div class="break-grid">
         <article class="break-card"><span class="kicker">Verified repetitions</span><strong id="campaign-rounds">0/10</strong><small id="campaign-current">Preparing</small></article>
-        <article class="break-card"><span class="kicker">Base tasks recorded</span><strong id="campaign-count">0/2,100</strong><small>15 routes × two efforts × seven tasks × 10 repetitions.</small></article>
+        <article class="break-card"><span class="kicker" id="campaign-count-label">Base tasks recorded</span><strong id="campaign-count">—</strong><small id="campaign-matrix">Seven tasks × two efforts × ten repetitions per route.</small></article>
         <article class="break-card"><span class="kicker">Aegis failure retries</span><strong id="campaign-retries">0</strong><small id="campaign-recoveries">Recoveries appear after the enforced retry.</small></article>
         <article class="break-card"><span class="kicker">Recorded cash cost</span><strong id="campaign-spend">$0</strong><small id="campaign-allocation">LunaRoute allocation is shown separately.</small></article>
       </div>
+      <p class="scale-explain" id="campaign-provenance"></p>
       <div class="table-card" style="margin-top:18px">
-        <table><thead><tr><th>Route</th><th>Effort</th><th>Tasks / 70 planned</th><th>Base passes</th><th>After Aegis</th><th>Retries</th><th>Cost / 100K attempts</th><th>Cost / 100K successes</th><th>Median time</th></tr></thead><tbody id="campaign-body"></tbody></table>
+        <table><thead><tr><th>Route</th><th>Effort</th><th>Tasks / 70 planned</th><th>Base passes</th><th>After Aegis</th><th>Retries</th><th>Base / 100K attempts</th><th>Aegis / 100K attempts</th><th>Aegis / 100K successes</th><th>Aegis → fallback / 100K</th><th>Aegis cost ladder / 100K</th><th>Median time</th></tr></thead><tbody id="campaign-body"></tbody></table>
       </div>
       <div class="alert"><span class="alert-icon" aria-hidden="true">i</span><div>Each task/configuration will have 10 new attempts. The task chart below shows 95% Wilson intervals for pass rates and bootstrap intervals for cost. A 10/10 pass result still has a lower confidence bound of about 72%. Repetition measures consistency on these fixed tasks; it does not prove a general model rank.</div></div>
       <p class="scale-explain" id="campaign-updated"></p>
-      <div class="source-links"><a id="campaign-csv" href="#campaign">Repeated task costs CSV</a><a id="campaign-json" href="#campaign">Campaign statistics JSON</a></div>
+      <div class="source-links"><a id="campaign-csv" href="#campaign">Repeated task costs CSV</a><a id="campaign-json" href="#campaign">Campaign statistics JSON</a><a id="campaign-final-report" href="#campaign" hidden>Final report</a><a id="campaign-audit" href="#campaign" hidden>Final integrity audit</a></div>
     </section>
 
     <section id="tool-loop" class="shell">
@@ -1143,17 +1145,29 @@
             <button type="button" data-policy="base" aria-pressed="true">Base workflow</button>
             <button type="button" data-policy="withAegis" aria-pressed="false">With Aegis on failure</button>
           </div>
-          <span class="scale-note">Tool tasks use executed workflows. Reasoning uses the earlier base runs.</span>
+          <span class="scale-note">Measured policies: base or Aegis. Estimated policies: Aegis → fallback or cost ladder.</span>
         </div>
         <div class="chart-toolbar">
           <div class="segmented" id="metric-switch" aria-label="Chart metric">
             <button type="button" data-metric="success" aria-pressed="true">Cost / 100K successes</button>
             <button type="button" data-metric="attempt" aria-pressed="false">Cost / 100K attempts</button>
+            <button type="button" data-metric="hybrid" aria-pressed="false">Aegis → fallback cost</button>
+            <button type="button" data-metric="ladder" aria-pressed="false">Aegis cost ladder</button>
             <button type="button" data-metric="passRate" aria-pressed="false">Pass rate</button>
             <button type="button" data-metric="latency" aria-pressed="false">Latency</button>
           </div>
           <span class="scale-note" id="scale-note">Log scale · failed attempts included</span>
         </div>
+        <div class="protocol-card" id="hybrid-method" hidden>
+          <span class="kicker">Aegis first. Upgrade only if the retry fails.</span>
+          <p><strong>Hybrid = base + Aegis retry cost + remaining failure ratio × fallback cost.</strong> Retry cost includes every recorded failure-only retry, divided by the original task count. Failed attempts are paid. All costs use 100,000 original tasks.</p>
+          <p id="hybrid-candidates"></p>
+          <p><strong>Greedy ladder:</strong> each model gets one base attempt and one enforced Aegis retry on failure. Choose the next model by the lowest cost/pass ratio among models with a higher observed after-Aegis pass rate for this task and effort. Skip levels that do not reduce estimated cost. Keep a fully qualified model as the final fallback. Latency is not part of the score.</p>
+          <p><strong>Estimate only.</strong> We did not run a linked model ladder. The estimate applies each model's observed average pass rate to tasks that reach it. Models can fail on the same cases, so the ladder can cost more than this estimate. A 10/10 result does not prove zero failures. A final fallback with zero estimated reach remains in the plan. No combined pass-rate claim or hybrid confidence interval is made.</p>
+          <p>The CSV also keeps the original weighted formula, <strong>p × base cost + (1 − p) × fallback cost</strong>. That old formula excludes failed cheap attempts and all Aegis retries. It is not the hybrid bill shown here. “Both efforts” averages the low/high estimates.</p>
+          <a id="hybrid-download" href="#economics">Download all cost policies and ladder paths CSV</a>
+        </div>
+        <p class="scale-explain" id="policy-context"></p>
         <div class="bars" id="route-bars" aria-live="polite"></div>
         <div class="scale-ruler" id="scale-ruler" aria-label="Chart scale"></div>
         <p class="scale-explain" id="scale-explain"></p>
@@ -1162,13 +1176,18 @@
         <span class="insight-icon" aria-hidden="true">↳</span>
         <div id="task-insight"></div>
       </div>
+      <div id="ladder-detail" hidden>
+        <h3>Estimated ladder paths for the selected task</h3>
+        <p class="scale-explain">Each level shows its share of original tasks and its cost contribution. Shares are estimates, not observed model handoffs. The named model gets an Aegis retry only after a base failure.</p>
+        <div class="table-card"><table><thead><tr><th>Starting route</th><th>Effort</th><th>Model levels · estimated reach · cost contribution / 100K</th><th>Total / 100K original tasks</th></tr></thead><tbody id="ladder-body"></tbody></table></div>
+      </div>
     </section>
 
     <section id="matrix" class="shell">
       <div class="section-head fade-in">
         <div>
           <p class="eyebrow">All task results</p>
-          <h2>Cost per 100,000 successful tasks.</h2>
+          <h2 id="matrix-title">Cost per 100,000 successful tasks.</h2>
         </div>
         <div class="segmented" id="task-filter" aria-label="Task category">
           <button type="button" data-category="all" aria-pressed="true">All</button>
@@ -1250,6 +1269,7 @@
             <tr><td><strong>GPT-6 Luna</strong></td><td>OpenAI API</td><td>$0.10</td><td>$0.50</td><td><span class="status-chip tested">Tested</span></td></tr>
             <tr><td><strong>Claude Haiku 5.5</strong></td><td>OpenRouter</td><td>$0.10</td><td>$0.50</td><td><span class="status-chip tested">Tested</span></td></tr>
             <tr><td><strong>DeepSeek V4.1 Flash</strong></td><td>OpenRouter</td><td>$0.15</td><td>$0.60</td><td><span class="status-chip tested">Tested</span></td></tr>
+            <tr><td><strong>DeepSeek V4.1 Flash 1017</strong></td><td>OpenRouter · pinned snapshot</td><td>$0.15</td><td>$0.60</td><td><span class="status-chip" id="pinned-route-status">New ten-repeat run</span><span class="price-note">Catalog rate. Actual provider charges can differ.</span></td></tr>
             <tr><td><strong>DeepSeek V4 Pro 0813</strong></td><td>OpenRouter</td><td>$0.66</td><td>$1.98</td><td><span class="status-chip tested">Tested · default and price-first</span></td></tr>
             <tr><td><strong>GPT-6.1 Sol</strong></td><td>OpenAI API</td><td>$2.00</td><td>$10.00</td><td><span class="status-chip tested">Tested</span></td></tr>
             <tr><td><strong>Claude Sonnet 5.5</strong></td><td>OpenRouter</td><td>$2.00</td><td>$10.00</td><td><span class="status-chip tested">Tested</span></td></tr>
@@ -1266,11 +1286,12 @@
 
       <div class="catalog-review fade-in">
         <h3>Complete LunaRoute main catalog review</h3>
-        <p>The live catalog has 13 entries. The four primary chat choices now have task results. Background variants still need a sustained-load test.</p>
+        <p>The October 17 live catalog has 14 entries. The four primary chat choices have task results. The new <code>beam</code> entry is not part of this extension. Background variants still need a sustained-load test.</p>
         <div class="table-card">
           <table>
             <thead><tr><th>Live catalog ID</th><th>Type</th><th>Decision</th></tr></thead>
             <tbody>
+              <tr><td><strong>beam</strong></td><td>New catalog entry</td><td>Not included in this extension</td></tr>
               <tr><td><strong>deepseek-4.1-flash</strong></td><td>Chat</td><td><span class="status-chip tested">Already tested</span></td></tr>
               <tr><td><strong>glm-5.3</strong></td><td>Chat</td><td><span class="status-chip tested">Tested</span></td></tr>
               <tr><td><strong>glm-5.3-flash</strong></td><td>Chat speed variant</td><td><span class="status-chip tested">Tested</span></td></tr>
@@ -1400,6 +1421,7 @@
 
   <script>window.REPORT_SNAPSHOT = true;</script>
 <script src="report_data.js"></script>
+  <script src="hybrid_cost.js"></script>
   <script>
     const legacyRoutes = [
       { id: 'ds-luna', head: 'DS · LunaRoute', name: 'DeepSeek V4.1 Flash', sub: 'LunaRoute', color: '#3dd9d0' },
@@ -1501,6 +1523,7 @@
       ]}
     ];
 
+    HYBRID_COST.derive(window.REPORT_DATA);
     let { routes, tasks, aegisEnforced, toolLoop, campaign } = window.REPORT_DATA;
 
     const coding = [
@@ -1529,6 +1552,18 @@
         format: v => v.toFixed(0) + '%', log: false, scale: 1, domain: [0, 100],
         ticks: [0, 25, 50, 75, 100], tickFormat: v => v + '%'
       },
+      hybrid: {
+        note: 'Aegis-first estimate · fixed log₁₀ scale · / 100K original tasks',
+        explain: 'Pay the base attempt and every failure-only Aegis retry. Only tasks that still fail move to the cheapest fully qualified fallback. The fallback was tested separately, not as a linked handoff.',
+        format: taskMoney, log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
+      ladder: {
+        note: 'Greedy cost estimate · fixed log₁₀ scale · / 100K original tasks',
+        explain: 'At each reached model, pay its base attempt and one Aegis retry on failure. Move up only after both fail. The greedy score is cost divided by after-Aegis pass ratio, not latency. The full path and cost contributions appear below.',
+        format: taskMoney, log: true, scale: 100, domain: [.1, 100000],
+        ticks: [.1, 1, 10, 100, 1000, 10000, 100000], tickFormat: v => v < 1 ? '$0.10' : v >= 1000 ? '$' + (v / 1000) + 'K' : '$' + v
+      },
       latency: {
         note: 'Fixed linear scale · 0 to 120 seconds',
         explain: 'The scale is fixed across all tasks. A 120-second median fills the bar. Use the seconds label for the exact value.',
@@ -1542,6 +1577,8 @@
     let activeCategory = 'all';
     let activeEffort = 'all';
 
+    function isEstimate() { return activeMetric === 'hybrid' || activeMetric === 'ladder'; }
+
     function taskResults(task) {
       if (task.byEffort) return task.byEffort[activeEffort][activePolicy];
       return activePolicy === 'withAegis' ? task.withAegis : task.results;
@@ -1549,6 +1586,8 @@
 
     function uncertainty(result) {
       if (!campaign || !result.runs) return '';
+      if (isEstimate()) return result[activeMetric] == null ? 'Incomplete policy or no fallback'
+        : `Aegis stage: ${taskMoney(result.aegisStageCost)} · after-Aegis pass: ${(100*result.aegisStagePassRate).toFixed(0)}% · n=${result.runs}`;
       const ci = activeMetric === 'success' ? result.successCI100k
         : activeMetric === 'attempt' ? result.attemptCI100k
         : activeMetric === 'passRate' ? result.passCI : null;
@@ -1609,13 +1648,32 @@
         return `<div class="bar-row${empty ? ' is-empty' : ''}" style="--route-color:${route.color}">
           <div class="route-label"><span class="route-dot"></span><div><strong>${route.name}</strong><small>${route.sub}</small></div></div>
           <div class="bar-track" aria-hidden="true">${empty ? '' : `<div class="bar-fill" style="--bar-width:${width}%"></div>`}</div>
-          <div class="bar-value">${!result.runs ? 'Pending' : empty ? 'No successful run' : spec.format(value)}<small class="price-note">${uncertainty(result)}</small></div>
+          <div class="bar-value">${!result.runs ? 'Pending' : empty ? (isEstimate() ? 'Policy unavailable' : 'No successful run') : spec.format(value)}<small class="price-note">${uncertainty(result)}</small></div>
         </div>`;
       }).join('');
       document.querySelector('#scale-note').textContent = spec.note;
       renderScale(spec);
       document.querySelector('#scale-explain').textContent = spec.explain;
+      document.querySelector('#hybrid-method').hidden = !isEstimate();
+      document.querySelector('#hybrid-candidates').textContent = 'Qualifying fallback routes: ' + window.REPORT_DATA.hybridMethod.qualifyingRoutes.map(id => {const r = routes.find(r => r.id === id);return r.name + ' through ' + r.sub;}).join('; ') + '. Each passed all ' + window.REPORT_DATA.hybridMethod.objectiveRunsPerQualifyingRoute + ' objective base tasks. The coding pilot and Aegis recoveries do not qualify a route.';
+      document.querySelectorAll('#policy-switch button').forEach(button => {button.disabled = isEstimate();});
+      document.querySelector('#policy-context').textContent = isEstimate()
+        ? 'Estimated policy · base + one Aegis retry at each reached model · includes failed attempts and retries · not a cost per observed success.'
+        : activePolicy === 'withAegis'
+        ? 'Measured Aegis-only policy · one base attempt + one enforced retry on failure · no model upgrade. Cost per success divides all paid attempts by observed successful original tasks.'
+        : 'Measured base-only policy · no failure retry and no model upgrade. Cost per success divides all paid attempts by observed successful tasks.';
+      document.querySelector('#ladder-detail').hidden = activeMetric !== 'ladder';
+      if (activeMetric === 'ladder') renderLadders(task);
       renderInsight(task);
+    }
+
+    function renderLadders(task) {
+      const efforts = activeEffort === 'all' ? ['low','high'] : [activeEffort];
+      document.querySelector('#ladder-body').innerHTML = routes.map((route,index) => efforts.map(effort => {
+        const result = task.byEffort[effort].base[index];
+        const path = result.ladderPlan?.map((stage,level) => `${level+1}. ${stage.name} · ${stage.vendor}${stage.terminal ? ' · final fallback' : ''}<br><small>${(100*stage.reach).toFixed(1)}% reach · ${taskMoney(stage.contribution)} contribution</small>`).join('<br>↓<br>') || 'Incomplete policy or no qualified fallback';
+        return `<tr><td>${route.name}<span class="price-note">${route.sub}</span></td><td>${effort}</td><td>${path}</td><td>${result.ladder == null ? 'Unavailable' : taskMoney(result.ladder)}</td></tr>`;
+      }).join('')).join('');
     }
 
     function renderScale(spec) {
@@ -1635,6 +1693,11 @@
     }
 
     function renderInsight(task) {
+      if (isEstimate()) {
+        const ranked = taskResults(task).map((result, index) => ({result, route:routes[index]})).filter(item => item.result[activeMetric] != null).sort((a,b) => a.result[activeMetric] - b.result[activeMetric]);
+        document.querySelector('#task-insight').innerHTML = ranked.length ? `<strong>${ranked[0].route.name} through ${ranked[0].route.sub} has the lowest ${activeMetric === 'ladder' ? 'greedy ladder' : 'Aegis-first hybrid'} estimate: ${taskMoney(ranked[0].result[activeMetric])} per 100,000 original tasks.</strong> The estimate includes base failures and Aegis retries. It is not an observed model ladder or a general model ranking.` : '<strong>The policy estimate is not available.</strong> Complete retry records and a qualified fallback are required.';
+        return;
+      }
       const successful = taskResults(task).map((result, index) => ({ result, route: routes[index] }))
         .filter(item => item.result.success != null)
         .sort((a, b) => a.result.success - b.result.success);
@@ -1653,11 +1716,14 @@
 
     function renderTasks(category = 'all') {
       const visible = tasks.filter(task => category === 'all' || task.category === category);
+      document.querySelector('#matrix-title').textContent = isEstimate() ? `${activeMetric === 'ladder' ? 'Aegis cost ladder' : 'Aegis-first hybrid'} estimate per 100,000 original tasks.` : 'Cost per 100,000 successful tasks.';
       document.querySelector('#task-body').innerHTML = visible.map(task => `
         <tr>
           <td class="task-name"><strong>${task.name}</strong><small>${task.category === 'reasoning' ? 'reasoning' : 'executed tool loop'} · ${task.code.split('/')[1]}</small></td>
           ${taskResults(task).map(result => !result.runs
             ? '<td><span class="cell-value no-pass">Pending</span><span class="cell-note">0 completed attempts</span></td>'
+            : isEstimate()
+            ? `<td><span class="cell-value ${result[activeMetric] == null ? 'no-pass' : 'has-pass'}">${result[activeMetric] == null ? 'Unavailable' : taskMoney(result[activeMetric])}</span><span class="cell-note">Estimate · Aegis retries included</span></td>`
             : result.success == null
             ? `<td><span class="cell-value no-pass">No pass</span><span class="cell-note">${taskMoney(result.attempt)} / 100K attempts · ${result.passes}/${result.runs}</span></td>`
             : `<td><span class="cell-value has-pass">${taskMoney(result.success)}</span><span class="cell-note">per 100K successes · ${result.passes}/${result.runs}</span></td>`
@@ -1734,13 +1800,19 @@
       document.querySelector('#campaign-rounds').textContent = `${campaign.completedRounds}/${campaign.repetitions}`;
       document.querySelector('#campaign-current').textContent = `Current repetition: ${campaign.currentRound}/${campaign.repetitions}`;
       document.querySelector('#campaign-count').textContent = `${campaign.baseRuns.toLocaleString()}/${campaign.plannedBase.toLocaleString()}`;
+      document.querySelector('#campaign-count-label').textContent = campaign.extension ? 'New route base tasks' : 'Base tasks recorded';
+      document.querySelector('#campaign-matrix').textContent = campaign.extension ? 'One new route × two efforts × seven tasks × ten repetitions.' : `${campaign.routeCount} routes × two efforts × seven tasks × ten repetitions.`;
+      document.querySelector('#campaign-provenance').textContent = campaign.baseline ? `${campaign.baseline.baseRuns.toLocaleString()} completed baseline tasks are retained. The comparison now has ${campaign.comparisonBaseRuns.toLocaleString()} recorded base tasks across ${campaign.routeCount} routes. ${campaign.state === 'complete' ? 'The new pinned 1017 route is complete.' : 'Only the new pinned 1017 route is running.'} The baseline ran earlier; this is not a concurrent paired model comparison.` : '';
+      const pinnedConfig = campaign.configs.filter(c => c.route_id === 'ds41-1017-openrouter');
+      const pinnedRuns = pinnedConfig.reduce((n,c) => n + c.base.runs, 0);
+      document.querySelector('#pinned-route-status').textContent = pinnedRuns === 140 ? 'Tested · ten repetitions' : `${pinnedRuns}/140 recorded`;
       document.querySelector('#campaign-retries').textContent = campaign.retries;
       document.querySelector('#campaign-recoveries').textContent = `${campaign.recoveries} recovered · ${campaign.pendingRetries} retries pending`;
       document.querySelector('#campaign-spend').textContent = money(campaign.cashCost);
       document.querySelector('#campaign-allocation').textContent = `LunaRoute allocated cost: ${money(campaign.allocatedCost)}`;
       document.querySelector('#campaign-body').innerHTML = campaign.configs.map(config => {
         const b = config.base, a = config.withAegis;
-        return `<tr><td><strong>${config.name}</strong><span class="price-note">${config.vendor}</span></td><td>${config.effort}</td><td>${b.runs}/${config.plannedTasks}</td><td>${b.passes}/${b.runs}</td><td>${a.passes}/${a.runs}</td><td>${a.retryCount}</td><td>${a.attempt == null ? 'Pending' : taskMoney(a.attempt)}</td><td>${a.success == null ? 'No success' : taskMoney(a.success)}</td><td>${a.latency == null ? 'Pending' : a.latency.toFixed(1)+'s'}</td></tr>`;
+        return `<tr><td><strong>${config.name}</strong><span class="price-note">${config.vendor}</span></td><td>${config.effort}</td><td>${b.runs}/${config.plannedTasks}</td><td>${b.passes}/${b.runs}</td><td>${a.passes}/${a.runs}</td><td>${a.retryCount}</td><td>${b.attempt == null ? 'Pending' : taskMoney(b.attempt)}</td><td>${a.attempt == null ? 'Pending' : taskMoney(a.attempt)}</td><td>${!b.runs ? 'Pending' : a.success == null ? 'No success' : taskMoney(a.success)}</td><td>${config.hybrid == null ? 'Pending' : taskMoney(config.hybrid)}<span class="price-note">Estimate · includes Aegis</span></td><td>${config.ladder == null ? 'Pending' : taskMoney(config.ladder)}<span class="price-note">Estimate · includes Aegis</span></td><td>${a.latency == null ? 'Pending' : a.latency.toFixed(1)+'s'}</td></tr>`;
       }).join('');
       const updateNote = window.REPORT_SNAPSHOT ? 'GitHub Pages snapshot. New local results need another export and push.' : 'The page checks for new results every 15 seconds.';
       document.querySelector('#campaign-updated').textContent = `Updated ${new Date(campaign.updated_at_utc).toLocaleString()}. ${updateNote} Cost includes every returned request receipt and any Aegis retry.`;
@@ -1748,6 +1820,10 @@
       const relative = 'campaigns/' + campaign.root.split('/').at(-1) + '/';
       document.querySelector('#campaign-csv').href = relative + 'TASK_ECONOMICS.csv';
       document.querySelector('#campaign-json').href = relative + 'summary.json';
+      document.querySelector('#campaign-final-report').href = relative + 'FINAL_REPORT.md';
+      document.querySelector('#campaign-audit').href = relative + 'final_audit.json';
+      document.querySelector('#campaign-final-report').hidden = campaign.state !== 'complete';
+      document.querySelector('#campaign-audit').hidden = campaign.state !== 'complete';
       document.querySelector('#task-data-note').textContent = 'New repetitions only · pilot excluded · 95% confidence intervals';
     }
 
@@ -1756,8 +1832,13 @@
       const button = event.target.closest('button[data-metric]');
       if (!button) return;
       activeMetric = button.dataset.metric;
+      if (isEstimate()) {
+        activePolicy = 'withAegis';
+        document.querySelectorAll('#policy-switch button').forEach(item => item.setAttribute('aria-pressed', String(item.dataset.policy === activePolicy)));
+      }
       document.querySelectorAll('#metric-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
       renderBars();
+      renderTasks(activeCategory);
     });
 
     document.querySelector('#task-filter').addEventListener('click', event => {
@@ -1770,7 +1851,7 @@
 
     document.querySelector('#policy-switch').addEventListener('click', event => {
       const button = event.target.closest('button[data-policy]');
-      if (!button) return;
+      if (!button || isEstimate()) return;
       activePolicy = button.dataset.policy;
       document.querySelectorAll('#policy-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
       renderBars();
@@ -1784,6 +1865,13 @@
       document.querySelectorAll('#effort-switch button').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
       renderBars();
       renderTasks(activeCategory);
+    });
+
+    document.querySelector('#hybrid-download').addEventListener('click', event => {
+      event.preventDefault();
+      const url = URL.createObjectURL(new Blob([HYBRID_COST.csv(window.REPORT_DATA)], {type:'text/csv;charset=utf-8'}));
+      const link = document.createElement('a');link.href = url;link.download = 'hybrid-task-costs.csv';link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
 
     const observer = new IntersectionObserver(entries => {
@@ -1812,6 +1900,7 @@
       const script = document.createElement('script');
       script.src = 'report_data.js?refresh=' + Date.now();
       script.onload = () => {
+        HYBRID_COST.derive(window.REPORT_DATA);
         ({routes, tasks, aegisEnforced, toolLoop, campaign} = window.REPORT_DATA);
         renderCampaign();
         renderBars();

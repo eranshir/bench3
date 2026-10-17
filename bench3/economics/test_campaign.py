@@ -42,10 +42,11 @@ class CampaignTests(unittest.TestCase):
             root = Path(temporary) / "campaign"
             initialize(root, 8)
             m = json.loads((root / "manifest.json").read_text())
-            self.assertEqual(m["planned_base"], 2100)
+            route_count = sum(r.get("enabled", True) for r in load_config()["routes"].values())
+            self.assertEqual(m["planned_base"], route_count * 7 * 2 * 10)
             self.assertEqual(m["rep_ids"], list(range(2, 12)))
             self.assertEqual(m["output_tokens"]["reasoning/r1_tiling"], 4096)
-            self.assertEqual(len(m["routes"]), 15)
+            self.assertEqual(len(m["routes"]), route_count)
             self.assertIn(str(Path(__file__).with_name("tool_runtime.py")), m["source_sha256"])
 
     @patch("run_campaign.run_enforced")

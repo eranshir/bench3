@@ -1,11 +1,12 @@
 {
-  "completedCells": 1437,
-  "completedRounds": 6,
-  "currentRound": 7,
+  "completedCells": 2100,
+  "completedRounds": 10,
+  "completed_at_utc": "2026-10-17T11:44:00.730004+00:00",
+  "currentRound": 10,
   "infrastructureErrors": 0,
-  "message": "Repetition 7/10; 1437/2100 base tasks recorded.",
+  "message": "All ten repetitions are complete. Every round passed the coverage and replay checks.",
   "pid": 66985,
   "started_at_utc": "2026-10-17T10:13:27.742959+00:00",
-  "state": "running",
-  "updated_at_utc": "2026-10-17T11:16:07.441409+00:00"
+  "state": "complete",
+  "updated_at_utc": "2026-10-17T11:44:00.730014+00:00"
 }

@@ -1,0 +1,37 @@
+{
+  "after_retry_ci95": [
+    94.86559825849302,
+    96.58615975936141
+  ],
+  "after_retry_passes": 2012,
+  "allocated_cost_usd": 0.0102126875,
+  "base_pass_ci95": [
+    92.44083283548781,
+    94.54290789875004
+  ],
+  "base_passes": 1965,
+  "base_records": 2100,
+  "cash_cost_usd": 27.19013093683019,
+  "enforced_retries": 135,
+  "failures_by_task": {
+    "reasoning/r1_tiling": 123,
+    "reasoning/r3_die_expected": 3,
+    "reasoning/r4_catalan": 9
+  },
+  "journals_reverified": 135,
+  "matrix_cells": 2100,
+  "method_gates_replayed": 405,
+  "provider_requests_made_by_audit": 0,
+  "recoveries": 47,
+  "recovery_ci95": [
+    27.299817508686886,
+    43.17009807110461
+  ],
+  "replayed_grades": 2235,
+  "round_proofs": 10,
+  "scope": "Repeated fixed tasks, not unseen-task generalization or a causal Aegis comparison.",
+  "tool_passes": 900,
+  "tool_runs": 900,
+  "valid": true,
+  "verified_at_utc": "2026-10-17T11:50:03.616853+00:00"
+}

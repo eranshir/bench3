@@ -1,0 +1,12 @@
+{
+  "completedCells": 140,
+  "completedRounds": 10,
+  "completed_at_utc": "2026-10-17T13:37:51.251296+00:00",
+  "currentRound": 10,
+  "infrastructureErrors": 0,
+  "message": "All ten repetitions are complete. Every round passed the coverage and replay checks.",
+  "pid": 97920,
+  "started_at_utc": "2026-10-17T13:19:26.594452+00:00",
+  "state": "complete",
+  "updated_at_utc": "2026-10-17T13:37:51.251306+00:00"
+}

@@ -1,4 +1,4 @@
-catalog_as_of: '2026-10-16'
+catalog_as_of: '2026-10-17'
 
 sources:
   openai_models: https://developers.openai.com/api/docs/models
@@ -105,6 +105,25 @@ routes:
     credit_fee_percent: 5.5
     prices: {input: 0.15, cached_input: 0.003, output: 0.60}
     agent_estimate_prices: {input: 0.0357, cached_input: 0.000714, output: 0.1428}
+
+  ds41-1017-openrouter:
+    enabled: true
+    catalog_verified_on: '2026-10-17'
+    model_family: deepseek-v4.1-flash-1017
+    display: DeepSeek V4.1 Flash 1017 — OpenRouter
+    vendor: DeepSeek
+    route: OpenRouter
+    provider: openrouter
+    api_shape: openai-chat
+    endpoint: https://openrouter.ai/api/v1/chat/completions
+    credential: OPENROUTER_API_KEY
+    model: deepseek/deepseek-v4.1-flash-1017
+    effort_style: openrouter-reasoning
+    billing: token
+    input_includes_cached: true
+    credit_fee_percent: 5.5
+    prices: {input: 0.15, cached_input: 0.003, output: 0.60}
+    note: Pinned October 17 snapshot. Default provider routing; use returned provider charges.
 
   dspro-openrouter:
     enabled: true

@@ -122,7 +122,19 @@ def project(payload: dict) -> dict:
         return payload
     manifest = json.loads((root / "manifest.json").read_text())
     status = json.loads((root / "status.json").read_text())
-    base, retries = read_records(root)
+    current_base, current_retries = read_records(root)
+    base, retries = list(current_base), list(current_retries)
+    extension = manifest.get("extension")
+    baseline = None
+    if extension:
+        baseline_root = Path(extension["baseline_root"])
+        baseline_base, baseline_retries = read_records(baseline_root)
+        base = baseline_base + base
+        retries = baseline_retries + retries
+        baseline_status = json.loads((baseline_root / "status.json").read_text())
+        baseline = {"root": str(baseline_root), "baseRuns": len(baseline_base),
+                    "retries": len(baseline_retries), "completedRounds": baseline_status["completedRounds"],
+                    "completed_at_utc": baseline_status["completed_at_utc"], "state": baseline_status["state"]}
     grouped = defaultdict(list)
     for row in base:
         grouped[(row["task"], row["route_id"], row["effort"])].append(row)
@@ -159,12 +171,15 @@ def project(payload: dict) -> dict:
     pending = sum(not r["grade"]["passed"] and row_key(r) not in retry_map for r in base)
     campaign = {
         **status, "root": str(root), "plannedBase": manifest["planned_base"],
-        "repetitions": manifest["repetitions"], "baseRuns": len(base),
-        "basePasses": sum(bool(r["grade"]["passed"]) for r in base),
-        "retries": len(retries), "recoveries": sum(bool(r["grade"]["passed"]) for r in retries),
-        "pendingRetries": pending,
-        "cashCost": sum(float(r["costs"]["cash_cost_usd"]) for r in base+retries),
-        "allocatedCost": sum(float(r["costs"].get("capacity_allocated_cost_usd") or 0) for r in base+retries),
+        "repetitions": manifest["repetitions"], "baseRuns": len(current_base),
+        "basePasses": sum(bool(r["grade"]["passed"]) for r in current_base),
+        "retries": len(current_retries), "recoveries": sum(bool(r["grade"]["passed"]) for r in current_retries),
+        "pendingRetries": sum(not r["grade"]["passed"] and row_key(r) not in {row_key(t) for t in current_retries} for r in current_base),
+        "cashCost": sum(float(r["costs"]["cash_cost_usd"]) for r in current_base+current_retries),
+        "allocatedCost": sum(float(r["costs"].get("capacity_allocated_cost_usd") or 0) for r in current_base+current_retries),
+        "comparisonBaseRuns": len(base), "comparisonPlannedBase": manifest["planned_base"] + (baseline["baseRuns"] if baseline else 0),
+        "routeCount": len(payload["routes"]), "taskCount": len(manifest["tasks"]),
+        "extension": extension, "baseline": baseline,
         "configs": configs,
         "statistics": "95% Wilson pass intervals; 1,000-draw percentile bootstrap for task cost. Pilot excluded. Repeated fixed tasks do not establish general model quality.",
     }
