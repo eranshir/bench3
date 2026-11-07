@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse a DSH headless session (session.jsonl.zstd) into usage + trajectory.
+"""Parse a DSH headless session (session.jsonl.zstd, or session.v4.jsonl.zstd from DSH 0.2) into usage + trajectory.
 
 Usage accounting: every assistant/message event carries per-call usage
 {inputTokens, outputTokens, cacheReadTokens, reasoningTokens?}. Sum across
@@ -64,12 +64,16 @@ def parse_session(path: Path) -> dict:
     return {"usage": usage, "events": events, "title": title, "started": started, "ended": ended}
 
 
+# DSH 0.2 names the file session.v4.jsonl.zstd; the events keep the same shape.
+SESSION_GLOB = "*/session*.jsonl.zstd"
+
+
 def newest_session(workspace_key: str, dsh_home: Path) -> Path | None:
     """Newest session.jsonl.zstd under dsh_home/sessions/<workspace_key>."""
     base = dsh_home / "sessions" / workspace_key
     if not base.exists():
         return None
-    files = sorted(base.glob("*/session.jsonl.zstd"), key=lambda p: p.stat().st_mtime)
+    files = sorted(base.glob(SESSION_GLOB), key=lambda p: p.stat().st_mtime)
     return files[-1] if files else None
 
 
@@ -86,7 +90,7 @@ def wait_session(workkey: str, dsh_home: Path, since_epoch: float, timeout: floa
     while time.time() < deadline:
         files = []
         if base.exists():
-            files = [p for p in base.glob("*/session.jsonl.zstd") if p.stat().st_mtime >= since_epoch]
+            files = [p for p in base.glob(SESSION_GLOB) if p.stat().st_mtime >= since_epoch]
         if files:
             return max(files, key=lambda p: p.stat().st_mtime)
         time.sleep(interval)

@@ -8,3 +8,6 @@ auth.json
 agentic.log
 _about.js
 expansion.log
+
+# Rebuilt from pinned upstream sources by economics/import_tasks.py; not vendored.
+tasks/imported/
