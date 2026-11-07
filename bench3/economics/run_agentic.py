@@ -29,6 +29,7 @@ from lib.session import decompress, parse_session, wait_session  # noqa: E402
 DSH_TEMPLATE_HOME = BENCH / ".dsh-home"
 ISOLATED_DSH_HOME = Path(tempfile.gettempdir()) / "bench3-economics-dsh-home"
 AEGIS_PAYLOAD_PATH = ECON / "aegis_method_payload.md"
+SETTINGS_TEMPLATE = ECON / "dsh_settings.template.yaml"
 
 
 def load_aegis_payload() -> tuple[str, str]:
@@ -76,18 +77,19 @@ def make_sandbox_profile(root: Path, work: Path) -> Path:
 
 def isolated_dsh_home(
     provider: str, model: str, effort: str, aegis_payload: str | None = None,
-) -> Path:
-    home = ISOLATED_DSH_HOME
-    home.mkdir(exist_ok=True)
+) -> tuple[Path, bool]:
+    """Return (home, needs_prime). Every run gets a fresh home: DSH 0.2 applies imported settings for one
+    boot after the import and a reused home fell back to its default route, so each home is primed once."""
+    tag = "%s-%s-%s-%s" % (provider, model, effort, "aegis" if aegis_payload else "base")
+    ISOLATED_DSH_HOME.mkdir(parents=True, exist_ok=True)
+    home = Path(tempfile.mkdtemp(prefix=re.sub(r"[^A-Za-z0-9._-]", "_", tag) + "-", dir=ISOLATED_DSH_HOME))
     if not (home / "profiles").exists():
         shutil.copytree(
             DSH_TEMPLATE_HOME / "profiles", home / "profiles",
             ignore=shutil.ignore_patterns("node_modules"),
         )
-    sessions = home / "sessions"
-    if sessions.exists():
-        shutil.rmtree(sessions)
-    with (DSH_TEMPLATE_HOME / "settings.yaml").open() as handle:
+    # DSH 0.2 imports settings.yaml into its store and renames it, so the template lives in the repo.
+    with SETTINGS_TEMPLATE.open() as handle:
         settings = yaml.safe_load(handle) or {}
     if provider == "openai":
         providers = settings.setdefault("llm-pi-ai", {}).setdefault("providers", {})
@@ -109,15 +111,23 @@ def isolated_dsh_home(
         "model": model,
         "reasoningEffort": effort,
     }
-    with (home / "settings.yaml").open("w") as handle:
-        yaml.safe_dump(settings, handle, sort_keys=False)
+    # DSH 0.2 imports settings.yaml into storages/ during a run and applies it from the next boot on,
+    # so a changed home is primed once with a trivial task before it is measured.
+    text = yaml.safe_dump(settings, sort_keys=False)
+    applied = home / "settings.applied.yaml"
+    needs_prime = not applied.exists() or applied.read_text() != text
+    if needs_prime:
+        if (home / "storages").exists():
+            shutil.rmtree(home / "storages")
+        (home / "settings.yaml").write_text(text)
+        applied.write_text(text)
     persona = "You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}."
     if aegis_payload:
         persona += "\n\n" + aegis_payload
     patch = [{"id": "system-prompt", "config": {"persona": persona}}]
     patch_path = home / "profiles" / "headless" / "cordis.patch.yml"
     patch_path.write_text(yaml.safe_dump(patch, sort_keys=False))
-    return home
+    return home, needs_prime
 
 
 def forbidden_repo_access(session_path: Path) -> list[str]:
@@ -135,6 +145,21 @@ def forbidden_repo_access(session_path: Path) -> list[str]:
         if source_root in data:
             found.append(data[:1000])
     return found
+
+
+def credential_exposure(paths: list[Path], creds: dict[str, str]) -> list[str]:
+    """Names of files under paths that contain any stored credential value. Values are never returned."""
+    secrets = [v.encode() for v in creds.values() if len(v) >= 12]
+    hits = []
+    for root in paths:
+        files = [root] if root.is_file() else [p for p in root.rglob("*") if p.is_file()]
+        for path in files:
+            data = path.read_bytes()
+            if path.suffix == ".zstd":
+                data = decompress(path).encode()
+            if any(s in data for s in secrets):
+                hits.append(path.name)
+    return hits
 
 
 def response_ids(session_path: Path) -> list[str]:
@@ -231,11 +256,20 @@ def run_one(
     aegis_payload_sha256 = None
     if aegis_injected:
         aegis_payload, aegis_payload_sha256 = load_aegis_payload()
-    dsh_home = isolated_dsh_home(route["provider"], model, effort, aegis_payload)
+    dsh_home, needs_prime = isolated_dsh_home(route["provider"], model, effort, aegis_payload)
     creds = load_credentials()
-    env = dict(os.environ)
-    env.update(creds)
+    # The agent's shell inherits this environment, so it gets only the key its own route needs.
+    env = {k: v for k, v in os.environ.items() if k not in creds}
+    env[route["credential"]] = creds.get(route["credential"], "")
+    if route["provider"] != "deepseek-official":
+        # DSH 0.2 boots its native DeepSeek adapter even when the route is elsewhere and refuses an empty key.
+        env.setdefault("DEEPSEEK_API_KEY", "unused-by-this-route")
     env["DSH_HOME"] = str(dsh_home)
+    if needs_prime:
+        prime = temp_root / "prime"
+        prime.mkdir()
+        subprocess.run(["dsh", "--profile", "headless", "Reply with exactly: OK"],
+                       cwd=prime, env=env, capture_output=True, text=True, timeout=300)
     log_path = ECON / "agentic_runs" / (stem + ".log")
     log_path.parent.mkdir(parents=True, exist_ok=True)
     timed_out = False
@@ -260,7 +294,16 @@ def run_one(
     if not session_path:
         raise RuntimeError("no DSH session after agent run")
     leak_evidence = forbidden_repo_access(session_path)
+    secret_hits = credential_exposure([session_path, log_path, work], creds)
+    if secret_hits:
+        # Nothing that holds a key is kept; the run counts as invalid.
+        log_path.write_text("redacted: a stored credential value appeared in this run's output\n")
+        leak_evidence = leak_evidence + ["credential value in " + hit for hit in secret_hits]
     parsed = parse_session(session_path)
+    served = sorted({(e["provider"], e["model"]) for e in parsed["events"] if e["type"] == "assistant"})
+    if served != [(route["provider"], model)]:
+        # A stale DSH store can keep an earlier route's model; such a run measures the wrong route.
+        leak_evidence = leak_evidence + ["served by %s, not %s/%s" % (served, route["provider"], model)]
     raw_usage = parsed["usage"]
     usage = {
         "input_tokens": raw_usage["input"] + raw_usage["cached"],
@@ -290,14 +333,18 @@ def run_one(
             cost_source = "catalog-estimate"
     costs = calculate_cost(config, cost_route, usage, started, provider_cost=provider_cost)
     artifact_path = ECON / "agentic_artifacts" / (stem + "_" + str(int(started.timestamp())))
-    shutil.copytree(work, artifact_path)
     result_grade = grade(task_dir, work)
+    if not secret_hits:
+        shutil.copytree(work, artifact_path)
     if leak_evidence:
         result_grade["passed"] = False
-        result_grade["invalid_reason"] = "agent accessed benchmark source outside isolated work root"
+        result_grade["invalid_reason"] = "; ".join(leak_evidence) if not secret_hits else "credential value in run output"
     saved_session = ECON / "agentic_sessions" / stem / "session.jsonl.zstd"
-    saved_session.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(session_path, saved_session)
+    if secret_hits:
+        session_path.unlink()
+    else:
+        saved_session.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(session_path, saved_session)
     record = {
         "schema_version": "bench3.economics.agentic.v1",
         "catalog_as_of": config["catalog_as_of"],

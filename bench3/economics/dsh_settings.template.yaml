@@ -1,0 +1,25 @@
+# Secret-free DSH provider template read by run_agentic.py; keys are references only (apiKeyEnv).
+# Routes not listed here (openai) are added by the runner.
+agent-default-model:
+  provider: lunaroute
+  model: glm-5.3-flash
+  reasoningEffort: high
+llm-pi-ai:
+  providers:
+    lunaroute:
+      apiKeyEnv: LUNAROUTE_API_KEY
+      displayName: LunaRoute
+      api: openai-completions
+      baseURL: https://gw.lunaroute.com/v1
+      models:
+        - {id: glm-5.3-flash, reasoningEfforts: {low: low, medium: medium, high: high, max: max}}
+        - {id: glm-5.3, reasoningEfforts: {low: low, medium: medium, high: high, max: max}}
+        - {id: deepseek-4.1-flash, reasoningEfforts: {low: low, medium: medium, high: high, max: max}}
+    openrouter:
+      apiKeyEnv: OPENROUTER_API_KEY
+      displayName: OpenRouter
+      api: openai-completions
+      baseURL: https://openrouter.ai/api/v1
+      models:
+        - {id: anthropic/claude-opus-5.5, reasoningEfforts: {low: low, medium: medium, high: high}}
+        - {id: anthropic/claude-sonnet-5.5, reasoningEfforts: {low: low, medium: medium, high: high}}

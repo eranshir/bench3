@@ -1,0 +1,652 @@
+{
+ "imported/code-contests/code_contests-0025": {
+  "difficulty_label": "<1200",
+  "imported_at": "2026-11-07T07:22:27.871241+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 1100,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-0025",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/code-contests/code_contests-0127": {
+  "difficulty_label": "<1200",
+  "imported_at": "2026-11-07T07:22:25.787081+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 800,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-0127",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/code-contests/code_contests-0140": {
+  "difficulty_label": "1200-1799",
+  "imported_at": "2026-11-07T07:22:20.881453+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 1400,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-0140",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/code-contests/code_contests-0464": {
+  "difficulty_label": "1200-1799",
+  "imported_at": "2026-11-07T07:22:23.675675+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 1500,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-0464",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/code-contests/code_contests-0882": {
+  "difficulty_label": ">=1800",
+  "imported_at": "2026-11-07T07:22:25.066579+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 1800,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-0882",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/code-contests/code_contests-10151": {
+  "difficulty_label": ">=1800",
+  "imported_at": "2026-11-07T07:22:21.934285+00:00",
+  "licence": "apache-2.0 (dataset card)",
+  "note": "upstream test files carry the Terminal-Bench canary; keep scores out of training data",
+  "rating": 2300,
+  "source": "harborframework/harbor-datasets",
+  "upstream_id": "code-contests/code_contests-10151",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": null
+  }
+ },
+ "imported/iac-eval/row-097": {
+  "difficulty_label": "3-4 (level 4)",
+  "imported_at": "2026-11-07T08:07:35.595924+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_eks_cluster, aws_eks_identity_provider_config, aws_iam_role, aws_subnet, aws_subnet, aws_vpc",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-97",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/iac-eval/row-142": {
+  "difficulty_label": "1-2 (level 2)",
+  "imported_at": "2026-11-07T08:07:35.593790+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_redshift_cluster, aws_redshift_snapshot_schedule, aws_redshift_snapshot_schedule_association",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-142",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/iac-eval/row-188": {
+  "difficulty_label": "3-4 (level 4)",
+  "imported_at": "2026-11-07T08:07:35.597519+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_instance, aws_instance, aws_subnet, aws_subnet, aws_vpc, aws_ami",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-188",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": false,
+   "passes_on_reference": false,
+   "reference_log": "s_ami\" \"latest_amazon_linux_2\":\n  19: data \"aws_ami\" \"latest_amazon_linux_2\" {\n\n\nError: fetching Availability Zones: operation error EC2: DescribeAvailabilityZones, https response error StatusCode: 401, RequestID: 58606ff7-240c-47a7-87f0-910ad9662468, api error AuthFailure: AWS was not able to validate the provided access credentials\n\n  with data.aws_availability_zones.azs,\n  on main.tf line 39, in data \"aws_availability_zones\" \"azs\":\n  39: data \"aws_availability_zones\" \"azs\" {\n\n\n\n----------------------------------------------------------------------\nRan 1 test in 12.203s\n\nFAILED (failures=1)\n"
+  }
+ },
+ "imported/iac-eval/row-292": {
+  "difficulty_label": "1-2 (level 2)",
+  "imported_at": "2026-11-07T08:07:35.590822+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_s3_bucket, aws_s3_bucket, aws_s3_bucket_logging",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-292",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/iac-eval/row-306": {
+  "difficulty_label": "5-6 (level 5)",
+  "imported_at": "2026-11-07T08:07:35.600743+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_backup_plan, aws_backup_selection, aws_backup_vault, aws_iam_role, aws_iam_role_policy_attachment, aws_instance, aws_iam_policy_document",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-306",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": false,
+   "passes_on_reference": false,
+   "reference_log": "aws:policy/service-role/AWSBackupServiceRolePolicyForBackup\"\n      + role       = \"backup\"\n    }\n\nPlan: 4 to add, 0 to change, 0 to destroy.\n\nError: reading EC2 AMIs: operation error EC2: DescribeImages, https response error StatusCode: 401, RequestID: 41252f99-740f-40fc-8521-22943639016a, api error AuthFailure: AWS was not able to validate the provided access credentials\n\n  with data.aws_ami.amzn2,\n  on main.tf line 19, in data \"aws_ami\" \"amzn2\":\n  19: data \"aws_ami\" \"amzn2\" {\n\n\n\n----------------------------------------------------------------------\nRan 1 test in 13.095s\n\nFAILED (failures=1)\n"
+  }
+ },
+ "imported/iac-eval/row-405": {
+  "difficulty_label": "5-6 (level 5)",
+  "imported_at": "2026-11-07T08:07:35.599114+00:00",
+  "licence": "MIT (repository)",
+  "resources": "aws_instance, aws_lb, aws_lb_listener, aws_lb_target_group, aws_lb_target_group_attachment, aws_subnet, aws_subnet, aws_vpc",
+  "role": "coder-iac",
+  "source": "autoiac-project/iac-eval",
+  "upstream_id": "row-405",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": false,
+   "passes_on_reference": false,
+   "reference_log": "vpc...\n- vpc in .terraform/modules/vpc\nInitializing provider plugins...\n- Finding hashicorp/aws versions matching \"~> 5.75, >= 6.28.0\"...\n\nError: Failed to query available provider packages\n\nCould not retrieve the list of available versions for provider hashicorp/aws:\nno available releases match the given constraints ~> 5.75, >= 6.28.0\n\nTo see which modules are currently depending on hashicorp/aws and what\nversions are specified, run the following command:\n    terraform providers\n\n\n----------------------------------------------------------------------\nRan 1 test in 3.553s\n\nFAILED (failures=1)\n"
+  }
+ },
+ "imported/polyglot/cpp-perfect-numbers": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:22:08.153415+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "cpp/perfect-numbers",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/polyglot/go-alphametics": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:21:44.924482+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "go/alphametics",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/polyglot/python-dot-dsl": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:21:34.765571+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "python/dot-dsl",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/polyglot/python-forth": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:21:34.764312+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "python/forth",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/polyglot/rust-dot-dsl": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:21:48.133075+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "rust/dot-dsl",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/polyglot/rust-ocr-numbers": {
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T07:21:48.131621+00:00",
+  "licence": "no licence file in the repository; exercises originate from Exercism tracks",
+  "source": "Aider-AI/polyglot-benchmark",
+  "source_commit": "7e0611e77b54e2dea774cdc0aa00cf9f7ed6144f",
+  "upstream_id": "rust/ocr-numbers",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/linux-b2f37aead1": {
+  "cve": "CVE-2022-1195",
+  "cwe": "CWE-416",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.162845+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "linux",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "b2f37aead1b82a770c48b5d583f35ec22aabb61e",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/oniguruma-4d461376bd": {
+  "cve": "CVE-2019-19246",
+  "cwe": "CWE-125",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.161442+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "oniguruma",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "4d461376bd85e7994835677b2ff453a43c49cd28",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/openssl-939b496027": {
+  "cve": "CVE-2015-1791",
+  "cwe": "CWE-362",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.165498+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "openssl",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "939b4960276b040fc0ed52232238fcc9e2e9ec21",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/rpm-bd36c5dc9f": {
+  "cve": "CVE-2021-3521",
+  "cwe": "CWE-284",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.160004+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "rpm",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "bd36c5dc9fb6d90c46fbfed8c2d67516fc571ec8",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/tensorflow-2b7100d6cd": {
+  "cve": "CVE-2022-21740",
+  "cwe": "CWE-787",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.149943+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "tensorflow",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "2b7100d6cdff36aa21010a82269bc05a6d1cc74a",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/primevul/vim-6669de1b23": {
+  "cve": "CVE-2022-2923",
+  "cwe": "CWE-787",
+  "difficulty_label": null,
+  "imported_at": "2026-11-07T08:06:18.164183+00:00",
+  "licence": "MIT (dataset card)",
+  "project": "vim",
+  "role": "deep-reviewer",
+  "source": "colin/PrimeVul (paired, test)",
+  "upstream_id": "6669de1b235843968e88844ca6d3c8dec4b01a9e",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/pytest-dev__pytest-7205": {
+  "base_commit": "5e7f1ab4bf58e473e5d7f878eb2b499d7deabd29",
+  "difficulty_label": "<15 min fix",
+  "imported_at": "2026-11-07T08:01:25.951493+00:00",
+  "licence": "task text and patches from pytest-dev/pytest under that project's licence",
+  "repo": "pytest-dev/pytest",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "pytest-dev__pytest-7205",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/sympy__sympy-13551": {
+  "base_commit": "9476425b9e34363c2d9ac38e9f04aa75ae54a775",
+  "difficulty_label": "15 min - 1 hour",
+  "imported_at": "2026-11-07T08:01:25.453132+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "repo": "sympy/sympy",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-13551",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/sympy__sympy-15976": {
+  "base_commit": "701441853569d370506514083b995d11f9a130bd",
+  "difficulty_label": "15 min - 1 hour",
+  "imported_at": "2026-11-07T08:01:25.714659+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "repo": "sympy/sympy",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-15976",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/sympy__sympy-17630": {
+  "base_commit": "58e78209c8577b9890e957b624466e5beed7eb08",
+  "difficulty_label": "1-4 hours",
+  "imported_at": "2026-11-07T08:01:42.759547+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "repo": "sympy/sympy",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-17630",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/sympy__sympy-19637": {
+  "base_commit": "63f8f465d48559fecb4e4bf3c48b75bf15a3e0ef",
+  "difficulty_label": "<15 min fix",
+  "imported_at": "2026-11-07T08:01:42.523215+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "repo": "sympy/sympy",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-19637",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-locate/sympy__sympy-24661": {
+  "base_commit": "a36caf5c74fe654cedc488e8a8a05fad388f8406",
+  "difficulty_label": "15 min - 1 hour",
+  "imported_at": "2026-11-07T08:01:42.266816+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "repo": "sympy/sympy",
+  "role": "explorer",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-24661",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/pytest-dev__pytest-5787--reject": {
+  "candidate_from": "20260217_mini-v2.0.0_glm-5-high",
+  "difficulty_label": "1-4 hours",
+  "harness_resolved": false,
+  "imported_at": "2026-11-07T08:02:31.410618+00:00",
+  "licence": "task text from pytest-dev/pytest; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "pytest-dev/pytest",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "pytest-dev__pytest-5787",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/sphinx-doc__sphinx-8269--accept": {
+  "candidate_from": "20260217_mini-v2.0.0_kimi-k2-5-high",
+  "difficulty_label": "<15 min fix",
+  "harness_resolved": true,
+  "imported_at": "2026-11-07T08:01:50.133128+00:00",
+  "licence": "task text from sphinx-doc/sphinx; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "sphinx-doc/sphinx",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sphinx-doc__sphinx-8269",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/sphinx-doc__sphinx-8621--accept": {
+  "candidate_from": "20260217_mini-v2.0.0_glm-5-high",
+  "difficulty_label": "<15 min fix",
+  "harness_resolved": true,
+  "imported_at": "2026-11-07T08:02:32.337383+00:00",
+  "licence": "task text from sphinx-doc/sphinx; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "sphinx-doc/sphinx",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sphinx-doc__sphinx-8621",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/sympy__sympy-12096--reject": {
+  "candidate_from": "20260217_mini-v2.0.0_gpt-5-2-high",
+  "difficulty_label": "<15 min fix",
+  "harness_resolved": false,
+  "imported_at": "2026-11-07T08:01:49.543852+00:00",
+  "licence": "task text from sympy/sympy; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "sympy/sympy",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-12096",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/sympy__sympy-13878--reject": {
+  "candidate_from": "20260217_mini-v2.0.0_gpt-5-2-high",
+  "difficulty_label": ">4 hours",
+  "harness_resolved": false,
+  "imported_at": "2026-11-07T08:02:32.976735+00:00",
+  "licence": "task text from sympy/sympy; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "sympy/sympy",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-13878",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-review/sympy__sympy-18211--accept": {
+  "candidate_from": "20260217_mini-v2.0.0_kimi-k2-5-high",
+  "difficulty_label": "15 min - 1 hour",
+  "harness_resolved": true,
+  "imported_at": "2026-11-07T08:01:48.841128+00:00",
+  "licence": "task text from sympy/sympy; candidate patch from the public SWE-bench submissions bucket",
+  "repo": "sympy/sympy",
+  "role": "reviewer",
+  "source": "SWE-bench/experiments + princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-18211",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  }
+ },
+ "imported/swe-verified/sympy__sympy-12096": {
+  "base_commit": "d7c3045115693e887bcd03599b7ca4650ac5f2cb",
+  "difficulty_label": "<15 min fix",
+  "fail_to_pass": [
+   "test_issue_12092"
+  ],
+  "imported_at": "2026-11-07T07:24:06.955567+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-12096",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  },
+  "version": "1.0"
+ },
+ "imported/swe-verified/sympy__sympy-13852": {
+  "base_commit": "c935e1d106743efd5bf0705fbeedbd18fadff4dc",
+  "difficulty_label": "1-4 hours",
+  "fail_to_pass": [
+   "test_polylog_values"
+  ],
+  "imported_at": "2026-11-07T07:28:01.002126+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-13852",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  },
+  "version": "1.1"
+ },
+ "imported/swe-verified/sympy__sympy-16597": {
+  "base_commit": "6fd65310fa3167b9626c38a5487e171ca407d988",
+  "difficulty_label": "1-4 hours",
+  "fail_to_pass": [
+   "test_infinity",
+   "test_neg_infinity",
+   "test_other_symbol"
+  ],
+  "imported_at": "2026-11-07T07:28:11.603510+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-16597",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": false,
+   "passes_on_reference": false,
+   "reference_log": "=================================================================\nFAIL: test_hidden (_hidden_test.HiddenTest.test_hidden)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/tmp/bench3-validate-e889ve3i/work/_hidden_test.py\", line 64, in test_hidden\n    self.assertTrue(ok, detail)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^\nAssertionError: False is not true : not passing: test_infinity, test_neg_infinity, test_other_symbol\n\n----------------------------------------------------------------------\nRan 1 test in 1.109s\n\nFAILED (failures=1)\n"
+  },
+  "version": "1.5"
+ },
+ "imported/swe-verified/sympy__sympy-17655": {
+  "base_commit": "f5e965947af2410ded92cfad987aaf45262ea434",
+  "difficulty_label": "<15 min fix",
+  "fail_to_pass": [
+   "test_point",
+   "test_point3D"
+  ],
+  "imported_at": "2026-11-07T07:23:53.537725+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-17655",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": false,
+   "passes_on_reference": false,
+   "reference_log": "est_hidden) ... FAIL\n\n======================================================================\nFAIL: test_hidden (_hidden_test.HiddenTest.test_hidden)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/tmp/bench3-validate-21snl3v5/work/_hidden_test.py\", line 64, in test_hidden\n    self.assertTrue(ok, detail)\n    ~~~~~~~~~~~~~~~^^^^^^^^^^^^\nAssertionError: False is not true : not passing: test_point, test_point3D\n\n----------------------------------------------------------------------\nRan 1 test in 0.903s\n\nFAILED (failures=1)\n"
+  },
+  "version": "1.5"
+ },
+ "imported/swe-verified/sympy__sympy-21596": {
+  "base_commit": "110997fe18b9f7d5ba7d22f624d156a29bf40759",
+  "difficulty_label": "15 min - 1 hour",
+  "fail_to_pass": [
+   "test_imageset_intersect_real"
+  ],
+  "imported_at": "2026-11-07T07:25:46.517873+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-21596",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  },
+  "version": "1.9"
+ },
+ "imported/swe-verified/sympy__sympy-22914": {
+  "base_commit": "c4e836cdf73fc6aa7bab6a86719a0f08861ffb1d",
+  "difficulty_label": "15 min - 1 hour",
+  "fail_to_pass": [
+   "test_PythonCodePrinter"
+  ],
+  "imported_at": "2026-11-07T07:25:21.295671+00:00",
+  "licence": "task text and patches from sympy/sympy under that project's licence",
+  "reference_patch": true,
+  "repo": "sympy/sympy",
+  "source": "princeton-nlp/SWE-bench_Verified",
+  "upstream_id": "sympy__sympy-22914",
+  "validation": {
+   "fails_on_fixture": true,
+   "kept": true,
+   "passes_on_reference": true
+  },
+  "version": "1.10"
+ }
+}
