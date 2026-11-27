@@ -1,0 +1,2 @@
+Let N=1000000000000123. How many partitions of N use only parts from {2,3,5,7,11}? Each allowed part may occur any nonnegative number of times, and order is irrelevant. Return the number modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

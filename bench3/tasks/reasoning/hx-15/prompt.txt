@@ -1,0 +1,2 @@
+How many ordered 18-tuples (x_1,...,x_18) of integers satisfy 0<=x_i<=7 and x_1+...+x_18=63? Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

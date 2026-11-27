@@ -1,0 +1,2 @@
+Tile a 2 by 24 rectangle using dominoes (two edge-adjacent cells) and L trominoes (a 2 by 2 square with one corner removed). Every orientation is allowed. Cover every cell exactly once; board positions distinguish tilings. How many tilings are there?
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

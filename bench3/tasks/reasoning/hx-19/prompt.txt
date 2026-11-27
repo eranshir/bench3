@@ -1,0 +1,2 @@
+Find the coefficient of x^173 in the formal power series 1/((1-x)^5 (1-x^2)^7 (1-x^5)^3). Return that coefficient modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

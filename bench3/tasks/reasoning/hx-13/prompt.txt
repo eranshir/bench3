@@ -1,0 +1,2 @@
+An integer-height walk starts at 0, takes exactly 1000000000007 steps, and ends at 0. Each step changes height by -2, -1, 1, or 2. All heights, including endpoints, lie in {0,1,...,6}. Count the walks modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

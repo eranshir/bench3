@@ -1,0 +1,17 @@
+Harder held-out slice freeze — NEXEVAL-D-2522, 2026-11-27
+
+30 singleshot reasoning tasks, hx-01..hx-30, authored blind by a fresh Codex
+worker in /tmp/author-harder. The worker saw only SPEC.md (task shape, families,
+calibration and the no-benchmark-copy rule): no classifier policy, no model
+results, no bench3 tasks, no evaluation. The slice was frozen before any model
+run.
+
+Validation: all 30 checkers return passed true for the reference answer and
+passed false for a wrong integer (60/60, 0 failures) in VALIDATION.md.
+
+Contents: prompt.txt, check.py, reference.txt, max_tokens.txt, mode.txt,
+meta.json per task.
+
+sha256 of `tar --sort=name --mtime='UTC 2026-11-27' --owner=0 --group=0 --numeric-owner -cf - hx-*`:
+
+a4f2ad9134aa47a4df4259d0e7d2bfc42499d40c78693b5c4806f33037f9680b

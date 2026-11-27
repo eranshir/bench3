@@ -1,0 +1,2 @@
+Seventeen distinct tokens are assigned to six labelled boxes. Each box must receive at least one token. How many assignments are possible? Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

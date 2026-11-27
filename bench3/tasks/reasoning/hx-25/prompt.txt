@@ -1,0 +1,2 @@
+A walk has integer heights h_0,...,h_N with N=1000000000000011 and h_0=h_N=0. Every height lies in {0,...,8}. A step may change height by +1 or -1; it may also leave it unchanged if that height is even. Additionally h_t must not equal 4 whenever t is a positive multiple of 3. Count these walks modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

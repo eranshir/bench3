@@ -1,0 +1,2 @@
+Let N=1000000000007. Tile a 3 by N rectangle using dominoes and L trominoes. A domino is two edge-adjacent cells; an L tromino is a 2 by 2 square with one corner removed. Allow all orientations and cover every cell exactly once. Count the tilings modulo 1000000007; positions distinguish tilings.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

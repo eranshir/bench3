@@ -1,0 +1,2 @@
+A walk has integer heights h_0,...,h_44, with h_0=0, h_44=2, and h_(t+1)-h_t in {-1,1}. Every height lies between 0 and 7 inclusive. How many walks satisfy these conditions? Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

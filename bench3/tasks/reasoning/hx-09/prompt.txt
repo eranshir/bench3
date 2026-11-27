@@ -1,0 +1,2 @@
+How many partitions of 48 into distinct odd positive parts are there? Order of parts does not matter, and each odd integer may occur at most once.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

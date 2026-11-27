@@ -1,0 +1,2 @@
+Let N=1000000000039. How many domino tilings of a 4 by N rectangle are there, modulo 1000000007? A domino covers two edge-adjacent cells, may be rotated, and every cell must be covered exactly once. Board positions distinguish tilings.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

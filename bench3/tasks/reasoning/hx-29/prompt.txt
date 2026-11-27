@@ -1,0 +1,2 @@
+Let N=1000000000039. A graph has vertices (r,c), 0<=r<4, 0<=c<N. Edges join (r,c) to (r,(c+1) mod N), and (r,c) to (r+1,c) when r<3. Count proper vertex colourings with three labelled colours modulo 1000000007. Vertex positions are labelled; rotations are not identified.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

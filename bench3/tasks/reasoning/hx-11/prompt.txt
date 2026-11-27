@@ -1,0 +1,2 @@
+Take a 4-row, 10-column rectangle, with rows numbered 1 to 4 and columns 1 to 10. Remove cells (2,3), (3,3), (2,8), and (3,8), where a pair means (row,column). How many domino tilings of the remaining cells exist? Dominoes may be horizontal or vertical; each remaining cell is covered exactly once.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:
