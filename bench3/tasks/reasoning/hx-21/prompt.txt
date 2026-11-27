@@ -1,0 +1,2 @@
+A graph has 38 vertices: a hub h and rim vertices v_0,...,v_36. Its edges are h--v_i and v_i--v_((i+1) mod 37), for every i from 0 to 36, with no other edges. How many spanning trees does it have? Trees are distinguished by their edge sets.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

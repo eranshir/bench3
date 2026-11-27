@@ -1,0 +1,2 @@
+A path from (0,0) to (23,19) takes steps (1,0) or (0,1). It must avoid the vertices (5,4), (11,9), and (17,14). How many such paths are there?
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

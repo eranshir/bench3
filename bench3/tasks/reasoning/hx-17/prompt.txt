@@ -1,0 +1,2 @@
+Count words of length 1000000000033 over the symbols {0,1,2,3,4} with no two adjacent symbols equal and with the sum of all symbols divisible by 7. Leading zeroes are allowed. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

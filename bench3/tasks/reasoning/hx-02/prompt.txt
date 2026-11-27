@@ -1,0 +1,2 @@
+How many tilings of a 3 by 18 rectangle use only 1 by 2 dominoes, which may be rotated? Cover every cell exactly once. Reflections and rotations of the whole board are not identified.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

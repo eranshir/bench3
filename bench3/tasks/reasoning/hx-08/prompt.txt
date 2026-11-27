@@ -1,0 +1,2 @@
+How many 9-element subsets of {1,2,...,36} have a sum divisible by 7? Subsets are unordered and elements cannot repeat.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

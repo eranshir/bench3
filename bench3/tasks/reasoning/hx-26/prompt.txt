@@ -1,0 +1,2 @@
+Thirty-two distinct tokens are assigned to ten labelled boxes. Every box must contain an odd number of tokens (thus none is empty). How many assignments are there? Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

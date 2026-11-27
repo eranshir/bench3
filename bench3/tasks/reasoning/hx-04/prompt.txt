@@ -1,0 +1,2 @@
+Count ordered sequences of entries from {1,3,4} whose sum is 61 and in which two entries equal to 4 are never consecutive. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

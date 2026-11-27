@@ -1,0 +1,2 @@
+A graph has vertices (r,c) with r in {0,1,2} and c in {0,...,16}. For every r,c add an undirected edge (r,c)--(r,(c+1) mod 17). Also add (0,c)--(1,c) and (1,c)--(2,c) for every c. These are all its edges. Count its spanning trees modulo 1000000007. Edge sets distinguish trees.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

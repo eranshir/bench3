@@ -1,0 +1,2 @@
+Count binary strings (b_0,...,b_62) with exactly 21 ones and with no cyclic run of three ones: for every i modulo 63, b_i,b_(i+1),b_(i+2) are not all 1. Positions are labelled, so rotations are counted separately. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

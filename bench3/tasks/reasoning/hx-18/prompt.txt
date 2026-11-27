@@ -1,0 +1,2 @@
+How many partitions of 140 into exactly 18 positive parts, each at most 17, are there? Order of parts does not matter and repetitions are allowed. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

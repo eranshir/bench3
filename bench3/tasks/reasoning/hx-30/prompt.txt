@@ -1,0 +1,2 @@
+Consider binary strings of length 84 with exactly 28 ones. No two ones may be adjacent, including positions 83 and 0. Two strings are equivalent exactly when one is a cyclic rotation of the other; reflections alone do not identify strings. How many equivalence classes are there?
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

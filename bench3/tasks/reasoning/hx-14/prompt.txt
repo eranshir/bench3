@@ -1,0 +1,2 @@
+Count paths from (0,0) to (70,64) with steps (1,0) or (0,1), such that every visited vertex satisfies y<=x and neither (22,18) nor (45,40) is visited. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

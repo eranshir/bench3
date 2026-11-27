@@ -1,0 +1,2 @@
+Let N=1000000000019. A graph has vertices (r,c) for 1<=r<=3 and 1<=c<=N. Two vertices are adjacent exactly when their coordinates differ by 1 in one coordinate and agree in the other. Count proper colourings with four labelled colours modulo 1000000007. There is no wraparound and graph symmetries are not identified.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

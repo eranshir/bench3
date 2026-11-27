@@ -1,0 +1,2 @@
+The graph C_31 has vertices 0,...,30 and edges joining i to i+1 modulo 31. With five labelled colours, how many proper vertex colourings does it have? Adjacent vertices must have different colours; do not identify colourings under graph symmetries.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

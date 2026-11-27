@@ -1,0 +1,2 @@
+How many tilings of a 2 by 37 rectangle use only 1 by 2 dominoes, which may be rotated? Cells are labelled by their positions; reflections count separately. Return the count modulo 1000003.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

@@ -1,0 +1,2 @@
+Count permutations of {1,...,28} that have no fixed points and exactly five cycles of length 2. All other cycles must have length at least 3. Return the count modulo 1000000007.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:

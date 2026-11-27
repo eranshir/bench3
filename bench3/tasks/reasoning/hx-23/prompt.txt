@@ -1,0 +1,2 @@
+Let N=1000000000000017. Count domino tilings of a 6 by N rectangle modulo 1000000009. Each domino covers two edge-adjacent cells and may be rotated. Cover every cell exactly once; do not identify tilings under board symmetries.
+Give the final answer as an exact integer on a line starting with FINAL ANSWER:
